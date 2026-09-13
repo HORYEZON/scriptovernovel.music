@@ -1,0 +1,737 @@
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* reCAPTCHA badge */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
+
+/* ---------------------------------------------------------------------------
+   No mobile tap flash. Android Chrome and older iOS Safari paint their own
+   translucent blue box over any tapped link/button for a beat, which shows
+   through every translucent glass pill on the site. Every control already
+   has its own hover/tap treatment, so the browser's is only ever noise.
+   Kept outside @layer so Tailwind's base reset can't reorder it. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Disable native image dragging site-wide (desktop). Applies to every <img>,
+   including those rendered by next/image, so gallery cards, thumbnails,
+   Curator's Picks, preview lightboxes, etc. can't be dragged out as a ghost
+   image on click-and-hold. The dragstart default is also cancelled in JS
+   (components/NoImageDrag.tsx) for browsers that ignore user-drag (Firefox)
+   and for images added to the DOM after load.
+   Kept outside @layer so it isn't reordered under Tailwind's base reset. */
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Drives the squid's colour + its glow (see squidCycle in tailwind.config.ts).
+   Registering it is what makes the cycle fade between colours instead of
+   snapping — an unregistered custom property is not interpolable, so keyframes
+   would jump at each stop. `inherits: true` lets one animation on the wrapper
+   tint both the icon and the halo behind it; the initial value is the static
+   colour anyone who isn't running the cycle falls back to. */
+@property --squid-glow {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #5bc8f5;
+}
+
+/* Cursor glow trail (components/public/CursorGlow.tsx). An 8s colour cycle
+   through the same brand palette as the Footer/Sidebar squid, but on its
+   own independent loop — not tied to squidCycle/squid-drift's 16s, so this
+   can run at its own speed without changing the wordmark's.
+   Plain CSS rather than a Tailwind config utility so a fresh keyframe/
+   animation key here is always picked up on save, no dev-server restart
+   needed. Colour + pulse are kept off the *positioned* wrapper on purpose —
+   that element's `transform` is driven every frame by JS (cursor tracking),
+   and a CSS animation on the same property would fight it and win, freezing
+   the glow in place. This class only ever goes on the inner, non-positioned
+   glow div. */
+.cursor-glow {
+  background-color: var(--squid-glow);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cursor-glow {
+    animation:
+      cursorGlowCycle 8s linear infinite,
+      cursorGlowPulse 4s ease-in-out infinite;
+  }
+}
+
+@keyframes cursorGlowCycle {
+  /* --cursor-glow-1..4 come from the admin's Theme Customization → Cursor
+     Effects colors (PublicThemeStyle sets them on :root); the hex fallbacks
+     are the factory default so this still works before that renders. */
+  0%,
+  100% {
+    --squid-glow: var(--cursor-glow-1, #ffe135);
+  }
+  25% {
+    --squid-glow: var(--cursor-glow-2, #44d700);
+  }
+  50% {
+    --squid-glow: var(--cursor-glow-3, #5bc8f5);
+  }
+  75% {
+    --squid-glow: var(--cursor-glow-4, #ff6b9d);
+  }
+}
+
+@keyframes cursorGlowPulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.2);
+  }
+}
+
+@font-face {
+  font-family: "AnimeAce";
+  src: url("/fonts/AnimeAce.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BadaBoomBB";
+  src: url("/fonts/BadaBoomBB.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --ink: #0d0d0d;
+    --cream: #faf8f3;
+    --sepia: #c8a96e;
+    --sepia-light: #e8d5a8;
+    --vermillion: #d94f38;
+
+    /* Public theme customizer defaults — mirror lib/theme.ts DEFAULT_SITE_THEME
+       so the public site renders identically before any admin customization.
+       PublicThemeStyle (rendered inside app/(public)/layout.tsx) overrides
+       these at :root while a public route is mounted; they revert to these
+       defaults everywhere else (e.g. the admin dashboard). */
+    --theme-btn-primary: #e8d5a8;
+    --theme-btn-secondary: #e8d5a8;
+    --theme-btn-primary-hover: #c8a96e;
+    --theme-scrollbar-track: transparent;
+    --theme-scrollbar-thumb: #c8a96e;
+    --theme-font-family: var(--font-dm-sans), system-ui, sans-serif;
+    --theme-font-size-base: 16px;
+    --theme-font-size-heading: 1.5em;
+    --theme-font-size-body: 1rem;
+
+    /* Wash tint (.page-glass) + background-photo brightness — light-mode
+       fallback. PublicThemeStyle (mounted only inside app/(public)/layout.tsx)
+       overrides both of these, plus adds a .dark counterpart below, while a
+       public route is mounted; everywhere else (admin, auth) uses these two
+       values for both modes, matching the site's original hardcoded look. */
+    --theme-wash: rgba(151, 150, 150, 0.54);
+    --theme-bg-brightness: 0.9;
+  }
+
+  .dark {
+    --theme-wash: rgba(6, 6, 10, 0.72);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-size: var(--theme-font-size-base);
+  }
+
+  /* Layer precedence means any element with an explicit Tailwind text-size
+     utility (in @layer utilities) or a heading-* component class (in
+     @layer components) — i.e. virtually every heading already in this
+     codebase — wins over this base default. Only bare, unstyled <h1>-<h6>
+     tags pick up the customizer's "Headings" size. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-size: var(--theme-font-size-heading);
+  }
+
+  /* Background image on a pseudo-element so we can dim it independently */
+  html::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: var(--bg-image, url("/scriptovernovel-background.jpeg"));
+    background-size: cover;
+    background-position: center;
+    filter: brightness(var(--theme-bg-brightness, 0.9));
+    z-index: -1;
+  }
+
+  body {
+    font-family: var(--theme-font-family);
+    font-size: var(--theme-font-size-body);
+    color: var(--ink);
+  }
+
+  .dark body {
+    color: var(--cream);
+  }
+
+  ::selection {
+    background-color: var(--sepia);
+    color: var(--ink);
+  }
+
+  /* Scrollbar — colors themeable via the admin Preferences customizer */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--theme-scrollbar-track);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--theme-scrollbar-thumb);
+    border-radius: 3px;
+  }
+
+  /* Frosted glass page overlay — its tint is the --theme-wash var set above
+     (light default) and overridden by .dark / PublicThemeStyle (dark), so a
+     single rule covers both modes instead of a separate .dark override. Blur
+     strength is the admin-configurable --theme-bg-blur (Preferences →
+     Branding → Site Background Image's blur meter); falls back to the
+     photo's original hardcoded blur(10px) so an unconfigured site is
+     unchanged.
+
+     --theme-bg-blur holds the *entire* `blur(Npx) saturate(120%)` filter
+     expression (built in PublicThemeStyle), not just the px number — a
+     var() nested inside blur() gets silently stripped by Turbopack's dev
+     CSS pass; var() as the whole property value doesn't.
+
+     Deliberately no -webkit-backdrop-filter line: pairing it with the
+     unprefixed backdrop-filter on the same rule makes Turbopack's dev CSS
+     pass drop *both* declarations (confirmed via the compiled CSSOM — this
+     reproduces with even a plain hardcoded `blur(10px)`, no var() involved,
+     so it predates this feature). Tailwind's own backdrop-blur-* utilities
+     escape this because they're generated through a different codepath;
+     hand-written dual declarations in this file don't. Safari picks up
+     unprefixed backdrop-filter since v18 (2024) — older Safari just shows
+     the flat wash tint without blur, which is an acceptable degradation. */
+  .page-glass {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    backdrop-filter: var(--theme-bg-blur, blur(10px) saturate(120%));
+    background: var(--theme-wash);
+    transition: background 0.3s ease, backdrop-filter 0.3s ease;
+  }
+
+  /* Lighter overlay variant — used on the admin/login screen so the
+     background photo reads brighter than the default .page-glass tint.
+     Kept separate so public pages are untouched. */
+  /* .page-glass-light {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    backdrop-filter: blur(0.5px) saturate(110%);
+    -webkit-backdrop-filter: blur(0.5px) saturate(110%);
+    background: rgba(250, 248, 243, 0.03);
+    transition: background 0.3s ease;
+  } */
+
+  /* Admin dashboard's own background (app/(admin)/layout.tsx) — independent
+     of html::before/--bg-image above, which is the *public* site's
+     background photo. --admin-bg-image is only ever set by AdminThemeStyle
+     when SiteTheme.adminBackgroundImage is configured; the var() fallback of
+     `none` means an unconfigured site paints only the plain color below,
+     matching the dashboard's original look exactly.
+
+     The photo itself lives on ::before rather than .admin-shell's own
+     background — filter: blur() blurs an element's entire rendered box
+     *including its children*, and .admin-shell is the flex container around
+     the whole sidebar+content layout, so blurring it directly would blur the
+     dashboard along with it. A position: fixed pseudo-element sits behind
+     everything instead (out of flex flow, so it can't become a stray flex
+     item), leaving .admin-shell's own background-color as a plain fallback
+     fill. --admin-bg-blur (Preferences → Branding → Admin Background
+     Image's blur meter) defaults to 0px — no blur/glass existed here before
+     that feature, so an unconfigured site stays exactly as sharp as always.
+
+     z-index: 0 (not just position: relative) is required here, not
+     decorative — without an explicit z-index, .admin-shell doesn't establish
+     its own stacking context, so ::before's z-index: -1 escapes to the
+     nearest one that does (the root layout's zIndex:1 wrapper around
+     {children} in app/layout.tsx) and paints *behind this element's own
+     background-color* instead of just behind its in-flow children, making
+     the photo invisible no matter what --admin-bg-image/--admin-bg-blur are
+     set to.
+
+     background-color follows --admin-shell-wash (set by AdminThemeStyle
+     only when Preferences → Theme Customization → Dark/Light Mode's
+     "Apply To" includes Admin, using that mode's wash color) instead of a
+     flat hardcoded color — so the admin dashboard's base color actually
+     follows whatever Dark/Light Mode color the admin configures there,
+     rather than always being stuck on ink-50/ink-900 regardless of theme
+     settings. Deliberately its own var rather than reusing .page-glass's
+     --theme-wash directly: that one always has a real value (declared
+     unconditionally in :root/.dark above), so it could never actually fall
+     back to these hardcoded colors — every install would get a translucent
+     admin background whether or not "Apply To" had ever been touched.
+     --admin-shell-wash is only ever declared when scope genuinely includes
+     "admin", so a site that's never touched that selector renders exactly
+     the original flat ink-50/ink-900 look. */
+  .admin-shell {
+    position: relative;
+    z-index: 0;
+    /* Semi-transparent default so the admin background image (rendered by
+       admin-shell::before below) shows through as a frosted-glass wash even
+       before the user configures a custom wash color in Preferences.
+       When no image is uploaded, ::before is a solid matching colour anyway
+       so nothing looks different. User-configured --admin-shell-wash overrides. */
+    background-color: var(--admin-shell-wash, rgba(245, 245, 245, 0.78));
+  }
+  .dark .admin-shell {
+    background-color: var(--admin-shell-wash, rgba(13, 13, 13, 0.78));
+  }
+  .admin-shell::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    /* Opaque base colour blocks html::before (the *public* site's --bg-image)
+       from bleeding into the admin panel when --admin-shell-wash is
+       semi-transparent or when no admin background image is set at all.
+       background-image (the admin photo) always paints on top of
+       background-color in CSS, so the uploaded image is still fully visible. */
+    background-color: #f5f5f5; /* ink-50 — light-mode admin background */
+    background-image: var(--admin-bg-image, none);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    /* --admin-bg-blur holds the whole `blur(Npx)` expression (built in
+       AdminThemeStyle) — same var()-inside-blur() Turbopack quirk as
+       .page-glass above, see that rule's comment. */
+    filter: var(--admin-bg-blur, blur(0px));
+    transition: filter 0.3s ease;
+  }
+  .dark .admin-shell::before {
+    background-color: #0d0d0d; /* ink-900 — dark-mode admin background */
+    /* In dark mode, layer a 60% black scrim ON TOP of the background image so
+       bright areas of the photo don't bleed through the semi-transparent dark
+       wash and create a glow. CSS background stacks paint first-listed on top,
+       so the gradient sits above the image — the image stays visible and
+       darkened, no light leaks through. When no image is uploaded the gradient
+       just composites over the background-color (still solid dark, looks fine).
+       This replaces the previous background-image:none which hid the image
+       entirely — wrong, the image should always show in both modes. */
+    background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+      var(--admin-bg-image, none);
+  }
+}
+
+@layer components {
+  /* Typography */
+  .heading-display {
+    @apply font-display font-light tracking-tight;
+  }
+
+  .heading-xl {
+    @apply font-display font-light text-6xl md:text-8xl lg:text-9xl leading-none tracking-tighter;
+  }
+
+  .heading-lg {
+    @apply font-display font-light text-4xl md:text-6xl leading-tight tracking-tight;
+  }
+
+  .heading-md {
+    @apply font-display font-normal text-2xl md:text-4xl leading-tight;
+  }
+
+  .body-sm {
+    @apply font-body text-sm leading-relaxed text-ink-400;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 bg-ink text-cream dark:bg-cream dark:text-ink font-body text-sm
+           px-6 py-3 tracking-widest uppercase transition-all duration-300
+           hover:bg-ink-700 dark:hover:bg-ink-100 active:scale-[0.98];
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center gap-2 border border-ink text-ink dark:border-cream dark:text-cream font-body text-sm
+           px-6 py-3 tracking-widest uppercase transition-all duration-300
+           hover:bg-ink hover:text-cream dark:hover:bg-cream dark:hover:text-ink active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 text-ink dark:text-cream font-body text-sm
+           tracking-wider uppercase transition-all duration-200
+           hover:text-sepia;
+  }
+
+  /* iOS-style frosted glass button — for use on .glass-card surfaces */
+  .btn-glass-primary {
+    @apply inline-flex items-center justify-center gap-2 w-full
+           bg-cream/90 hover:bg-cream text-ink
+           font-body text-sm tracking-widest uppercase
+           px-6 py-3 rounded-lg transition-all duration-300 active:scale-[0.98];
+  }
+
+  /* Cards */
+  .artwork-card {
+    @apply relative overflow-hidden
+           bg-ink-800/70 dark:bg-ink-900/80
+           backdrop-blur-sm
+           border border-white/5
+           rounded-xl cursor-pointer shadow-lg
+           transition-all duration-500
+           hover:-translate-y-1 hover:shadow-xl hover:border-white/10;
+  }
+
+  .artwork-card:hover .artwork-overlay {
+    @apply opacity-100;
+  }
+
+  .artwork-overlay {
+    @apply absolute inset-0 bg-ink/80 opacity-0 transition-opacity duration-300
+           flex flex-col justify-end p-6;
+  }
+
+  /* iOS-style frosted glass card — e.g. admin login */
+  .glass-card {
+    @apply relative overflow-hidden rounded-2xl
+          border border-white/25
+          bg-black/25 backdrop-blur-md
+          shadow-[0_8px_32px_rgba(0,0,0,0.30)];
+  }
+
+  /* Form inputs */
+  .input-field {
+    @apply w-full border border-ink-200 dark:border-ink-600 bg-transparent px-4 py-3 font-body text-sm
+           focus:outline-none focus:border-sepia focus:ring-2 focus:ring-sepia/20 transition-colors duration-200
+           placeholder:text-ink-300 dark:placeholder:text-ink-500;
+  }
+
+  /* Frosted variant of .input-field for glass-card surfaces */
+  .input-field-glass {
+    @apply w-full rounded-lg border border-white/15 bg-white/5 backdrop-blur-sm
+           px-4 py-3 font-body text-sm text-cream
+           placeholder:text-cream/30
+           focus:outline-none focus:border-cream/50 focus:ring-2 focus:ring-cream/10
+           transition-colors duration-200;
+  }
+
+  /* Admin dashboard surface colors — background/border only, deliberately
+     minimal so each usage keeps its own radius/shadow/blur/padding utility
+     classes exactly as before (those vary per usage; background+border was
+     the one substring repeated identically everywhere). Background comes
+     from AdminThemeStyle's CSS vars (components/admin/AdminThemeStyle.tsx);
+     the var() fallbacks match today's literal hardcoded Tailwind colors
+     exactly, so an unconfigured site renders pixel-identical to before this
+     feature existed. Usage still needs its own `border` utility to actually
+     render the border-color set here. */
+  .admin-card {
+    background-color: var(--admin-card-bg, rgba(255, 255, 255, 0.85));
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+  .dark .admin-card {
+    background-color: var(--admin-card-bg-dark, rgba(0, 0, 0, 0.4));
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .admin-modal {
+    background-color: var(--admin-modal-bg, #ffffff);
+    border-color: #e8e8e8; /* ink-100 */
+  }
+  .dark .admin-modal {
+    background-color: var(--admin-modal-bg-dark, #0d0d0d);
+    border-color: #282828; /* ink-700 */
+  }
+
+  .admin-input {
+    background-color: var(--admin-input-bg, rgba(0, 0, 0, 0.05));
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+  .dark .admin-input {
+    background-color: var(--admin-input-bg-dark, rgba(255, 255, 255, 0.05));
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .label {
+    @apply block font-body text-xs tracking-widest uppercase text-ink-400 mb-2;
+  }
+
+  /* Frosted variant of .label for glass-card surfaces */
+  .label-glass {
+    @apply block font-body text-xs tracking-widest uppercase text-cream/50 mb-2;
+  }
+
+  /* Error/alert box for glass-card surfaces */
+  .glass-alert-error {
+    @apply bg-red-500/10 border border-red-400/30 text-red-200
+           font-body text-sm px-4 py-3 mb-6 rounded-lg backdrop-blur-sm;
+  }
+
+  /* Success/alert box for glass-card surfaces */
+  .glass-alert-success {
+    @apply bg-emerald-500/10 border border-emerald-400/30 text-emerald-200
+           font-body text-sm px-4 py-3 mb-6 rounded-lg backdrop-blur-sm;
+  }
+
+  /* Admin sidebar */
+  .admin-nav-link {
+    @apply flex items-center gap-3 px-4 py-3 font-body text-sm tracking-wide
+           text-ink-400 hover:text-ink hover:bg-ink-50 transition-all duration-200;
+  }
+
+  .admin-nav-link.active {
+    @apply text-ink bg-ink-50 border-l-2 border-ink;
+  }
+
+  /* Tag pills */
+  .tag-pill {
+    @apply inline-block px-3 py-1.5 text-xs font-body tracking-widest uppercase
+           bg-black/40 border border-white/10 text-white/60 hover:text-white
+           hover:bg-black/60 hover:border-white/20
+           backdrop-blur-sm rounded-md
+           transition-all duration-200 cursor-pointer;
+  }
+
+  .tag-pill.active {
+    @apply bg-white text-ink border-white font-semibold shadow-md shadow-white/20;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    @apply bg-ink-100 dark:bg-ink-800 animate-pulse;
+  }
+
+  /* Decorative line */
+  .deco-line {
+    @apply w-12 h-px bg-sepia;
+  }
+
+  /* Solid CTA — for use on the dark glass panels (cart, checkout, shop,
+     order pages), matching About/Contact's primary action buttons. Colors
+     read from the "Primary"/"Hover" theme variables set by the admin
+     Preferences → Theme customizer (defaults match the original sepia CTA). */
+  .btn-sepia {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-md
+           text-zinc-900 font-medium tracking-wide
+           active:scale-[0.98] transition-all duration-300
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100;
+    background-color: var(--theme-btn-primary);
+  }
+  .btn-sepia:hover:not(:disabled) {
+    background-color: var(--theme-btn-primary-hover);
+    box-shadow: 0 0 20px
+      color-mix(in srgb, var(--theme-btn-primary-hover) 30%, transparent);
+  }
+
+  /* Outline variant of .btn-sepia for secondary actions on the same panels.
+     Text/hover-fill color reads from the "Secondary"/"Hover" theme variables. */
+  .btn-sepia-outline {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-md
+           bg-white/5 border border-white/10 font-medium transition-all duration-300;
+    color: var(--theme-btn-secondary);
+  }
+  .btn-sepia-outline:hover {
+    background-color: var(--theme-btn-primary-hover);
+    color: black;
+  }
+
+  /* Section spacing */
+  .section-padding {
+    @apply px-6 md:px-12 lg:px-20 xl:px-32;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Marquee announcement ticker (components/public/MarqueeBanner.tsx)
+
+   The track holds two identical halves; sliding it -50% lands the second half
+   exactly where the first started, so the loop repeats with no visible seam.
+   Colours, font family, size and duration all arrive inline from the DB row.
+--------------------------------------------------------------------------- */
+.marquee-bar {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  padding: 0.3rem 0;
+  line-height: 1.4;
+}
+
+.marquee-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.marquee-viewport {
+  overflow: hidden;
+}
+
+.marquee-track {
+  display: flex;
+  flex-wrap: nowrap;
+  width: max-content;
+  animation-name: marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.marquee-half {
+  display: flex;
+  flex-wrap: nowrap;
+  flex: none;
+}
+
+.marquee-item {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.marquee-sep {
+  padding: 0 1.25rem;
+  opacity: 0.55;
+}
+
+/* Shrink a touch on phones so admin-chosen sizes stay inside a slim bar. */
+.marquee-text {
+  font-size: calc(var(--marquee-fs, 0.8125rem) * 0.85);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .marquee-text {
+    font-size: var(--marquee-fs, 0.8125rem);
+  }
+  .marquee-sep {
+    padding: 0 1.75rem;
+  }
+}
+
+/* Hover/focus pause, opt-in per announcement. Pointer-only: on touch there is
+   no hover, and pausing on tap would fight the link. */
+@media (hover: hover) {
+  .marquee-bar[data-pause-on-hover="true"]:hover .marquee-track {
+    animation-play-state: paused !important;
+  }
+}
+
+.marquee-bar[data-pause-on-hover="true"]:focus-within .marquee-track {
+  animation-play-state: paused !important;
+}
+
+/* Respect the OS setting: hold the text still and let it be scrolled instead. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none !important;
+    transform: none !important;
+  }
+  .marquee-viewport {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .marquee-viewport::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Hides the scrollbar on an otherwise-native scroll container — used by
+     the Gallery's "Swipe Only" mobile carousel mode, which relies on real
+     touch-scrolling + scroll-snap rather than a JS/animation-driven track. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* The entrance splash's two taglines (components/public/IntroSplashContent).
+     Both sizes ride in as custom properties and this picks one, so the real
+     splash switches at the real viewport width — no JS, and no chance of a
+     server/client mismatch from measuring the window during render.
+
+     640px is Tailwind's own `sm` breakpoint, which is where the same
+     component's `tracking-` and `max-w-` utilities switch. The two have to
+     agree: a tagline that took the phone's letter-spacing but the desktop's
+     font size would be exactly the mis-measured line this feature exists to
+     stop. If `sm` is ever retuned in tailwind.config.ts, retune this with it.
+
+     The nested fallback is what makes an unset mobile override follow the
+     desktop size, so an admin who never touches the phone field gets today's
+     behaviour and nothing else. */
+  .intro-tagline {
+    font-size: var(--intro-tagline-size);
+  }
+  @media (max-width: 639.98px) {
+    .intro-tagline {
+      font-size: var(--intro-tagline-size-mobile, var(--intro-tagline-size));
+    }
+  }
+
+  /* Grain overlay */
+  .grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer-bg {
+    background: linear-gradient(
+      90deg,
+      rgba(26, 26, 26, 0.7) 0%,
+      rgba(45, 45, 45, 0.85) 50%,
+      rgba(26, 26, 26, 0.7) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}

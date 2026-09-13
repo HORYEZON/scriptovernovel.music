@@ -1,0 +1,21 @@
+# Build output and dependencies
+.next/
+node_modules/
+out/
+build/
+
+# Lockfiles — huge, machine-owned, and reformatting them only creates noise
+package-lock.json
+yarn.lock
+
+# Generated sources: rewritten by their generator, so formatting them here
+# would just be undone on the next run
+lib/tabler-icon-imports.generated.ts
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Binary/static assets
+public/
+
+# Prisma owns its own formatting via `prisma format`
+prisma/migrations/

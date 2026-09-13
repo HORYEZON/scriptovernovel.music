@@ -1,0 +1,1685 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  name                String?
+  email               String               @unique
+  emailVerified       DateTime?
+  image               String?
+  password            String?
+  role                Role                 @default(ADMIN)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  lastLoginUserAgent  String?
+  totpEnabled         Boolean              @default(false)
+  totpRecoveryCodes   String[]             @default([])
+  totpSecret          String?
+  // Auto sign-out after a stretch of no interaction with the admin panel —
+  // Settings ▸ Security. Off by default: this account is the artist's own
+  // laptop far more often than a shared machine, and silently ending a
+  // session someone did not ask to end is the kind of "security" that just
+  // loses work.
+  //
+  // Per-user rather than a site-wide setting, and deliberately so: it is a
+  // statement about the machine this person signs in from, not about the
+  // site. Two admins on the same site can reasonably want different answers.
+  inactivityLogoutEnabled Boolean          @default(false)
+  // How many idle minutes before the sign-out. Constrained to the choices in
+  // lib/inactivity.ts (10 / 30 / 60) by the API, not by the database — an
+  // Int leaves room to offer another interval later without a migration.
+  // Ignored while inactivityLogoutEnabled is false.
+  inactivityLogoutMinutes Int              @default(30)
+  accounts            Account[]
+  passwordResetTokens PasswordResetToken[]
+  sessions            Session[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Profile {
+  id                      String   @id @default(cuid())
+  bio                     String
+  profileImage            String?
+  headline                String?
+  instagram               String?
+  facebook                String?
+  twitter                 String?
+  email                   String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  backgroundImage         String?
+  profileImages           String[] @default([])
+  logoImage               String?
+  basedIn                 String?
+  displayName             String?
+  experience              String?
+  languages               String?
+  address                 String?
+  phone                   String?
+  commissionHeading       String?
+  commissionIntro         String?
+  contactHeading          String?
+  contactIntro            String?
+  iconImage               String?
+  chatIcon                String?
+  sidebarIcon             String?
+  sidebarIconColors       String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  carouselMode            String   @default("auto")
+  carouselSpeed           Int      @default(5)
+  // The same two settings again, for the Stories shelf (/stories). Kept as
+  // their own columns rather than one shared pair because the two grids hold
+  // different things — a handful of sections vs a growing library — and an
+  // admin who wants the homepage auto-scrolling doesn't necessarily want the
+  // bookshelf doing it too. Same values, same sanitizers (lib/gallery-carousel.ts).
+  storiesCarouselMode     String   @default("auto")
+  storiesCarouselSpeed    Int      @default(5)
+  // The hover light-sweep on the three public grids (Gallery section cards,
+  // Tales covers, Shop product cards): per-surface colour / speed /
+  // brightness. One Json column rather than nine scalars because the three
+  // surfaces are always read and written together; null (every row from
+  // before this existed) means the defaults in lib/hover-shimmer.ts, which
+  // is also the only place the shape is validated.
+  hoverShimmer            Json?
+  maintenanceMessage      String?
+  maintenanceMode         Boolean  @default(false)
+  musicEnabled            Boolean  @default(false)
+  musicUrl                String?
+  musicVolume             Int      @default(50)
+  introEffect             String   @default("fade")
+  introEnabled            Boolean  @default(true)
+  introSpeedMs            Int      @default(1400)
+  introText               String   @default("Contemporary Filipino Art")
+  // The optional second tagline, above the logo. Empty means "no line there",
+  // which is the default so an existing splash is unchanged — see
+  // sanitizeIntroTextAbove, which deliberately lets blank stay blank.
+  introTextAbove          String   @default("")
+  introBgColor            String   @default("#0D0D0D")
+  // Tagline text styling — independent of the SiteTheme font customizer,
+  // font size/family here only ever affect the splash's own tagline lines.
+  // See lib/theme.ts's THEME_FONT_OPTIONS for the shared curated font list.
+  // Size, color and family are all per-line — the two taglines usually play
+  // different roles (a small label above, the house line below), so pairing
+  // two families is a normal choice rather than a mistake.
+  introTaglineFontSize    String   @default("0.75rem")
+  introTaglineColor       String   @default("#E8D5A8")
+  introTaglineAboveFontSize String @default("0.75rem")
+  introTaglineAboveColor  String   @default("#E8D5A8")
+  introTaglineFontFamily  String   @default("var(--font-dm-sans), system-ui, sans-serif")
+  introTaglineAboveFontFamily String @default("var(--font-dm-sans), system-ui, sans-serif")
+  // Phone-only overrides for the two tagline sizes. Null — the default, and
+  // every row from before these existed — means "use the size above", so an
+  // existing splash renders exactly as it did.
+  //
+  // Size is the only thing that needed a second value. Colour and family read
+  // the same at any width, but a size chosen against a 1400px-wide splash is
+  // the thing that makes a tagline wrap on a 375px one — and a wrapped tagline
+  // at this letter-spacing breaks into two ragged lines ("House of / Arts")
+  // rather than degrading gracefully. Everything else stays one setting,
+  // because two of everything is a second splash to keep in sync.
+  introTaglineFontSizeMobile      String?
+  introTaglineAboveFontSizeMobile String?
+  // The soft light behind the lockup. Intensity is the radial gradient's alpha
+  // at its centre, 0-100; 0 (the default) renders no layer at all. The offsets
+  // move that centre off the lockup's own centre, as a percentage of the
+  // lockup's box on each axis (0/0 = dead centre).
+  introGlowIntensity      Int      @default(0)
+  introGlowColor          String   @default("#E8D5A8")
+  introGlowShimmer        Boolean  @default(true)
+  introGlowOffsetX        Int      @default(0)
+  introGlowOffsetY        Int      @default(0)
+  // The squid standing in for the A in KALAM(squid)RI, on the entrance splash
+  // only — the footer, sidebar and maintenance-page squids keep their own
+  // brand-palette cycle (squid-drift, see tailwind.config.ts).
+  //
+  // It used to take whatever --squid-glow it happened to inherit, which is a
+  // registered custom property whose initial value is brand cyan — i.e. the
+  // one letter of the lockup nobody could set. This paints it outright, and
+  // defaults to the pink the "m" beside it already wears (INTRO_LETTER_COLORS)
+  // so the lockup reads as one run of colour rather than five brand colours
+  // plus a stray sixth.
+  introSquidColor         String   @default("#F5F1E8")
+  // How the KALAM(squid)RI lockup's per-letter colours behave on the entrance
+  // splash: "hover" (the original — each syllable takes its own colour only
+  // while the pointer is over it, and the wordmark otherwise reads as one
+  // cream mark) or "always" (every syllable wears its colour outright). Hover
+  // is the default and what every existing splash keeps; it is also the only
+  // one of the two a phone visitor can never trigger, which is the reason the
+  // second option exists. See INTRO_LETTER_COLORS in lib/intro-splash.ts.
+  introLetterColors       String   @default("hover")
+  errorIcon               String?
+  faviconIcon             String?
+  footerIcon              String?
+  maintenanceIcon         String?
+  sidebarMobileIcon       String?
+  splashIcon              String?
+  faviconIconColors       String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  footerIconColors        String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  maintenanceIconColors   String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  sidebarMobileIconColors String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  splashIconColors        String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  callingCardFront        String?
+  callingCardBack         String?
+  releaseNotesEnabled     Boolean  @default(true)
+  releaseNotesLimit       Int      @default(3)
+}
+
+/// A visitor-facing "what changed on the site" entry, shown in the navbar's
+/// Release Notes panel next to the theme toggle. Deliberately separate from
+/// Announcement (a popup that interrupts) and MarqueeAnnouncement (a ticker):
+/// those two are for things happening *now*, this is a running record of what
+/// shipped, and only the newest few are ever shown — see
+/// Profile.releaseNotesLimit.
+///
+/// Hard-deleted rather than soft-deleted into Trash, like VisitorMilestone:
+/// it holds no artwork, no upload, and nothing else references it, so there's
+/// nothing to orphan by removing one.
+model ReleaseNote {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  /// Which part of the public site the change is in — "Digital Museum",
+  /// "Gallery", … Free text; RELEASE_NOTE_CATEGORIES in lib/release-notes.ts
+  /// is the suggested list, not a constraint.
+  category    String   @default("General")
+  /// Optional, e.g. "v6.15". A note doesn't have to name one.
+  version     String?
+  isPublished Boolean  @default(true)
+  /// What the panel orders by, and what it shows as the note's date. Editable
+  /// because a note is usually written after the change actually shipped.
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  /// Soft delete, so a deleted note lands in the Trash module like every other
+  /// trashable record rather than being destroyed outright. Every read path
+  /// (the admin list, the public panel) filters on `deletedAt: null`.
+  deletedAt   DateTime?
+
+  @@index([isPublished, publishedAt])
+  @@index([deletedAt])
+}
+
+model SoundEffect {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  enabled    Boolean  @default(true)
+  source     String   @default("prebuilt")
+  preset     String   @default("click")
+  url        String?
+  volume     Int      @default(70)
+  waveform   String   @default("triangle")
+  frequency  Int      @default(420)
+  durationMs Int      @default(70)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model SiteTheme {
+  id                   String   @id @default(cuid())
+  btnPrimaryColor      String   @default("#E8D5A8")
+  btnSecondaryColor    String   @default("#E8D5A8")
+  btnHoverColor        String   @default("#C8A96E")
+  scrollbarTrackColor  String   @default("transparent")
+  scrollbarThumbColor  String   @default("#C8A96E")
+  fontFamily           String   @default("var(--font-dm-sans), system-ui, sans-serif")
+  fontSizeBase         String   @default("16px")
+  fontSizeHeading      String   @default("2rem")
+  fontSizeBody         String   @default("1rem")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  cursorGlowColors     String[] @default(["#FFE135", "#44D700", "#5BC8F5", "#FF6B9D"])
+  cursorGlowEnabled    Boolean  @default(true)
+  darkBrightness       Int      @default(90)
+  darkWashColor        String   @default("rgba(6, 6, 10, 0.72)")
+  lightBrightness      Int      @default(90)
+  lightWashColor       String   @default("rgba(151, 150, 150, 0.54)")
+  darkWashScope        String   @default("public")
+  lightWashScope       String   @default("public")
+  // Backdrop-filter blur radius for the public background photo's frosted
+  // glass overlay (.page-glass) — mode-independent (unlike the wash color/
+  // brightness above), a length string like the fontSize* fields so it
+  // reuses isValidThemeLength rather than needing its own validator. Default
+  // "10px" matches .page-glass's previously-hardcoded blur(10px).
+  bgBlur               String   @default("10px")
+  adminBackgroundImage String?
+  // Same idea as bgBlur but for .admin-shell's own background photo
+  // (adminBackgroundImage above) — no blur/glass overlay existed for it
+  // before this field, so the default "0px" keeps an unconfigured site's
+  // admin background exactly as sharp as it's always been.
+  adminBgBlur          String   @default("0px")
+  adminCardBgDark      String   @default("rgba(0, 0, 0, 0.4)")
+  adminCardBgLight     String   @default("#FFFFFF")
+  adminInputBgDark     String   @default("rgba(255, 255, 255, 0.05)")
+  adminInputBgLight    String   @default("rgba(0, 0, 0, 0.05)")
+  adminModalBgDark     String   @default("#0D0D0D")
+  adminModalBgLight    String   @default("#FFFFFF")
+}
+
+model SocialLink {
+  id         String   @id @default(cuid())
+  label      String
+  url        String
+  iconKey    String
+  hoverColor String   @default("#FFE135")
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ArtistSkill {
+  id         String   @id @default(cuid())
+  name       String
+  hoverColor String   @default("#FFE135")
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Section {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  displayOrder  Int       @default(0)
+  coverImageUrl String?
+  isPublished   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  artworks      Artwork[]
+}
+
+model CertificateAward {
+  id           String    @id @default(cuid())
+  title        String
+  issuer       String?
+  dateAwarded  DateTime?
+  description  String?
+  imageUrl     String?
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Artwork {
+  id                 String              @id @default(cuid())
+  title              String
+  description        String
+  imageUrl           String
+  tags               String[]
+  medium             String?
+  dimensions         String?
+  year               Int?
+  featured           Boolean             @default(false)
+  published          Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  status             ArtworkStatus       @default(AVAILABLE)
+  sectionId          String?
+  deletedAt          DateTime?
+  isNewRelease       Boolean             @default(false)
+  imageUrls          String[]            @default([])
+  shareCount         Int                 @default(0)
+  slug               String?             @unique
+  // Optional "making of" timelapse — max 60s, enforced/auto-trimmed
+  // client-side before upload (see lib/artwork-video.ts, lib/video-trim.ts).
+  videoUrl           String?
+  // Up to 2 more clips beyond the primary videoUrl above (same trim/upload
+  // pipeline) — alternate angles or extra process footage.
+  videoUrls          String[]            @default([])
+  section            Section?            @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  miniGameEntries    LeaderboardEntry[]
+  miniGamesPrimary   MiniGame[]          @relation("MiniGamePrimaryArtwork")
+  miniGamesSecondary MiniGame[]          @relation("MiniGameSecondaryArtwork")
+  product            Product?
+  museumRoomEntries  MuseumRoomArtwork[] @relation("MuseumRoomArtworks")
+}
+
+// Stories — picture-based publications (books, novels, comics, manga, …).
+// Deliberately a sibling of Artwork rather than a flavour of it: an Artwork
+// is one image that stands on its own, a Story is an ordered run of page
+// images read start-to-finish. Same conventions as Artwork though (cuid id,
+// write-once slug, soft delete via deletedAt) so the admin module, the Trash
+// module and the public grid all behave the way their Artwork equivalents do.
+model Story {
+  id                String            @id @default(cuid())
+  title             String
+  description       String
+  type              StoryType         @default(BOOK)
+  // Either uploaded fresh or lifted from an existing Artwork's imageUrl
+  // (see the "Choose from Artworks" picker in the admin create/edit modal) —
+  // stored as a plain URL either way, so a Story never depends on an Artwork
+  // row surviving.
+  coverImageUrl     String
+  author            String?
+  // Tag-style chips, same free-text UX as Artwork.tags.
+  genre             String[]          @default([])
+  year              Int?
+  featured          Boolean           @default(false)
+  published         Boolean           @default(true)
+  // Set once on create and never rewritten on edit — same reasoning as
+  // Artwork.slug (a shared /stories link must not break on a retitle).
+  slug              String?           @unique
+  displayOrder      Int               @default(0)
+  // "Continue Reading" hand-off. A story published here is often a *teaser* —
+  // only the opening pages are uploaded, and the last page sends the reader
+  // to wherever the full thing actually lives (Wattpad, Webtoon, a shop
+  // listing). continueEnabled is the admin's explicit opt-in, so a complete
+  // story just ends at its last page the way it always has; a story with the
+  // toggle on but no URL set is treated as off by the reader rather than
+  // rendering a dead button. Validated http(s) on write — an unchecked
+  // string here would become a javascript: link in a public modal.
+  continueEnabled   Boolean           @default(false)
+  continueUrl       String?
+  // Button copy override; null renders the default "Continue Reading".
+  continueLabel     String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+  pages             StoryPage[]
+  // Podium rows in the Digital Museum's Stories Room — see
+  // lib/museum/storiesRoom.ts and docs/StoriesRoom_Spec.md.
+  museumRoomEntries MuseumRoomStory[] @relation("MuseumRoomStories")
+}
+
+// One cosplay in the Cosplay Room — a costume shot shown on a life-size
+// standee with its own photo hanging on the backdrop panel behind it (see
+// lib/museum/cosplayRoom.ts and the Cosplay Room's own components).
+//
+// Deliberately shaped like Story above rather than riding Artwork: a cosplay
+// is a photograph *of a costume*, not a piece of gallery art, and it carries
+// fields no artwork has (the character, what they're from) while wanting none
+// of an artwork's (medium, dimensions, a shop listing). Same conventions as
+// Story otherwise — published/displayOrder/soft delete, a write-once slug, and
+// admin-uploaded image URLs that never depend on another row surviving.
+//
+// The two images are the room's whole point and play different parts:
+//   • standeeImageUrl — the cut-out shot printed on the standee a visitor
+//     walks up to. Full-length portrait shots work best (it is rendered
+//     roughly life-size), which the admin form says out loud.
+//   • backdropImageUrl — the photo hung on the panel *behind* that standee,
+//     the way the About room hangs the artist's photos. Optional: a cosplay
+//     with none gets a standee against a plain panel rather than a broken
+//     image, and the room reads fine that way.
+model Cosplay {
+  id                String              @id @default(cuid())
+  // The cosplay's own title — usually the character, but left free text so
+  // an original/mashup costume isn't forced into a name it doesn't have.
+  title             String
+  description       String?
+  // Who the costume is, and what they're from. Both optional and both shown
+  // on the standee's plaque + the [E] panel when present.
+  character         String?
+  series            String?
+  standeeImageUrl   String
+  backdropImageUrl  String?
+  // Credit lines for the people behind the shot — the cosplayer (often, but
+  // not always, the artist themselves) and whoever took the photo. Shown in
+  // the [E] panel only; the standee plaque stays the character's.
+  cosplayer         String?
+  photographer      String?
+  // The year the costume was worn/shot, and the event it was worn at (a con
+  // name, a shoot) — the two things a visitor asks about a cosplay photo that
+  // aren't in the picture.
+  year              Int?
+  event             String?
+  published         Boolean             @default(true)
+  // Set once on create and never rewritten on edit — same reasoning as
+  // Story.slug/Artwork.slug.
+  slug              String?             @unique
+  displayOrder      Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  deletedAt         DateTime?
+  // Standee rows in the Digital Museum's Cosplay Room — see
+  // lib/museum/cosplayRoom.ts.
+  museumRoomEntries MuseumRoomCosplay[] @relation("MuseumRoomCosplays")
+}
+
+// One page image of a Story. pageNumber is 1-based and kept contiguous —
+// every add/reorder/delete re-normalizes the whole run to 1..n rather than
+// leaving gaps (see app/api/stories/[id]/pages/route.ts).
+model StoryPage {
+  id         String   @id @default(cuid())
+  storyId    String
+  imageUrl   String
+  pageNumber Int
+  caption    String?
+  createdAt  DateTime @default(now())
+  story      Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId, pageNumber])
+}
+
+// Digital Museum V2 — configuration only. Artwork data/images stay owned by
+// the Artwork model above. The museum itself is now a curated set of
+// MuseumRoom rows (each with its own artworks/colors) rather than one flat
+// list — this row is just the overall on/off switch + optional title/
+// description. Singleton row, always accessed via a fixed well-known id.
+model DigitalMuseum {
+  id                      String       @id @default("singleton")
+  enabled                 Boolean      @default(false)
+  title                   String?
+  description             String?
+  // Room-entry splash — shown once per room per visit (sessionStorage-gated
+  // client-side, see RoomSplash.tsx) the first time a visitor walks into
+  // each room. Museum-wide settings (one style for every room), same
+  // effect/timing model as Profile's site-wide entrance splash
+  // (lib/intro-splash.ts) — reused directly, not duplicated — just with the
+  // room's own name as content instead of the site logo.
+  splashEnabled           Boolean      @default(true)
+  splashEffect            String       @default("fade")
+  splashSpeedMs           Int          @default(1400)
+  splashBgColor           String       @default("#0D0D0D")
+  splashTaglineFontSize   String       @default("0.75rem")
+  splashTaglineFontFamily String       @default("var(--font-dm-sans), system-ui, sans-serif")
+  // "full-page" (the original fullscreen reveal, see RoomSplashContent.tsx)
+  // or "side-popup" (a small card sliding in from the right edge instead —
+  // see RoomSplashPopup.tsx). This is the *desktop* style; mobile has its
+  // own independent choice right below rather than always falling back to
+  // full-page — a phone visitor can still get the compact side-popup if
+  // that's what's picked here. Museum-wide, same as splashEffect above.
+  splashStyle             String       @default("full-page")
+  // Same two options as splashStyle above, applied on touch devices
+  // instead — independent choice since a mobile side-popup renders at a
+  // smaller, phone-appropriate size (see RoomSplashPopup.tsx's `compact`
+  // prop) rather than just reusing the desktop card at full size.
+  splashStyleMobile       String       @default("full-page")
+  // Per-room "does this room's entry splash actually fire" toggle for the
+  // About ScriptOverNovel room specifically — mirrors aboutSplashIcon/
+  // aboutSplashTitle below (About has no dedicated RoomsTab.tsx row to
+  // carry a real MuseumRoom.splashEnabled value on, see that column's own
+  // comment). Independent of the museum-wide splashEnabled master switch
+  // above: this only ever matters when that's also true.
+  aboutSplashEnabled      Boolean      @default(true)
+  // The auto-generated "About ScriptOverNovel" room (see lib/museum/aboutRoom.ts)
+  // is a real MuseumRoom row now, but its *content* is still synthesized
+  // fresh on every request from Profile/CertificateAward/ArtistSkill data
+  // (see page.tsx), always the corridor's last room. Its wall/floor/ceiling
+  // are still admin-tunable, same fields/defaults/tiling behavior as
+  // MuseumRoom's own below — they just live here (the one-and-only
+  // museum-wide row) rather than on that room's own (unused) columns.
+  aboutWallColor          String       @default("#ece7db")
+  aboutFloorColor         String       @default("#c9c0ad")
+  aboutCeilingColor       String       @default("#f4f2ec")
+  aboutWallTexture        String?
+  aboutFloorTexture       String?
+  aboutCeilingTexture     String?
+  // Same "About ScriptOverNovel" room-splash overrides as MuseumRoom.splashIcon/
+  // splashTitle — see RoomSplashContent.tsx. Null icon falls back to the
+  // glowing squid mark; null title falls back to "About ScriptOverNovel".
+  aboutSplashIcon         String?
+  aboutSplashTitle        String?
+  // When false the "About ScriptOverNovel" capstone room is omitted entirely from
+  // the museum corridor — same enabled/disabled semantics as a regular
+  // MuseumRoom row, just stored here (the DigitalMuseum singleton) since the
+  // About room has no editable row of its own in the admin CRUD.
+  aboutEnabled            Boolean      @default(true)
+  // DEPRECATED — superseded by the standalone ChaseCompanion model below,
+  // which supports up to 5 independently-toggleable companions instead of
+  // one. Left here unused (rather than dropped) purely to avoid a
+  // destructive column-drop migration for a same-day-old feature with no
+  // real reliance on it yet; no code reads or writes these anymore.
+  chaseCompanionEnabled   Boolean      @default(false)
+  chaseCompanionAssetType String?
+  chaseCompanionAssetUrl  String?
+  // Digital Museum Achievements — badges/trophies for in-session
+  // exploration behavior (time spent, artworks viewed, artworks
+  // wishlisted, steps walked — see MuseumAchievement below and
+  // lib/museum/useMuseumAchievements.ts). achievementsEnabled is the
+  // master switch for the whole feature; achievementsHudEnabled is a
+  // separate, independent toggle for whether the persistent stats card
+  // shows at all (the admin can run the feature — banners still fire —
+  // with the HUD card hidden).
+  achievementsEnabled     Boolean      @default(false)
+  achievementsHudEnabled  Boolean      @default(true)
+  // How the bottom-left radar card looks — the map canvas's size and the
+  // colour of every mark on it, plus the size and icons of the counters
+  // stacked underneath it. JSON rather than a column per knob: it is a dozen
+  // presentation values that only ever travel together, the same
+  // config-in-one-column pattern the divider walls and the Arcade Room use.
+  // Null (the default) means the look these components shipped with — see
+  // MINIMAP_HUD_DEFAULTS in lib/museum/minimapHud.ts, which holds those
+  // exact values, so nothing renders differently until an admin changes it.
+  minimapConfig           String?
+  // Museum-specific soundtrack — separate from the site-wide Profile.musicUrl
+  // track. Visitors toggle it via the HUD button inside the museum; the global
+  // BackgroundMusicPlayer is hidden behind the museum's z-50 overlay.
+  museumMusicUrl          String?
+  museumMusicEnabled      Boolean      @default(false)
+  museumMusicVolume       Int          @default(50)
+  // Scene brightness multiplier (0–100, where 50 = baseline as designed).
+  // Stored and applied separately for light mode and dark mode so the admin
+  // can tune each independently. Applied to all light intensities in MuseumRoom
+  // via getRoomLighting(roomType, darkMode, brightness).
+  museumBrightnessLight   Int          @default(50)
+  museumBrightnessDark    Int          @default(50)
+  // "Filter Vision" — visitor-selectable look filters, cycled with [Q] or the
+  // HUD button on a phone (see lib/museum/visionFilters.ts). The master
+  // switch; off removes the key handler and the button entirely rather than
+  // leaving a control that cycles between Normal and Normal.
+  //
+  // On by default, unlike most new museum features. It changes nothing until
+  // a visitor presses [Q], costs nothing while they haven't, and a museum
+  // that shipped with it silently off would need an admin to go find a
+  // setting for a feature they don't yet know exists.
+  visionFiltersEnabled    Boolean      @default(true)
+  // Which of the 5 built-in looks are offered, plus any colours the admin
+  // mixed themselves. JSON rather than a column per knob for the same reason
+  // minimapConfig above is: it is a set of presentation values that only ever
+  // travel together, and the custom list is variable-length. Null (the
+  // default) means all five built-ins and no custom ones — see
+  // DEFAULT_VISION_FILTER_CONFIG, which holds exactly that, so the feature
+  // works before an admin has ever opened the section.
+  visionFilterConfig      String?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+  rooms                   MuseumRoom[]
+}
+
+// "Chase Companion" — a toggleable playful mascot/easter egg (Artworks ▸
+// Digital Museum, ChaseCompanionsSection.tsx). Up to 5 rows (enforced in
+// app/api/chase-companions/route.ts's POST, not here), each independently
+// enabled/disabled — an admin can upload several and switch which ones
+// are actually active without losing the others' assets. All active
+// companions idle in the entry room (see ChaseCompanion.tsx for the
+// drift-toward-the-visitor behavior and MuseumScene.tsx for how their
+// idle spots are spread out so they don't stack on top of each other),
+// purely decorative and non-colliding. assetType picks which of
+// CustomSceneObject's own asset kinds it reuses: an uploaded
+// .glb model (assetUrl points at Supabase Storage's models/ folder, same
+// signed-URL upload as a custom decorative object) or a flat image (a
+// camera-facing billboard sprite, uploaded through the same /api/upload
+// every other admin image goes through).
+model ChaseCompanion {
+  id        String   @id @default(cuid())
+  assetType String
+  assetUrl  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum MuseumRoomType {
+  MAIN_HALL
+  GALLERY
+  SPECIAL_EXHIBITION
+  // The auto-generated "About ScriptOverNovel" capstone room (see
+  // lib/museum/aboutRoom.ts's ensureAboutRoom) — the one MuseumRoomType an
+  // admin can never pick when creating/editing a room (RoomsTab.tsx's
+  // AdminRoomType excludes it), so it's a safe, exclusive marker for the
+  // single lazily-provisioned row that backs it. Gives that room a real
+  // database identity to hang MuseumSceneObject placements off of (Museum
+  // Scene Editor decorative objects), while its actual displayed content
+  // still comes from Profile/CertificateAward/ArtistSkill/SocialLink and
+  // its wall/floor/ceiling still come from DigitalMuseum.about* — none of
+  // that changed.
+  ABOUT
+  // The interactive "Freedom Wall" room — visitor-submitted sticky notes
+  // rendered as 3D planes on the walls. Like ABOUT, never admin-creatable
+  // through the regular room CRUD (AdminRoomType excludes it); provisioned
+  // once via ensureFreedomWallRoom (lib/museum/freedomWallRoom.ts) and
+  // always sorts just before the ABOUT capstone. Its note content comes
+  // from FreedomWallNote; room visibility (enabled toggle) behaves like any
+  // other MuseumRoom row.
+  FREEDOM_WALL
+  // The auto-generated Stairs connector room — see lib/museum/stairsRoom.ts.
+  // Like ABOUT/FREEDOM_WALL, never admin-creatable through the regular room
+  // CRUD (AdminRoomType excludes it) and never appears in the reorderable
+  // list; it's spliced into the corridor automatically at the floor-0/
+  // floor-1 boundary (see page.tsx) whenever at least one enabled room has
+  // `floor: 1`, and omitted entirely otherwise. Its floor slopes from y=0
+  // at its south edge up to roomConstants.ts's RISE at its north edge
+  // (see roomLayout.ts) — the only room type where floor Y isn't flat.
+  STAIRS
+  // The "Services Room" — a shop wall inside the museum. Like ABOUT/
+  // FREEDOM_WALL/STAIRS it's never admin-creatable through the regular room
+  // CRUD (RoomsTab.tsx's ROOM_TYPE_OPTIONS only offers the three above, and
+  // rooms/[id]'s PATCH rejects this value), and it's provisioned once via
+  // ensureServicesRoom (lib/museum/servicesRoom.ts). Unlike those three it
+  // *does* sit inside the reorderable list — it's an ordinary corridor room
+  // as far as displayOrder/enabled/floor/colors go — the only special part
+  // is its contents: its MuseumRoomArtwork rows are kept in sync with every
+  // live Product (available, not deleted) rather than hand-picked, so
+  // listing something in the shop hangs it on this room's wall too. See
+  // syncServicesRoomProducts.
+  SERVICES
+  // The "Stories Room" — the Stories library inside the museum. Provisioned
+  // and reorderable on exactly the same terms as SERVICES above (never
+  // admin-creatable, never retypeable, never deletable; a real row in the
+  // curated displayOrder range), and its contents mirror every *published*
+  // Story the same way the Services Room mirrors every live Product — see
+  // lib/museum/storiesRoom.ts.
+  //
+  // What makes it different from every other room: its contents don't hang
+  // on the walls. Each story stands on its own podium on the floor (see
+  // MuseumRoomStory + the podium components), because a book is an object
+  // you walk up to and open, not a picture you look at from across a room.
+  STORIES
+  // The "Arcade Room" — the Mini Games inside the museum. Provisioned and
+  // reorderable on exactly the same terms as SERVICES/STORIES (never
+  // admin-creatable, never retypeable, never deletable; a real row in the
+  // curated displayOrder range), and its contents mirror every *enabled +
+  // playable* MiniGame the same way the Stories Room mirrors every published
+  // Story — see lib/museum/arcadeRoom.ts.
+  //
+  // Each game shows on its own arcade cabinet standing on the floor (like a
+  // Stories podium) or, per-game, as a framed wall poster — walk up and press
+  // [E] for an info panel with a Play button that launches the same
+  // GameSession the gallery's Mini Games launcher uses. See MuseumRoomMiniGame.
+  ARCADE
+  // The "Cosplay Room" — costume photography inside the museum. Provisioned
+  // and reorderable on exactly the same terms as SERVICES/STORIES/ARCADE
+  // (never admin-creatable, never retypeable, never deletable; a real row in
+  // the curated displayOrder range), and its contents mirror every *published*
+  // Cosplay the same way the Stories Room mirrors every published Story — see
+  // lib/museum/cosplayRoom.ts.
+  //
+  // What makes it different from the other floor-standing rooms: each entry is
+  // a *pair*. A life-size standee stands on the floor and the cosplay's second
+  // photo hangs on a backdrop panel right behind it — one placement moves
+  // both, because a standee and the photo it stands in front of only make
+  // sense together. See MuseumRoomCosplay.
+  COSPLAY
+}
+
+model MuseumRoom {
+  id             String               @id @default(cuid())
+  museumId       String               @default("singleton")
+  museum         DigitalMuseum        @relation(fields: [museumId], references: [id], onDelete: Cascade)
+  name           String
+  slug           String               @unique
+  description    String?
+  roomType       MuseumRoomType       @default(GALLERY)
+  displayOrder   Int                  @default(0)
+  enabled        Boolean              @default(true)
+  // Which floor this room sits on — 0 = ground (today's only floor), 1 =
+  // second floor. An Int rather than a boolean so a future third floor
+  // doesn't need another migration, even though v1's admin UI (RoomsTab.tsx)
+  // only ever exposes a two-way Ground/Second Floor toggle. Corridor
+  // ordering (page.tsx) sorts floor 0 first, then floor 1, splicing in the
+  // auto-provisioned STAIRS room at the boundary — see
+  // docs/SecondFloorStairs_Spec.md.
+  floor          Int                  @default(0)
+  // Which room a visitor spawns into — exactly one row across the whole
+  // museum should be true at a time (app/api/digital-museum/rooms/[id]/route.ts
+  // enforces this by unsetting every other room's flag in the same
+  // transaction whenever one is set).
+  isEntryRoom    Boolean              @default(false)
+  // Same purpose as DigitalMuseumArtwork's old wallColor/floorColor above,
+  // just per-room now instead of museum-wide.
+  wallColor      String               @default("#ece7db")
+  floorColor     String               @default("#c9c0ad")
+  // Previously a hardcoded light/dark shade in MuseumRoom.tsx with no admin
+  // control at all — now the same plain per-room color as wall/floor above,
+  // for consistency (dark mode still dims it via lighting only, same as it
+  // already does for wall/floor, never by touching the color value itself).
+  ceilingColor   String               @default("#f4f2ec")
+  // Optional tiled texture image (e.g. concrete, wood) that overrides the
+  // matching *Color above when set — MuseumRoom.tsx renders it repeating
+  // across the surface (see roomConstants.ts's TEXTURE_TILE_METERS) rather
+  // than stretching one image across the whole wall/floor/ceiling. Null
+  // means "just use the plain color."
+  wallTexture    String?
+  floorTexture   String?
+  ceilingTexture String?
+  // Room-entry splash overrides (RoomSplash.tsx/RoomSplashContent.tsx) —
+  // both null by default, same "platform:name" icon value convention as
+  // Profile.splashIcon (see components/ui/icon-values.ts). Unset icon falls
+  // back to the site's glowing squid mark (same treatment as the site-wide
+  // entrance splash — IntroSplashContent.tsx); unset title falls back to
+  // this room's own `name` at render time.
+  splashIcon     String?
+  splashTitle    String?
+  // Per-room "does this room's entry splash actually fire" toggle —
+  // independent of the museum-wide DigitalMuseum.splashEnabled master
+  // switch (this only matters when that's also true). Freedom Wall and
+  // Stairs read this straight off their own row, same as any curated room;
+  // About ScriptOverNovel instead uses DigitalMuseum.aboutSplashEnabled (see that
+  // column's comment) since its visuals already live there, not here.
+  splashEnabled  Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  deletedAt      DateTime?
+  artworks       MuseumRoomArtwork[]
+  sceneObjects   MuseumSceneObject[]
+  // Only ever non-empty on the single STORIES room — see MuseumRoomStory.
+  stories        MuseumRoomStory[]
+  // Only ever non-empty on the single ARCADE room — see MuseumRoomMiniGame.
+  miniGames      MuseumRoomMiniGame[]
+  // Only ever non-empty on the single COSPLAY room — see MuseumRoomCosplay.
+  cosplays       MuseumRoomCosplay[]
+
+  @@index([museumId])
+}
+
+// A freestanding 3D object placed in a room with an admin-editable
+// position instead of one computed live from other data. positionX/
+// positionZ are room-LOCAL coordinates (relative to that room's own
+// center, the same space framePlacement.ts's frame positions live in
+// before roomLayout.ts's centerZ corridor offset is added) — kept
+// room-local rather than world coordinates so a placement stays correct
+// even if rooms get reordered in the corridor later. `kind` is a
+// discriminator so future prop types don't each need their own
+// migration.
+model MuseumSceneObject {
+  id             String     @id @default(cuid())
+  roomId         String
+  room           MuseumRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  // "custom" | "about-photo" | "about-plaque" | "about-certs" — the last
+  // three only ever exist on the About ScriptOverNovel room (see
+  // lib/museum/aboutRoomBlocks.ts) and hold a *position offset* (default
+  // 0,0,0 = "unchanged from AboutRoomContents.tsx's designed layout")
+  // for its Photo Slideshow / Bio+Skills Plaque / Certificates Strip,
+  // rather than an absolute placement the way "custom" does — see that
+  // file's doc comment for why an offset made more sense here. May also
+  // contain "standee" on old rows from a since-removed feature; nothing
+  // reads or creates that kind anymore — the Cosplay Room's standees are
+  // MuseumRoomCosplay rows, not these, and its one row here is the
+  // "cosplay-standee-model" config singleton (lib/museum/cosplayStandee.ts).
+  kind           String     @default("custom")
+  // Admin-chosen display name for a "custom" .glb prop — shown in the
+  // Museum Scene Editor's object list and confirm dialogs in place of the
+  // generic "Decorative Object". Null (the default, and every non-custom
+  // kind) falls back to that generic label. Never shown to museum visitors.
+  label          String?
+  modelUrl       String?
+  positionX      Float      @default(0)
+  // Added after positionX/positionZ — used by "about-*" kinds (vertical
+  // offset) and available to custom decorative objects too (a prop no
+  // longer has to sit exactly on the floor).
+  positionY      Float      @default(0)
+  positionZ      Float      @default(0)
+  rotationY      Float      @default(0)
+  // Uniform scale multiplier for "custom" .glb props — 1 = the model's own
+  // exported size. Admin-adjustable in the Museum Scene Editor (same slider
+  // as an artwork frame's). Ignored by every other kind (text labels size
+  // via their JSON config, About blocks aren't scaled).
+  scale          Float      @default(1)
+  // "custom" .glb props only: when true the museum's player collision treats
+  // this as a solid floor obstacle (PlayerControls' `obstacles`) — a circular
+  // footprint the visitor is pushed back out of, the same circle-collision
+  // model the Stories Room podiums use. Off by default: most props (a wall
+  // clock, a hanging light) are things a visitor should walk straight past.
+  solid          Boolean    @default(false)
+  // Radius of that footprint in the model's own exported units (before
+  // `scale`). Null = "auto" — the editor fills it from the model's bounding
+  // box when `solid` is switched on; an admin can then override it. Ignored
+  // unless `solid` is true.
+  colliderRadius Float?
+  // Where that circle sits, relative to the model's own origin, in the same
+  // model units as `colliderRadius` (before `scale`) and in the prop's own
+  // rotated frame — so a turned prop's footprint turns with it. 0/0 (the
+  // default, and every row from before these columns existed) is the old
+  // behaviour: centred on the origin. A .glb is very often exported with its
+  // geometry off to one side of its origin, and for those the circle sat
+  // beside the model rather than under it — no radius could fix that, only
+  // move it. Ignored unless `solid` is true.
+  colliderOffsetX Float   @default(0)
+  colliderOffsetZ Float   @default(0)
+  // How tall that footprint stands, in the same model units as
+  // `colliderRadius` (before `scale`), measured up from the prop's own base
+  // (its `positionY`). Null — the default, and every row from before this
+  // column existed — means the circle is a floor-to-ceiling column, which is
+  // what the collision always was: a visitor was blocked by a prop's
+  // footprint no matter how low the prop actually stood, so a hanging lamp or
+  // an archway could only ever be solid *everywhere* or nowhere. With a
+  // height set, a visitor is only pushed out while their own body overlaps
+  // that vertical span — they walk under a high one and (jumping) over a low
+  // one. Ignored unless `solid` is true.
+  colliderHeight Float?
+  // Where that column *starts*, in the same model units as `colliderRadius`
+  // (before `scale`), measured up from the prop's own base (`positionY`).
+  // 0 — the default, and every row from before this column existed — means
+  // the column stands on the prop's base, which is what a height-limited
+  // collider always did.
+  //
+  // `colliderHeight` alone could only ever describe something standing on the
+  // floor: an archway's crossbeam, a shelf, a hanging lamp all need a column
+  // that begins *above* the base and is open underneath. Lifting the ring is
+  // the only way to say "solid from here up" — shrinking the height just made
+  // a shorter obstacle still rooted to the ground. Ignored unless `solid` is
+  // true and `colliderHeight` is set: with no height there is no column to
+  // lift, only the floor-to-ceiling default.
+  colliderBaseY  Float   @default(0)
+  // Kept out of the public museum while staying in the room. Distinct from
+  // `deletedAt` on purpose, and the distinction matters most for the
+  // provisioned fixtures — the About room's content blocks, its Contact Desk,
+  // the Digital Wall Clock, the Freedom Wall plaque. Those are re-created by
+  // code whenever they are missing (see lib/museum/aboutRoom.ts), so deleting
+  // one never removed it: it came back on the next load, minus the entire
+  // configuration that lived on the deleted row. There was no way to simply
+  // not have a Contact Desk. This flag is that way, and it is safe because
+  // the row — its .glb, its wording, its placement — is left untouched, so
+  // switching it back on restores exactly what was there.
+  //
+  // Not to be confused with the Scene Editor's own eye toggle, which hides an
+  // object from the admin's 3D preview only and is never persisted anywhere.
+  hidden         Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  deletedAt      DateTime?
+
+  @@index([roomId])
+}
+
+model MuseumRoomArtwork {
+  id           String     @id @default(cuid())
+  roomId       String
+  room         MuseumRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  artworkId    String
+  artwork      Artwork    @relation("MuseumRoomArtworks", fields: [artworkId], references: [id], onDelete: Cascade)
+  displayOrder Int        @default(0)
+  createdAt    DateTime   @default(now())
+  // Admin-customized wall placement (Museum Scene Editor —
+  // Docs/MuseumSceneEditor_Spec.md). All four null (the default) means
+  // "auto-computed" — framePlacement.ts's even perimeter-walk layout at
+  // its fixed FRAME_CENTER_Y height, exactly as before this existed.
+  // Always set together, never partially, once an admin drags this frame
+  // in the editor and Saves. Room-local X/Z (see MuseumSceneObject's doc
+  // comment for why) on the wall's own surface line (the same un-offset
+  // coordinate framePlacement.ts's own placements use — ArtworkFrame.tsx
+  // applies FRAME_WALL_OFFSET on top, same as always). positionY is the
+  // frame's hung height (world-space, not room-local — there's no
+  // per-room vertical offset to subtract) — how high on the wall it
+  // hangs, draggable in the editor same as X/Z. rotationY determines
+  // which wall it's flush against via wallNormal = [sin(rotationY), 0,
+  // cos(rotationY)] — see framePlacement.ts's WallDefinition, whose four
+  // rotationY values are exactly the only ones the editor's wall picker
+  // ever writes here.
+  positionX    Float?
+  positionY    Float?
+  positionZ    Float?
+  rotationY    Float?
+  // Independent of the position override above — a uniform multiplier on
+  // the auto-computed frame size (applied as a wrapping group's scale in
+  // MuseumScene.tsx, not by touching ArtworkFrame.tsx's own geometry
+  // math). Null/1 = default size.
+  scale        Float?
+
+  @@unique([roomId, artworkId])
+  @@index([roomId])
+  @@index([artworkId])
+}
+
+// One story standing on one podium in the Stories Room — the floor-standing
+// counterpart to MuseumRoomArtwork above, and deliberately the same shape.
+//
+// Stories aren't Artworks, so they can't ride that model; but the reason it
+// exists as a real row rather than something synthesized at render time
+// applies here identically: a real row is what the Museum Scene Editor can
+// select, drag and save a placement onto. Membership itself is never
+// hand-picked — syncStoriesRoomStories (lib/museum/storiesRoom.ts) keeps
+// these rows mirroring every published Story, exactly as the Services Room
+// mirrors every live Product.
+model MuseumRoomStory {
+  id           String     @id @default(cuid())
+  roomId       String
+  room         MuseumRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  storyId      String
+  story        Story      @relation("MuseumRoomStories", fields: [storyId], references: [id], onDelete: Cascade)
+  displayOrder Int        @default(0)
+  // Museum Scene Editor override. All null (the default) means "auto-
+  // computed" — podiumPlacement.ts's floor grid, exactly as before this was
+  // ever dragged. Always set together, never partially.
+  //
+  // Room-LOCAL X/Z (same space MuseumSceneObject uses — see its doc comment
+  // for why room-local rather than world). positionY is a *raise* off this
+  // room's own floor, normally 0; unlike a wall frame's positionY it isn't a
+  // world height, because a podium stands on the floor plane the room
+  // carries with it when it moves between floors.
+  positionX    Float?
+  positionY    Float?
+  positionZ    Float?
+  rotationY    Float?
+  // Uniform multiplier on the whole podium+book group. Null/1 = default.
+  scale        Float?
+  createdAt    DateTime   @default(now())
+
+  // Makes the sync's skipDuplicates a no-op instead of a 500 when two
+  // concurrent requests both decide to add the same story.
+  @@unique([roomId, storyId])
+  @@index([roomId])
+  @@index([storyId])
+}
+
+// One MiniGame shown in the Arcade Room — the arcade-cabinet counterpart to
+// MuseumRoomStory, and deliberately the same shape (a real row is what the
+// Museum Scene Editor can select, drag and save a placement onto).
+//
+// Membership is never hand-picked — syncArcadeRoomGames (lib/museum/arcadeRoom
+// .ts) keeps these rows mirroring every enabled + playable MiniGame, exactly
+// as the Stories Room mirrors every published Story.
+model MuseumRoomMiniGame {
+  id           String     @id @default(cuid())
+  roomId       String
+  room         MuseumRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  gameId       String
+  game         MiniGame   @relation("MiniGameRoomPlacements", fields: [gameId], references: [id], onDelete: Cascade)
+  displayOrder Int        @default(0)
+  // "CABINET" (a floor-standing arcade cabinet) or "POSTER" (a framed wall
+  // poster). Null = inherit the room-wide default (see lib/museum/arcadeConfig
+  // .ts's arcade-config MuseumSceneObject). Set per-game in the Scene Editor.
+  displayMode  String?
+  // Museum Scene Editor override. All null (the default) means "auto-computed"
+  // — cabinetPlacement.ts's floor grid, exactly as before this was ever
+  // dragged. Always set together, never partially. Room-LOCAL X/Z (same space
+  // MuseumSceneObject uses); positionY is a raise off this room's own floor.
+  positionX    Float?
+  positionY    Float?
+  positionZ    Float?
+  rotationY    Float?
+  // Uniform multiplier on the whole cabinet/poster group. Null/1 = default.
+  scale        Float?
+  createdAt    DateTime   @default(now())
+
+  // Makes the sync's skipDuplicates a no-op instead of a 500 when two
+  // concurrent requests both decide to add the same game.
+  @@unique([roomId, gameId])
+  @@index([roomId])
+  @@index([gameId])
+}
+
+// One cosplay standing in the Cosplay Room — the standee-plus-backdrop
+// counterpart to MuseumRoomStory, and deliberately the same shape (a real row
+// is what the Museum Scene Editor can select, drag and save a placement onto).
+//
+// Membership is never hand-picked — syncCosplayRoomEntries (lib/museum/
+// cosplayRoom.ts) keeps these rows mirroring every published Cosplay, exactly
+// as the Stories Room mirrors every published Story.
+//
+// One placement covers the pair. The standee stands at this position and the
+// cosplay's backdrop photo hangs on the panel directly behind it, at a fixed
+// local offset the components own — so an admin drags "the cosplay", never a
+// standee and its photo separately, and the two can never drift apart.
+model MuseumRoomCosplay {
+  id           String     @id @default(cuid())
+  roomId       String
+  room         MuseumRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  cosplayId    String
+  cosplay      Cosplay    @relation("MuseumRoomCosplays", fields: [cosplayId], references: [id], onDelete: Cascade)
+  displayOrder Int        @default(0)
+  // Museum Scene Editor override. All null (the default) means "auto-computed"
+  // — standeePlacement.ts's perimeter walk, which stands each pair against a
+  // wall facing into the room, exactly as before this was ever dragged. Always
+  // set together, never partially. Room-LOCAL X/Z (same space
+  // MuseumSceneObject uses); positionY is a raise off this room's own floor.
+  positionX    Float?
+  positionY    Float?
+  positionZ    Float?
+  rotationY    Float?
+  // Uniform multiplier on the whole standee+backdrop group. Null/1 = default.
+  scale        Float?
+  // Billboard lights — the ring of marquee bulbs around this standee's backdrop
+  // panel (or, when the room hangs no panel, around the print itself). See
+  // BillboardLights.tsx.
+  //
+  // Per-standee rather than room-wide, unlike every other standee setting
+  // (lib/museum/cosplayStandee.ts), because this one is a *spotlight*: an admin
+  // lights the two or three cosplays a visit is meant to be about, and lighting
+  // all twelve would say nothing. Only the on/off bit lives here — how the
+  // bulbs look stays room-wide, so a lit room reads as one design. The editor's
+  // "Light every standee" button is how you do want all of them, and it just
+  // sets this on every row.
+  lightsEnabled Boolean   @default(false)
+  createdAt    DateTime   @default(now())
+
+  // Makes the sync's skipDuplicates a no-op instead of a 500 when two
+  // concurrent requests both decide to add the same cosplay.
+  @@unique([roomId, cosplayId])
+  @@index([roomId])
+  @@index([cosplayId])
+}
+
+model Product {
+  id         String           @id @default(cuid())
+  artworkId  String           @unique
+  price      Float
+  stock      Int              @default(1)
+  available  Boolean          @default(true)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  deletedAt  DateTime?
+  orderItems OrderItem[]
+  artwork    Artwork          @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  variants   ProductVariant[]
+}
+
+model ProductVariant {
+  id         String      @id @default(cuid())
+  productId  String
+  label      String
+  price      Float
+  stock      Int         @default(1)
+  sortOrder  Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  orderItems OrderItem[]
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  customerName    String
+  customerEmail   String
+  status          OrderStatus @default(PENDING)
+  total           Float
+  paymentId       String?
+  paymongoRef     String?
+  checkoutUrl     String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deliveryNotes   String?
+  shippingAddress String?
+  shippingPhone   String?
+  // Archive, not Trash. Deliberately NOT the `deletedAt` soft-delete every
+  // other module uses: an order is a financial record that must never leave
+  // the books, so archiving only clears it out of the Orders working list
+  // (fulfilled/cancelled business the admin is done with) while it keeps
+  // counting towards revenue, the Sales Dashboard and every export. That's
+  // also why Order isn't wired into the Trash module — there is nothing here
+  // that should ever be permanently deleted.
+  archivedAt      DateTime?
+  items           OrderItem[]
+
+  @@index([customerEmail])
+  @@index([archivedAt])
+}
+
+model OrderItem {
+  id           String          @id @default(cuid())
+  orderId      String
+  productId    String
+  quantity     Int
+  price        Float
+  variantId    String?
+  variantLabel String?
+  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product      Product         @relation(fields: [productId], references: [id])
+  variant      ProductVariant? @relation(fields: [variantId], references: [id])
+}
+
+model Faq {
+  id           String   @id @default(cuid())
+  question     String
+  answer       String
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// One pin on the public "Timeline/Gigs" Google Map on the About page — a
+// gig, exhibit, or event Kyla (ScriptOverNovel) attended/performed at. `enabled`
+// hides a pin from the public map without trashing it (same convention as
+// MuseumRoom.enabled); `deletedAt` is the actual Trash-module soft delete
+// (see app/api/trash/route.ts). Exactly one row is ever `isNextEvent: true`
+// at a time — enforced the same way MuseumRoom.isEntryRoom is, by unsetting
+// every other row's flag in the same transaction whenever one is set (see
+// app/api/events/[id]/route.ts).
+model Event {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  venueName    String?
+  latitude     Float
+  longitude    Float
+  eventDate    DateTime?
+  isNextEvent  Boolean   @default(false)
+  displayOrder Int       @default(0)
+  enabled      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  media EventMedia[]
+
+  @@index([deletedAt])
+  @@index([isNextEvent])
+}
+
+model EventMedia {
+  id        String         @id @default(cuid())
+  eventId   String
+  event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  url       String
+  type      EventMediaType
+  order     Int            @default(0)
+  createdAt DateTime       @default(now())
+
+  @@index([eventId])
+}
+
+enum EventMediaType {
+  IMAGE
+  VIDEO
+}
+
+model MarqueeAnnouncement {
+  id              String    @id @default(cuid())
+  text            String
+  category        String    @default("General")
+  linkUrl         String?
+  textColor       String    @default("#FAF8F3")
+  backgroundColor String    @default("#0D0D0D")
+  fontSize        String    @default("0.875rem")
+  fontFamily      String    @default("var(--font-dm-sans), system-ui, sans-serif")
+  speed           Int       @default(24)
+  separator       String    @default("✦")
+  pauseOnHover    Boolean   @default(true)
+  isActive        Boolean   @default(true)
+  startDate       DateTime?
+  endDate         DateTime?
+  priority        Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  @@index([deletedAt, isActive, priority])
+}
+
+model MiniGame {
+  id                 String               @id @default(cuid())
+  type               MiniGameType         @unique
+  enabled            Boolean              @default(false)
+  difficulty         MiniGameDifficulty   @default(MEDIUM)
+  artworkId          String?
+  secondaryArtworkId String?
+  timeLimitSec       Int                  @default(0)
+  scoreMultiplier    Float                @default(1)
+  leaderboardEnabled Boolean              @default(true)
+  leaderboardSize    Int                  @default(10)
+  rewardEnabled      Boolean              @default(false)
+  rewardThreshold    Int                  @default(0)
+  rewardDescription  String?
+  rewardRequireEmail Boolean              @default(true)
+  differences        Json                 @default("[]")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  entries            LeaderboardEntry[]
+  artwork            Artwork?             @relation("MiniGamePrimaryArtwork", fields: [artworkId], references: [id])
+  secondaryArtwork   Artwork?             @relation("MiniGameSecondaryArtwork", fields: [secondaryArtworkId], references: [id])
+  sessions           MiniGameSession[]
+  claims             RewardClaim[]
+  // Only ever non-empty once the Arcade Room is provisioned — one row per
+  // cabinet/poster shown there (see lib/museum/arcadeRoom.ts).
+  roomPlacements     MuseumRoomMiniGame[] @relation("MiniGameRoomPlacements")
+}
+
+model MiniGameSession {
+  id          String                @id @default(cuid())
+  gameId      String
+  type        MiniGameType
+  difficulty  MiniGameDifficulty
+  playerId    String
+  artworkId   String?
+  challenge   Json
+  status      MiniGameSessionStatus @default(CREATED)
+  startedAt   DateTime              @default(now())
+  expiresAt   DateTime
+  completedAt DateTime?
+  score       Int?
+  moves       Int?
+  durationMs  Int?
+  createdAt   DateTime              @default(now())
+  entry       LeaderboardEntry?
+  game        MiniGame              @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  claim       RewardClaim?
+
+  @@index([gameId, status])
+  @@index([playerId, createdAt])
+}
+
+model LeaderboardEntry {
+  id             String             @id @default(cuid())
+  gameId         String
+  type           MiniGameType
+  sessionId      String             @unique
+  artworkId      String?
+  playerId       String
+  displayName    String
+  score          Int
+  completionTime Int
+  moves          Int
+  difficulty     MiniGameDifficulty
+  createdAt      DateTime           @default(now())
+  artwork        Artwork?           @relation(fields: [artworkId], references: [id])
+  game           MiniGame           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  session        MiniGameSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, score])
+  @@index([type, artworkId, score])
+}
+
+model RewardClaim {
+  id           String            @id @default(cuid())
+  gameId       String
+  sessionId    String            @unique
+  playerId     String
+  displayName  String
+  email        String
+  score        Int
+  threshold    Int
+  reward       String
+  artworkTitle String?
+  status       RewardClaimStatus @default(PENDING)
+  notifiedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  game         MiniGame          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  session      MiniGameSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  type       NotificationType
+  title      String
+  body       String
+  metadata   Json?
+  readAt     DateTime?
+  createdAt  DateTime         @default(now())
+  deletedAt  DateTime?
+  isSpam     Boolean          @default(false)
+  isArchived Boolean          @default(false)
+
+  @@index([readAt, createdAt])
+  @@index([deletedAt])
+}
+
+model BlockedEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+// Append-only audit trail behind Dashboard ▸ Activity Log. One row per
+// thing that happened — an admin editing something, someone signing in, a
+// visitor posting on the Freedom Wall — written through lib/activity-log.ts's
+// `logActivity()` and never updated afterwards.
+//
+// Deliberately *not* a foreign key to User. The row has to outlive whoever
+// caused it (a deleted admin's edits are exactly the history you still want),
+// and most rows have no user at all — a museum visitor is anonymous. So the
+// actor is denormalised: `actorId` is a plain string with no relation, and
+// `actorLabel`/`actorEmail` capture who they were *at the time*, which is the
+// honest answer for an audit log even when that account is later renamed.
+//
+// This table grows without bound by design — visitor events are included, so
+// it is by far the highest-volume table here. Retention is enforced rather
+// than assumed: pruneActivityLogs() drops rows past their category's window
+// (see ACTIVITY_RETENTION_DAYS), and the admin can purge on demand from the
+// panel. Nothing else in the app reads from it, so pruning is always safe.
+model ActivityLog {
+  id       String           @id @default(cuid())
+  category ActivityCategory
+  // Dotted, machine-readable verb — "artwork.updated", "auth.login.failed",
+  // "museum.room.entered". Free-form on purpose (a String, not an enum):
+  // new call sites appear constantly, and a schema migration per new logged
+  // action would guarantee the logging simply never gets added. The
+  // vocabulary that exists today is catalogued in lib/activity-log.ts's
+  // ACTIVITY_ACTIONS, which is what the panel's filter dropdown reads.
+  action   String
+  // Human sentence shown in the panel's main column, composed at write time
+  // ("Updated artwork “Squid Dreams”"). Written out rather than rebuilt from
+  // `action` + `metadata` at read time so a row still reads correctly years
+  // later, after the entity it names has been renamed or deleted.
+  summary  String
+
+  // Who — see the note above on why this isn't a relation.
+  actorId    String?
+  actorLabel String?
+  actorEmail String?
+  // "admin" | "visitor" | "system" — coarse enough to filter on without
+  // needing the actor row itself. See ActivityActorType in lib/activity-log.ts.
+  actorType  String  @default("system")
+
+  // What it happened to, when there is a single such thing: "artwork",
+  // "order", "museum-room", … plus that record's id. Both null for events
+  // that aren't about one record (a failed login, a settings save).
+  entityType String?
+  entityId   String?
+
+  // Anything extra worth keeping — changed field names, a before/after pair,
+  // the room a visitor walked into. Json rather than columns because no two
+  // actions carry the same shape.
+  metadata Json?
+
+  // Request context, best-effort. Both are null for anything not triggered by
+  // an HTTP request (a cron prune, a server-side backfill).
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  // The panel's default view is "newest first, optionally narrowed by
+  // category" — this index serves both halves of that in one.
+  @@index([category, createdAt])
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+}
+
+enum ActivityCategory {
+  // An admin changed something through the admin panel or the API.
+  CONTENT
+  // Sign-in, sign-out, 2FA enrol/disable, password reset — succeeded or not.
+  AUTH
+  // Orders, checkout, payment webhooks.
+  COMMERCE
+  // Anonymous public-site activity: museum room entries, Freedom Wall posts,
+  // mini-game sessions, contact submissions. The high-volume category, and the
+  // one with the shortest retention window.
+  VISITOR
+  // The app talking about itself — backups, maintenance mode, prunes, and any
+  // handled error worth a trail entry.
+  SYSTEM
+}
+
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  message   String?
+  imageUrl  String?
+  linkUrl   String?
+  linkLabel String?   @default("Click here to check more info")
+  startDate DateTime
+  endDate   DateTime
+  isHidden  Boolean   @default(false)
+  priority  Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+// Server-authoritative running unique-visitor tally for the public site's
+// milestone-reward feature (VisitorMilestone below) — see
+// app/api/visitor-count/route.ts, the only place that ever increments it.
+// Single well-known row, same "one singleton config row" convention as
+// DigitalMuseum. Never client-editable directly; an admin can recalibrate
+// it (e.g. to seed from Vercel Analytics' existing historical total) via
+// the same route's PATCH, requireAdmin()-gated.
+model SiteVisitCounter {
+  id        String   @id @default("singleton")
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+// A visitor-count reward milestone (Settings ▸ Digital Museum-adjacent —
+// actually Settings ▸ Site ▸ Visitor Milestones, see the admin panel) —
+// admin-defined threshold + reward text, freely editable (not fixed to
+// 1,000/10,000/100,000 — those are just the user's own example numbers).
+// `achievedAt` is set server-side the moment SiteVisitCounter.count first
+// reaches `threshold` (app/api/visitor-count/route.ts) and never cleared
+// afterward, even if an admin later lowers the counter — once earned, a
+// milestone stays earned. The public API only ever exposes *achieved*
+// milestones (see VisitorMilestone select in that route) — an unreached
+// one's reward stays a surprise rather than something a visitor could
+// inspect via devtools ahead of time.
+model VisitorMilestone {
+  id         String                  @id @default(cuid())
+  threshold  Int                     @unique
+  reward     String
+  enabled    Boolean                 @default(true)
+  achievedAt DateTime?
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+  claims     VisitorMilestoneClaim[]
+}
+
+// One visitor's claim of an achieved VisitorMilestone's reward — same
+// "one claim per identity" shape as MiniGame's RewardClaim, just keyed by
+// email instead of a game session (there's no session concept for a
+// site-wide visitor counter). The @@unique is the actual enforcement — an
+// email that already claimed this milestone gets a clear 409 instead of a
+// second reward.
+model VisitorMilestoneClaim {
+  id          String           @id @default(cuid())
+  milestoneId String
+  milestone   VisitorMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  email       String
+  createdAt   DateTime         @default(now())
+
+  @@unique([milestoneId, email])
+}
+
+// A Digital Museum Achievement — a badge/trophy earned for in-session
+// exploration behavior (Artworks ▸ Digital Museum ▸ Achievements tab).
+// Unlike VisitorMilestone (a real server-authoritative counter) or
+// MiniGame's rewardThreshold (a server-verified puzzle score), the four
+// categories here (time/views/wishlist/steps) have no server-side ground
+// truth at all — there's no login, and wishlisting/viewing/walking happen
+// entirely client-side (see lib/museum/useMuseumAchievements.ts's doc
+// comment for the accepted trust trade-off this implies for claims).
+// `threshold`'s unit depends on `category`: minutes for "time", a raw
+// count for "views"/"wishlist"/"steps". Progress itself is session-only,
+// intentionally never persisted (see MuseumAchievementClaim below for
+// what actually is).
+model MuseumAchievement {
+  id        String                   @id @default(cuid())
+  category  String
+  threshold Int
+  reward    String
+  enabled   Boolean                  @default(true)
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  claims    MuseumAchievementClaim[]
+
+  @@unique([category, threshold])
+}
+
+// One visitor's claim of an earned MuseumAchievement — same one-claim-
+// per-email shape as VisitorMilestoneClaim. `reportedValue` is stored for
+// the admin's own reference (e.g. "claimed the 1,000-step badge having
+// reported 1,240 steps") — informational only, not itself verified.
+model MuseumAchievementClaim {
+  id            String            @id @default(cuid())
+  achievementId String
+  achievement   MuseumAchievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  // Nullable rather than required so adding this column is a non-
+  // destructive migration — null only ever means "claimed before this
+  // field existed," not a data quality issue.
+  displayName   String?
+  email         String
+  reportedValue Int
+  createdAt     DateTime          @default(now())
+
+  @@unique([achievementId, email])
+}
+
+// ── Freedom Wall ──────────────────────────────────────────────────────────────
+// Singleton settings row (id = "singleton") controls whether the Freedom Wall
+// room is publicly visible and which event folder is currently "active" (new
+// notes land in the active event). Mirrors the DigitalMuseum singleton pattern.
+model FreedomWallSettings {
+  id            String            @id @default("singleton")
+  isActive      Boolean           @default(false)
+  activeEventId String?
+  activeEvent   FreedomWallEvent? @relation("ActiveEvent", fields: [activeEventId], references: [id])
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+// An event/category folder that groups sticky notes (e.g. "Independence Day
+// 2026", "Art Fair Exhibition"). Archiving hides it from the public wall but
+// preserves notes for the admin to review or bulk-delete later.
+model FreedomWallEvent {
+  id                    String                @id @default(cuid())
+  title                 String
+  isArchived            Boolean               @default(false)
+  // Trash-module soft delete (mirrors every other trashable model). Distinct
+  // from `isArchived`, which only hides the event from the wall's active
+  // rotation — a deleted event is gone from the admin panel entirely and only
+  // reachable under Trash → Freedom Wall → Events until restored or purged.
+  deletedAt             DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  notes                 FreedomWallNote[]
+  settingsAsActiveEvent FreedomWallSettings[] @relation("ActiveEvent")
+
+  @@index([deletedAt])
+}
+
+// A single visitor-submitted sticky note.
+model FreedomWallNote {
+  id         String           @id @default(cuid())
+  nickname   String           @default("Anonymous")
+  content    String
+  eventId    String
+  event      FreedomWallEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  // Random layout offset on the wall — X/Y in viewport-percentage units
+  // (0-100) assigned server-side on creation so every client shows the same
+  // layout without a coordination round-trip.
+  positionX  Float            @default(0)
+  positionY  Float            @default(0)
+  // One of a handful of pastel sticky-note palette keys assigned on creation.
+  color      String           @default("yellow")
+  // Rotation in degrees (−15 to +15) for a natural "pinned" look.
+  rotation   Float            @default(0)
+  // Uniform size multiplier — admin-adjustable in the Museum Scene Editor
+  // exactly like a hung artwork frame's own `scale` (MuseumRoomArtwork.scale),
+  // same [0.5, 2.5] range enforced there. 1 = the note's normal card size.
+  scale      Float            @default(1)
+  // Which of the room's 4 walls this note is pinned to — "north" | "south" |
+  // "east" | "west", admin-picked in the Museum Scene Editor exactly like an
+  // artwork frame's wall (see framePlacement.ts's WallDefinition, which the
+  // note-placement math reuses directly). positionX/positionY stay percentages
+  // *along whichever wall this names*, not fixed to north — every note
+  // predates this column and defaults here to where it's always rendered.
+  wall       String           @default("north")
+  isArchived Boolean          @default(false)
+  // Soft delete, so a deleted note lands in /admin/trash and can be viewed,
+  // restored or purged there like any other trashable row. Distinct from
+  // isArchived: archiving is a curation state the admin flips on the wall
+  // itself, while deletedAt takes the note off every public surface.
+  deletedAt  DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([eventId, isArchived, createdAt])
+  @@index([deletedAt])
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  SHIPPED
+  DELIVERED
+}
+
+enum ArtworkStatus {
+  AVAILABLE
+  SOLD
+}
+
+// Publication kind of a Story. Adding a value here is the only change needed
+// to offer it in the admin — the create/edit select and every public filter
+// render from STORY_TYPES in lib/stories.ts, which mirrors this list.
+enum StoryType {
+  BOOK
+  NOVEL
+  COMIC
+  MANGA
+  ANTHOLOGY
+  ARTBOOK
+  ZINE
+  WEBTOON
+}
+
+enum MiniGameType {
+  ART_PUZZLE
+  ROTATE_SOLVE
+  SLIDING_PUZZLE
+  MEMORY_CARDS
+  FIND_DIFFERENCE
+}
+
+enum MiniGameDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum MiniGameSessionStatus {
+  CREATED
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+  REJECTED
+}
+
+enum RewardClaimStatus {
+  PENDING
+  FULFILLED
+  REJECTED
+}
+
+enum NotificationType {
+  ORDER
+  HIGHSCORE
+  CONTACT
+  // A Digital Museum Achievement claim (see MuseumAchievementClaim below
+  // and app/api/digital-museum/achievements/[id]/claim/route.ts) —
+  // visitor-submitted name + email shown in the admin Notifications
+  // module's "Museum" tab.
+  MUSEUM
+}

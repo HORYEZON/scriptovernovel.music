@@ -1,0 +1,54 @@
+ScriptOverNovel (scriptovernovel.music)
+Copyright 2026 Ryan Briz / Horyezon Indie Solutions
+
+This product includes software developed by Ryan Briz / Horyezon Indie Solutions.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this software except in compliance with the License. You may obtain a copy of
+the License in the accompanying LICENSE file or at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+
+TRADEMARKS AND BRANDING
+----------------------------------------------------------------------
+
+The names "ScriptOverNovel", "scriptovernovel.music", and "Horyezon Indie Solutions", the
+ScriptOverNovel logo, and all associated visual identity, branding, and design assets
+are NOT licensed under the Apache License, Version 2.0. All rights to these
+names and marks are reserved.
+
+The License grants no permission to use these names or marks, except as required
+for reasonable and customary use in describing the origin of the work and
+reproducing the content of this NOTICE file (see Section 6 of the License).
+
+Any fork, redistribution, or derivative work must use a different name and
+branding, and must not state or imply that it is endorsed by, affiliated with,
+or the official continuation of the original project or its authors.
+
+
+THIRD-PARTY CONTENT
+----------------------------------------------------------------------
+
+Artwork, images, written content, and other media in this repository (including
+but not limited to files under `public/`, `emails/`, and any seed data) are the
+property of their respective authors and are NOT covered by the Apache License.
+They are included for demonstration purposes only and may not be reused without
+separate permission from the rights holder.
+
+
+BUNDLED FONTS
+----------------------------------------------------------------------
+
+Space Grotesk (`public/fonts/SpaceGrotesk-Medium.ttf`,
+`public/fonts/SpaceGrotesk-Bold.ttf`)
+Copyright 2020 The Space Grotesk Project Authors
+(https://github.com/floriankarsten/space-grotesk)
+
+Licensed under the SIL Open Font License, Version 1.1:
+
+    https://openfontlicense.org
+
+Vendored as raw .ttf — separately from the same family loaded over
+next/font/google for the site itself — because app/opengraph-image.tsx renders
+through Satori, which needs font bytes it can parse and cannot read .woff2.
