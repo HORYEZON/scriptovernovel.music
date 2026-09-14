@@ -38,8 +38,13 @@ import {
   RectangleHorizontal,
   AlignLeft,
   AlignCenter,
+  Share2,
 } from "lucide-react";
 import toast from "@/lib/toast";
+import { AnimatePresence } from "framer-motion";
+import { Share360Modal } from "@/app/(public)/gallery/museum/components/Share360Modal";
+import type { Share360Fn } from "@/app/(public)/gallery/museum/components/Room360Capture";
+import { roomShareUrl, type Panorama360Result } from "@/lib/museum/panorama360";
 import { useLeaveBlocker } from "@/components/admin/AdminLeaveGuard";
 import { AdminSelect } from "@/components/admin/AdminSelect";
 import { toggleStaged } from "@/lib/admin/toggleToast";
@@ -441,6 +446,9 @@ export interface EditableCabinetItem {
 interface RoomShell {
   id: string;
   name: string;
+  /** For Share 360°'s "Copy room link" — see lib/museum/panorama360.ts's
+   *  roomShareUrl. */
+  slug: string;
   roomType: MuseumRoomType;
   /** Whether this is the room a visitor respawns into. Only the wall clock
    *  cares: it is re-provisioned for this room and the About room, so
@@ -1004,6 +1012,27 @@ export function MuseumEditorClient({
   // rendering (MuseumRoom + AboutRoomContents) so the admin can see how the
   // room looks in both themes without changing the site-wide CSS theme.
   const [sceneDarkMode, setSceneDarkMode] = useState(false);
+  // Share 360° — the same bridge the public museum's button uses
+  // (Room360Capture.tsx, mounted inside MuseumEditorScene's Canvas), so an
+  // admin can post a room *as it looks right now*, unsaved edits included:
+  // the capture reads the live scene graph, not the database.
+  const share360Ref = useRef<Share360Fn | null>(null);
+  const [share360, setShare360] = useState<Panorama360Result | null>(null);
+  const [rendering360, setRendering360] = useState(false);
+  const handleShare360 = useCallback(async () => {
+    if (rendering360 || !share360Ref.current) return;
+    setRendering360(true);
+    const toastId = toast.loading("Rendering 360°…");
+    try {
+      const result = await share360Ref.current();
+      if (result) setShare360(result);
+    } catch {
+      toast.error("Couldn't render the 360° photo — try again");
+    } finally {
+      toast.dismiss(toastId);
+      setRendering360(false);
+    }
+  }, [rendering360]);
 
   // Global brightness — fetched from the museum config on mount, saved back
   // on slider commit (mouseup/touchend). These are the same
@@ -3039,6 +3068,20 @@ export function MuseumEditorClient({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-start">
+      {/* `fixed`, so its grid slot is moot — it takes the whole viewport
+          while open and renders nothing at all otherwise. */}
+      <AnimatePresence>
+        {share360 && (
+          <Share360Modal
+            key="editor-share-360"
+            variant="admin"
+            result={share360}
+            roomName={room.name}
+            shareUrl={roomShareUrl(room.slug)}
+            onClose={() => setShare360(null)}
+          />
+        )}
+      </AnimatePresence>
       {/* Toolbar — Undo/Redo apply across the whole session, not just the
           current selection, so they sit above the 3D view rather than
           inside either object's own control card. The Dark/Light button
@@ -3081,6 +3124,20 @@ export function MuseumEditorClient({
             own rendering, not the admin page's CSS theme. Uses explicit
             (non-dark:-prefixed) colors so it stays visible regardless of
             which page theme the admin has active. */}
+        {/* Share 360° — renders the room as it currently stands (unsaved
+            edits included) into a Facebook-ready 360° JPEG. Lives with the
+            preview controls rather than Save because it never touches the
+            database; it is a way to *look at* the room, like Dark/Light. */}
+        <button
+          type="button"
+          onClick={handleShare360}
+          disabled={rendering360}
+          title="Share this room as a 360° photo"
+          className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full font-jakarta text-xs font-medium transition-all duration-200 border select-none shrink-0 bg-white text-slate-600 border-slate-300 hover:border-slate-400 hover:bg-slate-50 shadow-sm disabled:opacity-60 disabled:cursor-wait"
+        >
+          <Share2 size={12} className="shrink-0" />
+          {rendering360 ? "Rendering…" : "Share 360°"}
+        </button>
         {/* Light / Dark mode toggle */}
         <button
           type="button"
@@ -3239,6 +3296,7 @@ export function MuseumEditorClient({
       <div className="admin-card border rounded-2xl overflow-hidden h-[50vh] sm:h-[65vh]">
         <MuseumEditorScene
           room={room}
+          share360Ref={share360Ref}
           hasNorthOpening={hasNorthOpening}
           hasSouthOpening={hasSouthOpening}
           sceneObjects={visibleSceneObjects}

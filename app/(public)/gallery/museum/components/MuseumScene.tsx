@@ -55,6 +55,7 @@ import { DIFFICULTY_LABELS, type PublicGame } from "@/lib/minigames/types";
 import { CustomSceneObject } from "./CustomSceneObject";
 import { WallClock } from "./WallClock";
 import { ScreenshotCapture } from "./ScreenshotCapture";
+import { Room360Capture, type CaptureEye, type Share360Fn } from "./Room360Capture";
 import { GlassDoorway } from "./GlassDoorway";
 import { isLowEndDevice } from "@/lib/museum/deviceTier";
 import {
@@ -63,7 +64,7 @@ import {
   snapToDividerFace,
   type FramePlacement,
 } from "./framePlacement";
-import { computeRoomLayouts, type RoomTravelRequest } from "./roomLayout";
+import { computeRoomLayouts, getLayoutAtZ, type RoomTravelRequest } from "./roomLayout";
 import {
   EYE_HEIGHT,
   SCENE_BACKGROUND_LIGHT,
@@ -189,6 +190,7 @@ export function MuseumScene({
   onCycleVisionFilter,
   hudHidden = false,
   captureRef,
+  share360Ref,
   aboutRoomId,
   aboutData,
   chaseCompanions,
@@ -254,6 +256,10 @@ export function MuseumScene({
    * canvas capture+download — see ScreenshotCapture.tsx for why the ref
    * lives outside this component instead of a plain callback prop. */
   captureRef?: MutableRefObject<(() => void) | null>;
+  /** MuseumClient.tsx's "Share 360°" button — resolves to a tagged
+   * equirectangular JPEG of the room the visitor is standing in, taken from
+   * where they stand. See Room360Capture.tsx / lib/museum/panorama360.ts. */
+  share360Ref?: MutableRefObject<Share360Fn | null>;
   /** Id of the auto-generated "About ScriptOverNovel" room (see page.tsx) — compared against currentRoomId to know which layout is that room's, and when to show AboutRoomCorner. */
   aboutRoomId?: string;
   aboutData?: MuseumAboutData;
@@ -989,8 +995,15 @@ export function MuseumScene({
     () => layouts.findIndex((l) => l.room.id === currentRoomId),
     [layouts, currentRoomId]
   );
+  // While a 360° is being taken, every room counts as nearby — see
+  // prepareShare360 below.
+  const [capturing360, setCapturing360] = useState(false);
   const nearbyRoomIds = useMemo(() => {
     const set = new Set<string>();
+    if (capturing360) {
+      for (const l of layouts) set.add(l.room.id);
+      return set;
+    }
     if (currentRoomIndex === -1) {
       // Not resolved yet (very first render, before PlayerControls reports
       // in) — fall back to the spawn room so the entry room's images start
@@ -1002,7 +1015,7 @@ export function MuseumScene({
       set.add(layouts[i].room.id);
     }
     return set;
-  }, [layouts, currentRoomIndex, entryLayout]);
+  }, [layouts, currentRoomIndex, entryLayout, capturing360]);
   // Every room's wall/floor/ceiling texture loads eagerly (see MuseumRoom's
   // shouldLoad below), but a browser only opens a handful of concurrent
   // connections per origin — mounted in plain corridor order, a distant
@@ -1085,6 +1098,35 @@ export function MuseumScene({
   // directly; the camera below is its child and only ever has its rotation
   // touched (PointerLockControls / the touch look path), never its position.
   const rigRef = useRef<THREE.Group>(null);
+
+  // Where a 360° share is taken from: the rig's own position — the visitor
+  // frames the shot by walking to a spot, the same way [R] frames a flat
+  // one — tagged with the room they're in for the file name and deep link.
+  // Room identity comes from the *rig's* z, not currentRoomId: that state
+  // updates on PlayerControls' next report, and this is read at click time.
+  // Lights and loads the whole corridor for the shot. nearbyRoomIds gates
+  // the point lights (and the artwork/prop loads) to the current room ± 1
+  // — right for walking, since anything further is behind a doorway or
+  // two, but a 360° sees down the corridor in both directions at once,
+  // and a room two doorways away lit by ambient alone came out as a black
+  // rectangle dead centre of the entry room's photo (and at both sides of
+  // a middle room's). Two animation frames is enough for React to commit
+  // the extra lights and R3F to draw them once; far artworks that haven't
+  // fetched yet show their light placeholder plane, which reads fine at
+  // that distance. Reverted the moment the cube render is done.
+  const prepareShare360 = useCallback(async () => {
+    setCapturing360(true);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    return () => setCapturing360(false);
+  }, []);
+
+  const getShare360Eye = useCallback((): CaptureEye | null => {
+    const rig = rigRef.current;
+    if (!rig) return null;
+    const layout = getLayoutAtZ(layouts, rig.position.z);
+    if (!layout) return null;
+    return { position: rig.position.clone(), slug: layout.room.slug };
+  }, [layouts]);
 
   // The XR store — Docs/Museum_VRMode.md's Phase 3. Created once per mount,
   // not per render; `foveation` is the one performance lever worth setting
@@ -1565,6 +1607,9 @@ export function MuseumScene({
             isCoarsePointer={isCoarsePointer}
             filterCss={activeFilterCss}
           />
+        )}
+        {share360Ref && (
+          <Room360Capture shareRef={share360Ref} getEye={getShare360Eye} prepare={prepareShare360} lowEnd={lowEnd} />
         )}
         {/* Perf regression trio — all read/drive R3F's own internal
             `state.performance`, not a device/UA sniff: PerformanceMonitor

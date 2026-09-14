@@ -8,6 +8,7 @@ import { MuseumScene } from "./components/MuseumScene";
 import type { RoomTravelRequest } from "./components/roomLayout";
 import type { MiniMapFrameState } from "./components/MiniMapTracker";
 import type { VrHudProps } from "./components/VrHud";
+import type { Share360Fn } from "./components/Room360Capture";
 import type { MuseumRoomPublic, MuseumAboutData, MuseumChaseCompanion, FreedomWallNotePublic } from "@/types";
 
 export function MuseumSceneLoader({
@@ -26,6 +27,7 @@ export function MuseumSceneLoader({
   onToggleHud,
   hudHidden,
   captureRef,
+  share360Ref,
   aboutRoomId,
   aboutData,
   chaseCompanions,
@@ -70,6 +72,8 @@ export function MuseumSceneLoader({
   hudHidden?: boolean;
   /** [R] key / MuseumClient.tsx's "Save Photo" button — see ScreenshotCapture.tsx. */
   captureRef?: MutableRefObject<(() => void) | null>;
+  /** MuseumClient.tsx's "Share 360°" button — see Room360Capture.tsx. */
+  share360Ref?: MutableRefObject<Share360Fn | null>;
   aboutRoomId?: string;
   aboutData?: MuseumAboutData;
   chaseCompanions?: MuseumChaseCompanion[];
@@ -124,6 +128,7 @@ export function MuseumSceneLoader({
       onToggleHud={onToggleHud}
       hudHidden={hudHidden}
       captureRef={captureRef}
+      share360Ref={share360Ref}
       aboutRoomId={aboutRoomId}
       aboutData={aboutData}
       chaseCompanions={chaseCompanions}

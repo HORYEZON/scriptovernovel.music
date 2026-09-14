@@ -30,6 +30,9 @@ export default async function MuseumEditorPage({ params }: { params: Promise<{ r
       select: {
         id: true,
         name: true,
+        // The toolbar's Share 360° needs the public deep link
+        // (/gallery/museum?room=<slug>) to copy alongside the photo.
+        slug: true,
         roomType: true,
         // Only the wall clock reads this — it is provisioned for the respawn
         // room as well as the About room, so whether "Remove" resets it or

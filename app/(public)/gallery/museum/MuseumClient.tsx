@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Map, MonitorSmartphone, Sun, Moon, Camera, Download, Volume2, VolumeX, RectangleHorizontal, Compass, Settings2, Aperture, EyeOff, Eye, Glasses } from "lucide-react";
+import { ArrowLeft, Map, MonitorSmartphone, Sun, Moon, Camera, Download, Volume2, VolumeX, RectangleHorizontal, Compass, Settings2, Aperture, EyeOff, Eye, Glasses, Share2 } from "lucide-react";
 import type { MuseumRoomPublic, MuseumAboutData, MuseumChaseCompanion, MuseumAchievementPublic, FreedomWallNotePublic } from "@/types";
 import type { IntroEffect } from "@/lib/intro-splash";
 import type { SplashStyle } from "@/lib/museum-splash";
@@ -18,6 +18,9 @@ import { AchievementHud } from "./components/AchievementHud";
 import { AchievementBanner } from "./components/AchievementBanner";
 import { AchievementResetNotice } from "./components/AchievementResetNotice";
 import { ExitConfirmModal } from "./components/ExitConfirmModal";
+import { Share360Modal } from "./components/Share360Modal";
+import type { Share360Fn } from "./components/Room360Capture";
+import { roomShareUrl, type Panorama360Result } from "@/lib/museum/panorama360";
 import toast from "@/lib/toast";
 import { MiniMapHud } from "./components/MiniMapHud";
 import type { MinimapHudConfig } from "@/lib/museum/minimapHud";
@@ -26,6 +29,7 @@ import { StatsMinimapPanel } from "./components/StatsMinimapPanel";
 import type { MiniMapFrameState } from "./components/MiniMapTracker";
 import { useMuseumAchievements } from "@/lib/museum/useMuseumAchievements";
 import { playSoundEffect } from "@/lib/sound/engine";
+import { pauseSiteMusicForMuseum, resumeSiteMusicAfterMuseum } from "@/lib/site-music-controller";
 import type { RoomTravelRequest } from "./components/roomLayout";
 
 // Three.js must never touch the server bundle — this is the one and only
@@ -227,7 +231,19 @@ export function MuseumClient({
   const [assetsReady, setAssetsReady] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   // Museum-specific audio — separate <audio> from BackgroundMusicPlayer.
-  // The museum page sits at z-50, hiding that global player behind it.
+  // The museum page sits at z-50, hiding that global player behind it — but
+  // hiding the *button* isn't the same as stopping the *track*, and that
+  // global player is mounted once in the persistent (public) layout, so it
+  // kept right on playing underneath whatever this room's own soundtrack
+  // was doing. Reported as "the site music just stops"; what a visitor
+  // actually heard was two tracks at once with no way to silence either.
+  // Pausing it here (and resuming it only if it was actually playing, once
+  // this room unmounts) makes the handoff deliberate instead of accidental.
+  useEffect(() => {
+    pauseSiteMusicForMuseum();
+    return () => resumeSiteMusicAfterMuseum();
+  }, []);
+
   const museumAudioRef = useRef<HTMLAudioElement | null>(null);
   const [musicPlaying, setMusicPlaying] = useState(false);
 
@@ -306,6 +322,31 @@ export function MuseumClient({
   // here instead so both the [R] keydown (inside MuseumScene) and this
   // button (out here) can reach the same instance.
   const captureRef = useRef<(() => void) | null>(null);
+  // "Share 360°" — same bridge shape as captureRef, but resolves to a
+  // tagged 360° JPEG (Room360Capture.tsx) that the modal below then hands
+  // to the OS share sheet or a download. `share360` holds the finished
+  // result while the modal is open; `rendering360` guards against a double
+  // tap while the GPU is busy with the previous one.
+  const share360Ref = useRef<Share360Fn | null>(null);
+  const [share360, setShare360] = useState<Panorama360Result | null>(null);
+  const [rendering360, setRendering360] = useState(false);
+  const handleShare360 = useCallback(async () => {
+    if (rendering360 || !share360Ref.current) return;
+    setRendering360(true);
+    const toastId = toast.loading("Rendering 360°…");
+    try {
+      const result = await share360Ref.current();
+      if (result) setShare360(result);
+      else toast.error("Couldn't work out which room you're in — take a step and try again");
+    } catch {
+      // A tainted canvas (a texture without CORS clearance) or the GPU
+      // refusing a 4096-wide target — either way nothing is half-done.
+      toast.error("Couldn't render the 360° photo — try again");
+    } finally {
+      toast.dismiss(toastId);
+      setRendering360(false);
+    }
+  }, [rendering360]);
   // MiniMapHud.tsx's own rAF loop reads this — written every frame by
   // MiniMapTracker.tsx inside the Canvas, never through React state (see
   // that file's doc comment).
@@ -1044,6 +1085,24 @@ export function MuseumClient({
                 </button>
               )}
 
+              {/* Share 360° — a tagged equirectangular of the room the
+                  visitor is standing in, from where they stand (see
+                  Room360Capture.tsx). Sits beside Save Photo because it is
+                  the same gesture with a different output: [R] is a flat
+                  picture for their camera roll, this is the post. */}
+              {view === "3d" && (
+                <button
+                  type="button"
+                  onClick={handleShare360}
+                  disabled={rendering360}
+                  title="Share this room as a 360° photo"
+                  className="pointer-events-auto inline-flex items-center gap-2 px-2.5 sm:px-4 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-medium tracking-wide hover:bg-black/75 disabled:opacity-60 transition-colors"
+                >
+                  <Share2 size={14} />
+                  <span className="hidden sm:inline">Share 360°</span>
+                </button>
+              )}
+
               {view === "3d" && !isCoarsePointer && (
                 <button
                   type="button"
@@ -1273,6 +1332,22 @@ export function MuseumClient({
         )}
       </AnimatePresence>
 
+      {/* Same placement reasoning as ExitConfirmModal above — a direct child
+          of the root, outside the HUD's pointer-events-none row and its
+          hudHidden unmount. */}
+      <AnimatePresence>
+        {share360 && (
+          <Share360Modal
+            key="museum-share-360"
+            variant="museum"
+            result={share360}
+            roomName={rooms.find((r) => r.slug === share360.slug)?.name ?? currentRoom.name}
+            shareUrl={roomShareUrl(share360.slug)}
+            onClose={() => setShare360(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Two phases of the same overlay, deliberately not merged: before the
           canvas exists there is nothing to measure (the scene chunk itself is
           still downloading), so LoadingScreen runs indeterminate; once it is
@@ -1347,6 +1422,7 @@ export function MuseumClient({
           onToggleHud={toggleHud}
           hudHidden={hudHidden}
           captureRef={captureRef}
+          share360Ref={share360Ref}
           aboutRoomId={aboutRoomId}
           aboutData={aboutData}
           chaseCompanions={chaseCompanions}

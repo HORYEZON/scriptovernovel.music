@@ -10,7 +10,7 @@
 // walkthrough), CustomSceneObject.tsx for scene objects, and
 // ArtworkFrame.tsx for artwork frames, so both editor and public rendering
 // always look identical.
-import { useCallback, useState } from "react";
+import { useCallback, useState, type MutableRefObject } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, TransformControls, Text, Line } from "@react-three/drei";
 import * as THREE from "three";
@@ -23,6 +23,7 @@ import { CustomSceneObject, type ModelFit } from "@/app/(public)/gallery/museum/
 import { ContactDesk } from "@/app/(public)/gallery/museum/components/ContactDesk";
 import { WallClock } from "@/app/(public)/gallery/museum/components/WallClock";
 import { ArtworkFrame } from "@/app/(public)/gallery/museum/components/ArtworkFrame";
+import { Room360Capture, type CaptureEye, type Share360Fn } from "@/app/(public)/gallery/museum/components/Room360Capture";
 import { StoryPodium } from "@/app/(public)/gallery/museum/components/StoryPodium";
 import { ArcadeCabinet } from "@/app/(public)/gallery/museum/components/ArcadeCabinet";
 import { CosplayStandee } from "@/app/(public)/gallery/museum/components/CosplayStandee";
@@ -37,7 +38,7 @@ import {
   noteFreeValueToPercentX,
   noteWorldYToPercentY,
 } from "@/lib/museum/freedomWallNotePlacement";
-import { getRoomSize, ROOM_HEIGHT, ROOM_WIDTH, RISE, SCENE_BACKGROUND_DARK, SCENE_BACKGROUND_LIGHT, colliderWorldRadius, colliderWorldOffset, colliderWorldHeight, colliderWorldBaseY } from "@/app/(public)/gallery/museum/components/roomConstants";
+import { getRoomSize, ROOM_HEIGHT, ROOM_WIDTH, RISE, EYE_HEIGHT, DOORWAY_WIDTH, DOORWAY_HEIGHT, WALL_THICKNESS, SCENE_BACKGROUND_DARK, SCENE_BACKGROUND_LIGHT, colliderWorldRadius, colliderWorldOffset, colliderWorldHeight, colliderWorldBaseY } from "@/app/(public)/gallery/museum/components/roomConstants";
 import { backdropDistance } from "@/app/(public)/gallery/museum/components/standeePlacement";
 import {
   ABOUT_BLOCK_LABEL,
@@ -112,6 +113,8 @@ function AboutBlockPlaceholder({ kind }: { kind: AboutBlockKind }) {
 }
 
 interface RoomShell {
+  /** Tags the 360° export's file name — see getShare360Eye below. */
+  slug: string;
   roomType: MuseumRoomType;
   wallColor: string;
   floorColor: string;
@@ -124,6 +127,25 @@ interface RoomShell {
 interface OpeningFlags {
   hasNorthOpening: boolean;
   hasSouthOpening: boolean;
+}
+
+/**
+ * What a 360° capture of this editor leaves out: drei's TransformControls
+ * (three r169 adds its gizmo and drag plane to the scene as their own
+ * objects) and the drei <Line>s that draw alignment guides (Line2 under
+ * the hood). Everything else in this Canvas is the room as visitors see it.
+ */
+function isEditorOnlyObject(object: THREE.Object3D): boolean {
+  const o = object as THREE.Object3D & {
+    isTransformControls?: boolean;
+    isTransformControlsGizmo?: boolean;
+    isTransformControlsPlane?: boolean;
+    isLine2?: boolean;
+    isLineSegments2?: boolean;
+  };
+  return Boolean(
+    o.isTransformControls || o.isTransformControlsGizmo || o.isTransformControlsPlane || o.isLine2 || o.isLineSegments2
+  );
 }
 
 
@@ -1164,8 +1186,11 @@ export function MuseumEditorScene({
   onSelectNote,
   onChangeNotePosition,
   freedomWallEventTitle = null,
+  share360Ref,
 }: OpeningFlags & {
   room: RoomShell;
+  /** The toolbar's Share 360° — see Room360Capture.tsx. */
+  share360Ref?: MutableRefObject<Share360Fn | null>;
   sceneObjects: SceneObject[];
   selectedSceneObjectId: string | null;
   mode: SceneMode;
@@ -1275,6 +1300,55 @@ export function MuseumEditorScene({
   brightness?: number;
 }) {
   const { depth } = getRoomSize(room.roomType);
+
+  // Where the 360° is taken from. The editor's own camera orbits from above
+  // the room, which is no use for a photo, so this stands where a visitor
+  // does on walking in: three units past the south doorway, eye height,
+  // facing north into the room (heading 0). In a room shallower than that,
+  // the centre.
+  const getShare360Eye = useCallback(
+    (): CaptureEye => ({
+      position: new THREE.Vector3(0, EYE_HEIGHT, depth > 6 ? depth / 2 - 3 : 0),
+      headingRad: 0,
+      slug: room.slug,
+    }),
+    [depth, room.slug]
+  );
+  // Fills each doorway for the shot. This editor previews one room with no
+  // corridor around it, so an opening is a hole straight through to the
+  // scene background — a void-black rectangle dead centre of the photo,
+  // since the eye above faces the north doorway. A wall-coloured panel
+  // recessed 1 cm into the wall's inner face reads as a closed doorway and
+  // is lit by the same lights as the wall around it. Removed the moment the
+  // cube render is done, so the editor itself never shows it.
+  const stageShare360 = useCallback(
+    (scene: THREE.Scene) => {
+      const added: THREE.Mesh[] = [];
+      const material = new THREE.MeshStandardMaterial({ color: room.wallColor, roughness: 0.9 });
+      const geometry = new THREE.PlaneGeometry(DOORWAY_WIDTH, DOORWAY_HEIGHT);
+      const inset = WALL_THICKNESS - 0.01;
+      if (hasNorthOpening) {
+        const baseY = room.roomType === "STAIRS" ? RISE : 0;
+        const panel = new THREE.Mesh(geometry, material);
+        panel.position.set(0, baseY + DOORWAY_HEIGHT / 2, -depth / 2 + inset);
+        scene.add(panel);
+        added.push(panel);
+      }
+      if (hasSouthOpening) {
+        const panel = new THREE.Mesh(geometry, material);
+        panel.position.set(0, DOORWAY_HEIGHT / 2, depth / 2 - inset);
+        panel.rotation.y = Math.PI;
+        scene.add(panel);
+        added.push(panel);
+      }
+      return () => {
+        for (const panel of added) scene.remove(panel);
+        geometry.dispose();
+        material.dispose();
+      };
+    },
+    [depth, hasNorthOpening, hasSouthOpening, room.roomType, room.wallColor]
+  );
   // Live placement + config straight from the current sceneObjects — feeding
   // these into the real AboutRoomContents below means the side panel's Wall /
   // Hang Width / Hang Height / Resize / label controls visibly move & restyle
@@ -1328,6 +1402,9 @@ export function MuseumEditorScene({
       <ambientLight intensity={0.6} />
       <hemisphereLight args={["#ffffff", "#444444", 0.6]} />
       <pointLight position={[0, 4, 0]} intensity={0.8} />
+      {share360Ref && (
+        <Room360Capture shareRef={share360Ref} getEye={getShare360Eye} exclude={isEditorOnlyObject} stage={stageShare360} />
+      )}
       <MuseumRoom
         roomType={room.roomType}
         depth={depth}

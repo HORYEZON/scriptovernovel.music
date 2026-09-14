@@ -1,9 +1,10 @@
 // components/public/BackgroundMusicPlayer.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { registerSiteMusicControls, unregisterSiteMusicControls } from "@/lib/site-music-controller";
 
 // Mounted once in app/(public)/layout.tsx (same spot as CursorGlow/BackToTop)
 // so the <audio> element persists — and keeps playing — across client-side
@@ -11,6 +12,13 @@ import { cn } from "@/lib/utils";
 // so this never tries to start itself; it just gives visitors a floating
 // toggle. A hard page reload always starts paused again, same as any other
 // site with a music toggle.
+//
+// The Digital Museum has its own separate soundtrack and used to just sit
+// on top of this one (z-50, hiding the toggle) while this track kept
+// running underneath — two tracks at once, one of them with no visible way
+// to stop. Registers its pause/resume with lib/site-music-controller.ts so
+// MuseumClient.tsx can pause this on entry and resume it (only if it was
+// actually playing) on the way back out.
 export function BackgroundMusicPlayer({
   musicUrl,
   volume,
@@ -20,6 +28,14 @@ export function BackgroundMusicPlayer({
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Mirrors `isPlaying` for the controller's isPlaying() — a museum-entry
+  // pause can happen well after this component's own closures were last
+  // created, so that read has to come from a ref, not a stale state value.
+  const isPlayingRef = useRef(false);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -27,20 +43,33 @@ export function BackgroundMusicPlayer({
     }
   }, [volume]);
 
-  function toggle() {
+  const pause = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (isPlaying) {
-      audio.pause();
+    audio.pause();
+    setIsPlaying(false);
+  }, []);
+
+  const resume = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.play().catch(() => {
+      // Same guard as the manual toggle below — stay paused rather than
+      // show a "playing" state that isn't real.
       setIsPlaying(false);
-    } else {
-      audio.play().catch(() => {
-        // Blocked by the browser (no user gesture yet, etc.) — stay paused
-        // rather than showing a "playing" state that isn't real.
-        setIsPlaying(false);
-      });
-      setIsPlaying(true);
-    }
+    });
+    setIsPlaying(true);
+  }, []);
+
+  useEffect(() => {
+    const controls = { pause, resume, isPlaying: () => isPlayingRef.current };
+    registerSiteMusicControls(controls);
+    return () => unregisterSiteMusicControls(controls);
+  }, [pause, resume]);
+
+  function toggle() {
+    if (isPlaying) pause();
+    else resume();
   }
 
   if (!musicUrl) return null;
