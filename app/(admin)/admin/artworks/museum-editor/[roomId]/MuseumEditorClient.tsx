@@ -3162,12 +3162,15 @@ export function MuseumEditorClient({
         {/* Global brightness slider — adjusts the current mode's brightness live
             in the 3D scene and saves to the API on commit. Applies to ALL rooms
             (same museumBrightnessLight / museumBrightnessDark the public museum reads). */}
-        {/* flex-1 on mobile, fixed at sm+. This is the control that soaks up
-            whatever width is left over, so the row packs flush instead of
-            ending in a dead gap — the slider is the one thing here that is
-            genuinely better wider. At sm+ the flex-1 spacer above does the
-            pushing instead, so this goes back to its natural size. */}
-        <div className="flex items-center gap-1.5 sm:gap-2 px-0.5 sm:px-1 flex-1 min-w-0 sm:flex-none">
+        {/* Its own full-width row on mobile, natural size at sm+. It used to
+            be `flex-1 min-w-0`, meaning a zero flex-basis: a basis-0 item
+            never asks the wrapping row for space, so instead of wrapping it
+            was squeezed to nothing and its slider + "19%" spilled out under
+            the Add button. `basis-full` makes it wrap onto a line of its own,
+            where the slider gets the whole width — the one control here that
+            is genuinely better wider — and `order-last` keeps the buttons
+            together on the first row above it. */}
+        <div className="flex items-center gap-1.5 sm:gap-2 px-0.5 sm:px-1 basis-full order-last sm:basis-auto sm:order-none sm:flex-none">
           {sceneDarkMode
             ? <Moon size={11} className="shrink-0 text-indigo-400" />
             : <Sun  size={11} className="shrink-0 text-amber-500" />
@@ -3193,7 +3196,7 @@ export function MuseumEditorClient({
               if (sceneDarkMode) saveBrightness({ brightnessDark: val });
               else saveBrightness({ brightnessLight: val });
             }}
-            className={cn("w-full min-w-[3rem] sm:w-28 touch-none", sceneDarkMode ? "accent-indigo-400" : "accent-amber-500")}
+            className={cn("flex-1 min-w-0 sm:flex-none sm:w-28 touch-none", sceneDarkMode ? "accent-indigo-400" : "accent-amber-500")}
             title="Global room brightness — applies to all rooms"
           />
           <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300 shrink-0">

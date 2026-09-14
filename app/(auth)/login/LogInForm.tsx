@@ -196,7 +196,7 @@ export default function LoginForm({
                         short. */}
                     <div className="text-center mb-7">
                         {/* No logo, or a logo whose file is gone: the same
-                            SCRIPT/N(squid)VEL lockup as the public navbar/footer. */}
+                            KALAM(squid)RI lockup as the public navbar/footer. */}
                         <SafeImg
                             src={logoSrc ?? undefined}
                             alt="ScriptOverNovel"
@@ -308,9 +308,13 @@ export default function LoginForm({
                                     autoComplete="one-time-code"
                                     value={code}
                                     onChange={(e) => setCode(e.target.value)}
-                                    className="input-field-glass text-center font-mono tracking-widest"
+                                    className="input-field-glass text-center font-jakarta text-lg tracking-[0.4em] placeholder:tracking-[0.4em]"
                                     placeholder="000000"
                                 />
+                                {/* Same pill as "Back to site" below the card, so
+                                    the two ways back read as one control rather
+                                    than a link and a button that happen to share
+                                    a word. */}
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -318,9 +322,13 @@ export default function LoginForm({
                                         setCode("");
                                         setError("");
                                     }}
-                                    className="mt-3 font-body text-xs text-cream/70 hover:text-cream transition-colors tracking-widest uppercase underline decoration-cream/30 underline-offset-4"
+                                    className="group mt-3 inline-flex items-center gap-2 pl-3.5 pr-4 py-2 rounded-full border border-cream/15 bg-white/5 backdrop-blur-sm font-jakarta text-[11px] tracking-widest uppercase text-cream/70 hover:text-cream hover:bg-white/10 hover:border-cream/30 transition-all duration-200"
                                 >
-                                    ← Back
+                                    <ArrowLeft
+                                        size={13}
+                                        className="transition-transform duration-200 group-hover:-translate-x-0.5"
+                                    />
+                                    Back
                                 </button>
                             </div>
                         )}

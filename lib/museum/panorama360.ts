@@ -209,6 +209,29 @@ export function renderEquirectangular(
     });
   }
 
+  // Transmission is switched off for the shot. three r169's
+  // renderTransmissionPass (WebGLRenderer.js) ends with
+  // `setRenderTarget( currentRenderTarget )` — no active cube face — so
+  // whenever a MeshPhysicalMaterial with transmission > 0 (the glass of a
+  // GLB prop) is in a cube face's view, everything drawn after that pass
+  // lands on face 0 and the face being rendered stays cleared: a solid
+  // black 90° square in the photo, exactly where the prop was. Zeroing
+  // transmission drops USE_TRANSMISSION from those materials' programs
+  // (hence needsUpdate, both ways), so the pass never runs; the glass
+  // renders as ordinary tinted physical material for the one frame.
+  const transmissive: { material: THREE.MeshPhysicalMaterial; transmission: number }[] = [];
+  scene.traverse((object) => {
+    const material = (object as THREE.Mesh).material;
+    for (const m of Array.isArray(material) ? material : material ? [material] : []) {
+      const physical = m as THREE.MeshPhysicalMaterial;
+      if (physical.isMeshPhysicalMaterial && physical.transmission > 0) {
+        transmissive.push({ material: physical, transmission: physical.transmission });
+        physical.transmission = 0;
+        physical.needsUpdate = true;
+      }
+    }
+  });
+
   const unstage = options.stage?.(scene);
   const previousTarget = renderer.getRenderTarget();
   try {
@@ -230,6 +253,10 @@ export function renderEquirectangular(
     renderer.setRenderTarget(previousTarget);
     unstage?.();
     for (const object of hidden) object.visible = true;
+    for (const { material, transmission } of transmissive) {
+      material.transmission = transmission;
+      material.needsUpdate = true;
+    }
     material.dispose();
     outTarget.dispose();
     cubeTarget.dispose();

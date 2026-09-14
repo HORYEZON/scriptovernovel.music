@@ -1,12 +1,13 @@
 # scriptovernovel.music — Migration Checklist (from kalamari.arts)
 
-Baseline: `kalamari.arts` @ `99ef810` (`fix: Share 360° — light the whole corridor…`), synced 2026-09-14.
+Baseline: `kalamari.arts` @ `1825a7e` (`Merge branch 'museum-hud-button-toolbar-login-091426'`), synced 2026-09-15.
 (Original snapshot was `565a277`; commits `565a277..79404f4` — release-notes trash fix,
 VR mirrored panels, cart squid heading, VR HUD — were ported file-by-file on 2026-09-13; `79404f4..99ef810` — site-music handoff
-fix + Share 360° — on 2026-09-14.)
+fix + Share 360° — on 2026-09-14; `99ef810..1825a7e` — Share 360° black-square fix,
+Hide HUD button / editor toolbar wrap / 2FA back pill — on 2026-09-15.)
 
 > ⚠️ `kalamari.arts` is still receiving bug fixes / features in parallel.
-> Anything committed there **after `99ef810`** is NOT in this copy — see the
+> Anything committed there **after `1825a7e`** is NOT in this copy — see the
 > "Re-sync" section at the bottom before treating this folder as current.
 
 ## Done
@@ -81,11 +82,11 @@ Instead, port commits:
 
 ```bash
 cd "/Users/jbriz/Documents/GitHub/0 Horyezon Indie Solutions/kalamari.arts"
-git log --oneline 99ef810..HEAD            # what's new since the snapshot
-git diff 99ef810..HEAD --stat              # which files
+git log --oneline 1825a7e..HEAD            # what's new since the snapshot
+git diff 1825a7e..HEAD --stat              # which files
 
 # per commit / range, make a patch and apply it to the copy:
-git format-patch 99ef810..HEAD --stdout > /tmp/kalamari-since-snapshot.patch
+git format-patch 1825a7e..HEAD --stdout > /tmp/kalamari-since-snapshot.patch
 cd "../scriptovernovel.music"
 git apply --3way /tmp/kalamari-since-snapshot.patch   # after git init
 ```

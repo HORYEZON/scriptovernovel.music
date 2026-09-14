@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Map, MonitorSmartphone, Sun, Moon, Camera, Download, Volume2, VolumeX, RectangleHorizontal, Compass, Settings2, Aperture, EyeOff, Eye, Glasses, Share2 } from "lucide-react";
+import { ArrowLeft, Map, MonitorSmartphone, Sun, Moon, Camera, Volume2, VolumeX, RectangleHorizontal, Compass, Settings2, Aperture, EyeOff, Eye, Glasses, Share2 } from "lucide-react";
 import type { MuseumRoomPublic, MuseumAboutData, MuseumChaseCompanion, MuseumAchievementPublic, FreedomWallNotePublic } from "@/types";
 import type { IntroEffect } from "@/lib/intro-splash";
 import type { SplashStyle } from "@/lib/museum-splash";
@@ -297,7 +297,7 @@ export function MuseumClient({
       cancelled = true;
     };
   }, [currentRoomId, freedomWallRoomId]);
-  // [H] / the camera button — hides every HUD overlay (top bar, room label,
+  // [H] / the Hide HUD button — hides every HUD overlay (top bar, room label,
   // "Click to look around" legend, [E]/exhibition prompts, room splash, the
   // About corner card) for a clean screenshot. Desktop-only problem: taking
   // an OS-level screenshot (Cmd+Shift+4 on Mac, Win+Shift+S on Windows)
@@ -311,7 +311,7 @@ export function MuseumClient({
   // giving the HUD its own visibility switch that doesn't depend on lock
   // state, so a visitor can hide it *before* invoking their OS tool.
   const [hudHidden, setHudHidden] = useState(false);
-  // [R] / the download button — captures the WebGL canvas as a PNG and
+  // [R] / the Save Photo (camera) button — captures the WebGL canvas as a PNG and
   // downloads it directly, no OS screenshot tool involved at all. Unlike
   // hudHidden above, this needs no hiding trick: gl.domElement.toDataURL()
   // only ever returns the canvas's own drawn pixels — the HUD is a separate
@@ -1069,8 +1069,11 @@ export function MuseumClient({
               )}
 
               {/* Save Photo — works on both desktop ([R]) and mobile (tap).
-                  Mobile shows a Camera icon (universally understood) instead
-                  of the Download arrow that reads as "export" on small screens. */}
+                  Camera icon at every width: this is the one button that
+                  takes the picture, so it gets the "take a photo" icon.
+                  (Desktop used to show a Download arrow here while the Hide
+                  HUD button next door wore the Camera — visitors pressed the
+                  Camera expecting a capture and got a blank screen.) */}
               {view === "3d" && (
                 <button
                   type="button"
@@ -1078,9 +1081,7 @@ export function MuseumClient({
                   title={isCoarsePointer ? "Save Photo" : "Save Photo [R]"}
                   className="pointer-events-auto inline-flex items-center gap-2 px-2.5 sm:px-4 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-medium tracking-wide hover:bg-black/75 transition-colors"
                 >
-                  {/* Camera on mobile (coarse), Download on desktop — Camera is
-                      the universally-recognised "take a photo" icon on touch. */}
-                  {isCoarsePointer ? <Camera size={14} /> : <Download size={14} />}
+                  <Camera size={14} />
                   <span className="hidden sm:inline">Save Photo</span>
                 </button>
               )}
@@ -1103,15 +1104,24 @@ export function MuseumClient({
                 </button>
               )}
 
+              {/* Hide HUD — the [H] switch. This used to be a Camera icon
+                  labelled "Screenshot", which read as "take the picture" —
+                  so visitors pressed it, watched every overlay vanish and
+                  nothing download, and reported the button as broken while
+                  [R] "worked". It never captured anything: it clears the
+                  screen so they can take their *own* OS screenshot. Now it
+                  says what it does, with the same icon and wording as the
+                  mobile View dropdown's entry, and the Camera lives on Save
+                  Photo above, which is the button that actually saves one. */}
               {view === "3d" && !isCoarsePointer && (
                 <button
                   type="button"
                   onClick={toggleHud}
-                  title="Hide HUD for a screenshot [H]"
+                  title="Hide HUD for a clean screenshot [H]"
                   className="pointer-events-auto inline-flex items-center gap-2 px-2.5 sm:px-4 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-medium tracking-wide hover:bg-black/75 transition-colors"
                 >
-                  <Camera size={14} />
-                  <span className="hidden sm:inline">Screenshot</span>
+                  <EyeOff size={14} />
+                  <span className="hidden sm:inline">Hide HUD</span>
                 </button>
               )}
 
