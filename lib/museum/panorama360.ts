@@ -73,8 +73,10 @@ export interface Panorama360Result {
   blob: Blob;
   width: number;
   height: number;
-  /** `URL.createObjectURL(blob)` — for the preview <img>. The consumer
-   *  revokes it when it's done (Share360Modal.tsx does on unmount). */
+  /** A 1024-wide JPEG of the same picture, as an object URL, for the
+   *  modal's preview <img> — decoding the full export there costs another
+   *  32 MB on a phone that has just spent its budget rendering it. The
+   *  consumer revokes it when done (Share360Modal.tsx does on unmount). */
   previewUrl: string;
   fileName: string;
 }
@@ -145,16 +147,19 @@ export function renderEquirectangular(
 ): HTMLCanvasElement {
   const caps = renderer.capabilities;
   const requested = options.width ?? 4096;
-  // Output rounded down to a power of two within what the GPU allows.
-  const outWidth = 2 ** Math.floor(Math.log2(Math.min(requested, caps.maxTextureSize)));
+  // Output in 512-px steps within what the GPU allows — 3072 is a real
+  // option for phones (see pickPanoramaWidth), not just powers of two.
+  const outWidth = Math.max(1024, Math.floor(Math.min(requested, caps.maxTextureSize) / 512) * 512);
   const outHeight = outWidth / 2;
   // Cube faces at *half* the output width — 2× supersampling. A face spans
   // 90°, so a quarter-width face would be sampled 1:1 only at its centre
   // and stretched towards its edges, and with plain bilinear lookups the
   // result read as soft everywhere (the first thing reported). Twice the
   // resolution plus mipmaps means every output pixel is a proper average
-  // of at least a few rendered ones.
-  const faceSize = Math.min(outWidth / 2, caps.maxCubemapSize);
+  // of at least a few rendered ones. WebGL2 mipmaps any size; WebGL1 only
+  // powers of two, so the face rounds down there.
+  let faceSize = Math.min(outWidth / 2, caps.maxCubemapSize);
+  if (!caps.isWebGL2) faceSize = 2 ** Math.floor(Math.log2(faceSize));
 
   // 8-bit *sRGB* faces, not linear: the cube is the one place bit depth
   // shows, and 8-bit linear bands in a dark-mode room's shadows. Tagging
@@ -239,8 +244,17 @@ export function renderEquirectangular(
 
     renderer.setRenderTarget(outTarget);
     renderer.render(quadScene, quadCamera);
+    // The cube (the largest allocation by far — 6 faces plus mipmaps) has
+    // done its job once the equirect pass is drawn; free it *before* the
+    // readback and canvas take their own copies, so the two never coexist.
+    // A phone tab that reached ~250 MB here crashed to Chrome's "Aw, Snap".
+    renderer.setRenderTarget(null);
+    cubeTarget.dispose();
+    renderer.setRenderTarget(outTarget);
     const pixels = new Uint8Array(outWidth * outHeight * 4);
     renderer.readRenderTargetPixels(outTarget, 0, 0, outWidth, outHeight, pixels);
+    renderer.setRenderTarget(null);
+    outTarget.dispose();
 
     const canvas = document.createElement("canvas");
     canvas.width = outWidth;
@@ -258,9 +272,33 @@ export function renderEquirectangular(
       material.needsUpdate = true;
     }
     material.dispose();
+    // Idempotent — already released on the happy path above; this is for
+    // a throw partway through.
     outTarget.dispose();
     cubeTarget.dispose();
   }
+}
+
+/**
+ * Export width for this device. The memory a capture needs scales with
+ * the square of this: at 4096 the cube faces, the equirect target, the
+ * readback, the canvas and the preview decode add up to ~250 MB on top of
+ * the museum itself, which is fine on a desktop GPU and a crashed tab on
+ * a mid-range phone. So phones step down — 3072 where Chrome reports
+ * generous RAM (or won't say, which is every iPhone, all of them capable),
+ * 2048 where it reports little — and the museum's own low-end tier (old
+ * phones by core count / RAM, see deviceTier.ts) goes straight to 2048.
+ * Facebook renders any of these as a 360°; 2048 is merely softer when
+ * dragged on a large screen.
+ */
+export function pickPanoramaWidth(lowEnd: boolean): number {
+  if (lowEnd) return 2048;
+  if (typeof window === "undefined") return 4096;
+  const coarse = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+  if (!coarse) return 4096;
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  if (typeof memory === "number" && memory > 0 && memory < 6) return 2048;
+  return 3072;
 }
 
 /**
@@ -329,20 +367,24 @@ export function injectGPanoXmp(jpeg: ArrayBuffer, width: number, height: number,
   return new Blob([out], { type: "image/jpeg" });
 }
 
-function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<ArrayBuffer> {
+function canvasToJpegBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("JPEG encode failed"));
-          return;
-        }
-        blob.arrayBuffer().then(resolve, reject);
-      },
-      "image/jpeg",
-      quality
-    );
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("JPEG encode failed"))), "image/jpeg", quality);
   });
+}
+
+function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<ArrayBuffer> {
+  return canvasToJpegBlob(canvas, quality).then((blob) => blob.arrayBuffer());
+}
+
+async function makePreviewUrl(canvas: HTMLCanvasElement): Promise<string> {
+  const small = document.createElement("canvas");
+  small.width = Math.min(1024, canvas.width);
+  small.height = small.width / 2;
+  const ctx = small.getContext("2d");
+  if (!ctx) throw new Error("2D context unavailable");
+  ctx.drawImage(canvas, 0, 0, small.width, small.height);
+  return URL.createObjectURL(await canvasToJpegBlob(small, 0.85));
 }
 
 /**
@@ -356,15 +398,22 @@ export async function capturePanorama360(
   options: RenderPanoramaOptions & { slug: string; quality?: number }
 ): Promise<Panorama360Result> {
   const canvas = renderEquirectangular(renderer, scene, options);
+  const { width, height } = canvas;
   const jpeg = await canvasToJpeg(canvas, options.quality ?? 0.95);
+  const previewUrl = await makePreviewUrl(canvas);
+  // Release the full-size canvas's backing store now rather than when GC
+  // gets round to it — on a phone that's the difference between the next
+  // step fitting or not.
+  canvas.width = 0;
+  canvas.height = 0;
   const headingDeg = ((options.headingRad ?? 0) * 180) / Math.PI;
-  const blob = injectGPanoXmp(jpeg, canvas.width, canvas.height, headingDeg);
+  const blob = injectGPanoXmp(jpeg, width, height, headingDeg);
   return {
     slug: options.slug,
     blob,
-    width: canvas.width,
-    height: canvas.height,
-    previewUrl: URL.createObjectURL(blob),
+    width,
+    height,
+    previewUrl,
     fileName: `scriptovernovel-360-${options.slug}-${Date.now()}.jpg`,
   };
 }
@@ -408,10 +457,14 @@ export async function shareViaSheet(result: Panorama360Result, title: string, te
 }
 
 export function downloadPanorama(result: Panorama360Result): void {
+  // Its own object URL — previewUrl is the small preview, not the export.
+  // Revoked on the next tick, after the click has handed it to the browser.
+  const url = URL.createObjectURL(result.blob);
   const link = document.createElement("a");
-  link.href = result.previewUrl;
+  link.href = url;
   link.download = result.fileName;
   document.body.appendChild(link);
   link.click();
   link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

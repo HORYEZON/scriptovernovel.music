@@ -62,8 +62,9 @@ export function Share360Modal({ result, roomName, shareUrl, onClose, variant }: 
   const [sharing, setSharing] = useState(false);
   const shareable = useMemo(() => canShareFile(result.blob, result.fileName), [result]);
 
-  // The object URL is the modal's to release — nothing else holds it once
-  // this closes, and a 4096×2048 JPEG is several MB of memory per capture.
+  // The preview's object URL is the modal's to release — nothing else
+  // holds it once this closes. (Download makes its own URL for the full
+  // export and revokes it itself.)
   useEffect(() => () => URL.revokeObjectURL(result.previewUrl), [result.previewUrl]);
 
   const share = async () => {
@@ -154,8 +155,8 @@ export function Share360Modal({ result, roomName, shareUrl, onClose, variant }: 
         <img
           src={result.previewUrl}
           alt={`${roomName}, as a flat 360° panorama`}
-          width={result.width}
-          height={result.height}
+          width={1024}
+          height={512}
           className="mt-3 w-full h-auto max-h-[38vh] object-contain rounded-lg border border-white/10 bg-ink"
         />
         <p className="font-body text-xs text-white/45 mt-2 leading-snug">

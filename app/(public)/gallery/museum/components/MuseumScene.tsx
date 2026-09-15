@@ -995,15 +995,15 @@ export function MuseumScene({
     () => layouts.findIndex((l) => l.room.id === currentRoomId),
     [layouts, currentRoomId]
   );
-  // While a 360° is being taken, every room counts as nearby — see
-  // prepareShare360 below.
+  // While a 360° is being taken, every room is *lit* — see prepareShare360
+  // below. Only lit: this deliberately doesn't widen nearbyRoomIds, which
+  // also gates artwork/prop loads, because flipping those for the whole
+  // museum at once started every texture download in the building in the
+  // same instant — which on a phone is the out-of-memory crash that was
+  // reported ("Aw, Snap" on Chrome Android), not the sharper photo.
   const [capturing360, setCapturing360] = useState(false);
   const nearbyRoomIds = useMemo(() => {
     const set = new Set<string>();
-    if (capturing360) {
-      for (const l of layouts) set.add(l.room.id);
-      return set;
-    }
     if (currentRoomIndex === -1) {
       // Not resolved yet (very first render, before PlayerControls reports
       // in) — fall back to the spawn room so the entry room's images start
@@ -1015,7 +1015,7 @@ export function MuseumScene({
       set.add(layouts[i].room.id);
     }
     return set;
-  }, [layouts, currentRoomIndex, entryLayout, capturing360]);
+  }, [layouts, currentRoomIndex, entryLayout]);
   // Every room's wall/floor/ceiling texture loads eagerly (see MuseumRoom's
   // shouldLoad below), but a browser only opens a handful of concurrent
   // connections per origin — mounted in plain corridor order, a distant
@@ -1104,16 +1104,16 @@ export function MuseumScene({
   // one — tagged with the room they're in for the file name and deep link.
   // Room identity comes from the *rig's* z, not currentRoomId: that state
   // updates on PlayerControls' next report, and this is read at click time.
-  // Lights and loads the whole corridor for the shot. nearbyRoomIds gates
-  // the point lights (and the artwork/prop loads) to the current room ± 1
-  // — right for walking, since anything further is behind a doorway or
-  // two, but a 360° sees down the corridor in both directions at once,
-  // and a room two doorways away lit by ambient alone came out as a black
-  // rectangle dead centre of the entry room's photo (and at both sides of
-  // a middle room's). Two animation frames is enough for React to commit
-  // the extra lights and R3F to draw them once; far artworks that haven't
-  // fetched yet show their light placeholder plane, which reads fine at
-  // that distance. Reverted the moment the cube render is done.
+  // Lights the whole corridor for the shot. Point lights are normally
+  // gated to the current room ± 1 — right for walking, since anything
+  // further is behind a doorway or two, but a 360° sees down the corridor
+  // in both directions at once, and a room two doorways away lit by
+  // ambient alone is a dark rectangle in the photo. Two animation frames
+  // is enough for React to commit the extra lights and R3F to draw them
+  // once; far artworks that haven't fetched yet show their light
+  // placeholder plane, which reads fine at that distance (and see
+  // capturing360 above for why their loads are left alone). Reverted the
+  // moment the cube render is done.
   const prepareShare360 = useCallback(async () => {
     setCapturing360(true);
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -1646,7 +1646,7 @@ export function MuseumScene({
             ceilingTexture={layout.room.ceilingTexture}
             darkMode={darkMode}
             brightness={darkMode ? brightnessDark : brightnessLight}
-            lightsEnabled={nearbyRoomIds.has(layout.room.id)}
+            lightsEnabled={nearbyRoomIds.has(layout.room.id) || capturing360}
             // Halves this room's point lights (4 -> 2, see MuseumRoom.tsx).
             // Point lights are the dominant per-fragment cost in the whole
             // scene, so this is the biggest single lever available at runtime.

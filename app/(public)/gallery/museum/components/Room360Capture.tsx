@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
-import { capturePanorama360, type Panorama360Result } from "@/lib/museum/panorama360";
+import { capturePanorama360, pickPanoramaWidth, type Panorama360Result } from "@/lib/museum/panorama360";
 
 /** What the bridge ref resolves to — null when the scene has nothing to
  *  capture yet (no current room), otherwise the tagged JPEG. */
@@ -61,9 +61,8 @@ export function Room360Capture({
    * and a room two doorways away is otherwise a dark hole in the photo.
    */
   prepare?: () => Promise<() => void>;
-  /** Halves the output (2048×1024) on the phones MuseumScene.tsx already
-   *  treats as low-end — a 4096-wide readback there is a multi-second
-   *  stall and, on the oldest, an out-of-memory tab. */
+  /** The phones MuseumScene.tsx already treats as low-end go straight to
+   *  the smallest export — see pickPanoramaWidth for the full ladder. */
   lowEnd?: boolean;
 }) {
   const { gl, scene, camera } = useThree();
@@ -83,7 +82,7 @@ export function Room360Capture({
           position: eye.position,
           headingRad: heading,
           slug: eye.slug,
-          width: lowEnd ? 2048 : 4096,
+          width: pickPanoramaWidth(lowEnd),
           exclude,
           stage,
         });
