@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Link2, Share2, X } from "lucide-react";
+import { Download, ExternalLink, Link2, Share2, X } from "lucide-react";
 import toast from "@/lib/toast";
 import { useFocusTrap } from "@/components/public/minigames/hooks";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
@@ -12,6 +12,7 @@ import {
   shareViaSheet,
   type Panorama360Result,
 } from "@/lib/museum/panorama360";
+import { isInAppBrowser } from "@/lib/museum/inAppBrowser";
 
 interface Share360ModalProps {
   result: Panorama360Result;
@@ -61,6 +62,20 @@ export function Share360Modal({ result, roomName, shareUrl, onClose, variant }: 
   useLockBodyScroll(variant === "admin");
   const [sharing, setSharing] = useState(false);
   const shareable = useMemo(() => canShareFile(result.blob, result.fileName), [result]);
+  // Facebook's in-app browser (also Messenger's, Instagram's): the Download
+  // button below "works" there — the click fires, the toast says saved —
+  // and nothing reaches the camera roll, because the WebView swallows
+  // `<a download>` on a blob: URL. The Web Share API is normally absent
+  // there too, so from inside it there is no way to hand the file over at
+  // all; the visitor's own "Open in browser" menu is the whole fix. So say
+  // that, up front, instead of a success toast for a save that didn't
+  // happen. (Reported from a phone that opened the museum from a Facebook
+  // post: Download did nothing until "Open in external browser".) Resolved
+  // in an effect rather than the initialiser so SSR and hydration agree.
+  const [inAppBrowser, setInAppBrowser] = useState(false);
+  useEffect(() => {
+    setInAppBrowser(isInAppBrowser());
+  }, []);
 
   // The preview's object URL is the modal's to release — nothing else
   // holds it once this closes. (Download makes its own URL for the full
@@ -89,6 +104,12 @@ export function Share360Modal({ result, roomName, shareUrl, onClose, variant }: 
 
   const download = () => {
     downloadPanorama(result);
+    if (inAppBrowser) {
+      // Still attempt it — a WebView that does allow downloads loses
+      // nothing — but don't claim a save we can't see happen.
+      toast("If nothing saved, open this page in Chrome or Safari and try again");
+      return;
+    }
     toast.success("360° photo saved — upload it to Facebook as a photo");
   };
 
@@ -163,6 +184,17 @@ export function Share360Modal({ result, roomName, shareUrl, onClose, variant }: 
           Looks stretched here — that&apos;s a 360° laid flat. Post it on Facebook as a{" "}
           <span className="text-white/70">photo</span> and it becomes a drag-to-look-around post.
         </p>
+
+        {inAppBrowser && (
+          <p className="flex items-start gap-2 mt-3 px-3 py-2 rounded-lg border border-amber-400/30 bg-amber-400/10 font-body text-xs text-amber-200/90 leading-snug">
+            <ExternalLink size={13} className="shrink-0 mt-0.5" />
+            <span>
+              You&apos;re inside Facebook&apos;s browser, which can&apos;t save photos. Tap{" "}
+              <span className="text-amber-100">⋯</span> or the share icon, choose{" "}
+              <span className="text-amber-100">Open in browser</span>, then Share 360° again.
+            </span>
+          </p>
+        )}
 
         <div className="flex flex-row gap-2 mt-3">
           {shareable && (

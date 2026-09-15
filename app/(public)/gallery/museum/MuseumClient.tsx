@@ -21,6 +21,7 @@ import { ExitConfirmModal } from "./components/ExitConfirmModal";
 import { Share360Modal } from "./components/Share360Modal";
 import type { Share360Fn } from "./components/Room360Capture";
 import { roomShareUrl, type Panorama360Result } from "@/lib/museum/panorama360";
+import { isInAppBrowser } from "@/lib/museum/inAppBrowser";
 import toast from "@/lib/toast";
 import { MiniMapHud } from "./components/MiniMapHud";
 import type { MinimapHudConfig } from "@/lib/museum/minimapHud";
@@ -386,6 +387,16 @@ export function MuseumClient({
   // no WebXR support at all (most of them, still); `isSessionSupported`
   // additionally checks for an actual capable device/runtime.
   const [vrSupported, setVrSupported] = useState(false);
+  // Facebook/Messenger/Instagram's in-app browser — no WebXR and no file
+  // downloads (see lib/museum/inAppBrowser.ts). Only changes the *wording*
+  // of what's already unavailable: the VR row's hint and the Share 360°
+  // modal's note both say "open in Chrome or Safari" instead of leaving
+  // the visitor to guess. Resolved in an effect, not the initialiser, so
+  // the server and the first client render agree.
+  const [inAppBrowser, setInAppBrowser] = useState(false);
+  useEffect(() => {
+    setInAppBrowser(isInAppBrowser());
+  }, []);
   // The Landscape/Gyroscope toggles used to be two standalone pills in the
   // top bar — on top of Music/Save Photo/Dark Mode/Map that's a lot of
   // buttons crammed into a narrow phone screen. Both now live inside one
@@ -1015,31 +1026,53 @@ export function MuseumClient({
                             here too so a phone whose browser can actually
                             use it (rare — mainly a headset's own mobile-ish
                             browser) doesn't need a wider screen just to see
-                            the button. Only rendered once vrSupported
-                            resolves true, same gate as the desktop button. */}
-                        {vrSupported && (
-                          <button
-                            type="button"
-                            onClick={toggleVrMode}
-                            className="w-full flex items-center justify-between gap-3 px-3 py-3.5 rounded-lg text-xs font-medium tracking-wide text-white/85 hover:bg-white/10 active:bg-white/15 transition-colors"
-                          >
+                            the button.
+                            Unlike the desktop button, this row is *always*
+                            drawn — dimmed, with the reason, when vrSupported
+                            is false. It used to render nothing, same gate as
+                            desktop, and the first report back was "the VR
+                            button disappeared": a visitor who had seen it in
+                            Chrome opened the museum from a Facebook post,
+                            landed in Facebook's in-app browser (no WebXR at
+                            all), and found a dropdown with one row fewer and
+                            no hint why. A row that says "open in Chrome or
+                            Safari" tells them what to do; an absent one just
+                            looks like a regression. */}
+                        <button
+                          type="button"
+                          onClick={vrSupported ? toggleVrMode : undefined}
+                          aria-disabled={!vrSupported}
+                          className={`w-full flex items-center justify-between gap-3 px-3 py-3.5 rounded-lg text-xs font-medium tracking-wide transition-colors ${
+                            vrSupported
+                              ? "text-white/85 hover:bg-white/10 active:bg-white/15"
+                              : "text-white/40 cursor-default"
+                          }`}
+                        >
+                          <span className="flex flex-col items-start gap-0.5 min-w-0">
                             <span className="flex items-center gap-2">
                               <Glasses size={14} />
                               VR Mode
                             </span>
+                            {!vrSupported && (
+                              <span className="font-normal tracking-normal text-[10px] text-white/35 leading-tight">
+                                {inAppBrowser
+                                  ? "Open in Chrome or Safari to use"
+                                  : "Not available in this browser"}
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className={`w-8 h-4 rounded-full relative transition-colors shrink-0 ${
+                              vrMode ? "bg-emerald-500/70" : vrSupported ? "bg-white/20" : "bg-white/10"
+                            }`}
+                          >
                             <span
-                              className={`w-8 h-4 rounded-full relative transition-colors shrink-0 ${
-                                vrMode ? "bg-emerald-500/70" : "bg-white/20"
-                              }`}
-                            >
-                              <span
-                                className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
-                                  vrMode ? "translate-x-4" : "translate-x-0"
-                                }`}
-                              />
-                            </span>
-                          </button>
-                        )}
+                              className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full transition-transform ${
+                                vrSupported ? "bg-white" : "bg-white/40"
+                              } ${vrMode ? "translate-x-4" : "translate-x-0"}`}
+                            />
+                          </span>
+                        </button>
                         {/* Hide HUD — same switch the desktop-only Screenshot
                             button drives (toggleHud/hudHidden above), just
                             reachable here too: that button is gated to
