@@ -5,7 +5,7 @@
 // upload (lib/artwork-video.ts) rather than duplicating them.
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
-import { uploadEventVideo } from "@/lib/supabase/storage";
+import { uploadEventVideo } from "@/lib/storage/server";
 import { ALLOWED_VIDEO_TYPES, MAX_VIDEO_UPLOAD_FILE_SIZE, MAX_VIDEO_UPLOAD_FILE_SIZE_MB } from "@/lib/artwork-video";
 import { getErrorMessage } from "@/lib/utils";
 

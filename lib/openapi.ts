@@ -1658,7 +1658,7 @@ export const openApiSpec: OpenAPIV3.Document = {
                     type: "object",
                     nullable: true,
                     description:
-                      "Look of the museum's bottom-left radar card, museum-wide. Sent as an object and stored as JSON; every field is optional and defaults to the look the HUD ships with, so null clears it back to that. `width`/`height` size the map canvas in CSS pixels (desktop; phones keep their own smaller map), `counterScale` sizes the counter row as a percentage, the seven `*Color` fields are 6-digit hex (player pointer, artwork dots, object dots, the nearby glow, companion dots, the room outline and its doorways), and `stepsIcon`/`viewsIcon`/`timeIcon`/`wishlistIcon` each name one of a fixed icon set. Out-of-range sizes are clamped and unrecognised colours or icon names fall back to the default rather than being rejected.",
+                      "Look of the museum's bottom-left radar card, museum-wide. Sent as an object and stored as JSON; every field is optional and defaults to the look the HUD ships with, so null clears it back to that. `width`/`height` size the map canvas in CSS pixels (desktop; phones keep their own smaller map), `counterScale` sizes the counter row as a percentage, the seven `*Color` fields are 6-digit hex (player pointer, artwork dots, object dots, the nearby glow, companion dots, the room outline and its doorways), and `stepsIcon`/`viewsIcon`/`timeIcon`/`wishlistIcon` each name one of a fixed icon set. The `floorLabel*` fields style the floor name painted on the map: `floorLabelEnabled` shows/hides it, `floorLabelGround`/`floorLabelUpper`/`floorLabelStairs` are the texts for floor 0, floor 1 and the STAIRS connector (≤32 chars, blank falls back to the default), `floorLabelFont` is one of the site theme's font-family values, `floorLabelStyle` is normal|bold|italic|bold-italic, `floorLabelSize` is 8–24 px, `floorLabelColor` is 6-digit hex, `floorLabelPosition` is top-left|top-center|top-right|bottom-left|bottom-center|bottom-right, and `floorLabelUppercase` draws it in tracked capitals. Out-of-range sizes are clamped and unrecognised colours, fonts, styles, positions or icon names fall back to the default rather than being rejected.",
                     properties: {
                       width: { type: "integer" },
                       height: { type: "integer" },
@@ -1674,6 +1674,29 @@ export const openApiSpec: OpenAPIV3.Document = {
                       viewsIcon: { type: "string" },
                       timeIcon: { type: "string" },
                       wishlistIcon: { type: "string" },
+                      floorLabelEnabled: { type: "boolean" },
+                      floorLabelGround: { type: "string" },
+                      floorLabelUpper: { type: "string" },
+                      floorLabelStairs: { type: "string" },
+                      floorLabelFont: { type: "string" },
+                      floorLabelStyle: {
+                        type: "string",
+                        enum: ["normal", "bold", "italic", "bold-italic"],
+                      },
+                      floorLabelSize: { type: "integer" },
+                      floorLabelColor: { type: "string" },
+                      floorLabelPosition: {
+                        type: "string",
+                        enum: [
+                          "top-left",
+                          "top-center",
+                          "top-right",
+                          "bottom-left",
+                          "bottom-center",
+                          "bottom-right",
+                        ],
+                      },
+                      floorLabelUppercase: { type: "boolean" },
                     },
                   },
                 },
@@ -2941,7 +2964,7 @@ export const openApiSpec: OpenAPIV3.Document = {
                   introSquidColor: {
                     type: "string",
                     description:
-                      "Hex color for the squid standing in for the O of NOVEL in the entrance splash's SCRIPT/N(squid)VEL lockup. Tints its halo too. Splash only — the footer/sidebar squids keep their own brand-palette cycle.",
+                      "Hex color for the squid standing in for the A in the entrance splash's KALAM(squid)RI lockup. Tints its halo too. Splash only — the footer/sidebar squids keep their own brand-palette cycle.",
                   },
                   introGlowShimmer: {
                     type: "boolean",
@@ -2961,7 +2984,7 @@ export const openApiSpec: OpenAPIV3.Document = {
                     type: "string",
                     enum: ["hover", "always"],
                     description:
-                      "How the SCRIPT/N(squid)VEL lockup's three coloured words behave: \"hover\" (the default — each colours only while the pointer is over it) or \"always\" (every word wears its colour throughout, the only version a touch visitor can see). An unrecognised value falls back to \"hover\" rather than being rejected.",
+                      "How the KALAM(squid)RI lockup's four coloured syllables behave: \"hover\" (the default — each colours only while the pointer is over it) or \"always\" (every syllable wears its colour throughout, the only version a touch visitor can see). An unrecognised value falls back to \"hover\" rather than being rejected.",
                   },
                 },
               },
@@ -3167,7 +3190,9 @@ export const openApiSpec: OpenAPIV3.Document = {
     "/upload/audio/sign": {
       post: {
         tags: ["Upload"],
-        summary: "Get signed upload URL for audio (admin — bypasses Vercel body limit)",
+        summary: "Get presigned PUT URL for audio (admin — bypasses Vercel body limit)",
+        description:
+          "Mints a presigned PUT to Cloudflare R2, valid for ten minutes and scoped to one object. The browser must PUT the file to `uploadUrl` with `Content-Type: <contentType>` and `Cache-Control: public, max-age=31536000, immutable` — both are part of the signature. Store `publicUrl`.",
         security: adminSecurity,
         requestBody: {
           required: true,
@@ -3183,8 +3208,8 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
         responses: {
           "200": {
-            description: "Signed URL",
-            content: { "application/json": { schema: { type: "object", properties: { path: { type: "string" }, token: { type: "string" }, publicUrl: { type: "string" } } } } },
+            description: "Presigned PUT",
+            content: { "application/json": { schema: { type: "object", properties: { path: { type: "string" }, uploadUrl: { type: "string", format: "uri" }, publicUrl: { type: "string", format: "uri" }, contentType: { type: "string" } } } } },
           },
           "400": ErrorResponse,
           "401": ErrorResponse,
@@ -3194,7 +3219,9 @@ export const openApiSpec: OpenAPIV3.Document = {
     "/upload/model/sign": {
       post: {
         tags: ["Upload"],
-        summary: "Get signed upload URL for .glb model (admin — up to 100 MB)",
+        summary: "Get presigned PUT URL for .glb model (admin — up to 100 MB)",
+        description:
+          "Mints a presigned PUT to Cloudflare R2, valid for ten minutes and scoped to one object. The browser must PUT the file to `uploadUrl` with `Content-Type: model/gltf-binary` and `Cache-Control: public, max-age=31536000, immutable`, then call /upload/model/optimize with `path`. Persist what that returns, not `publicUrl`.",
         security: adminSecurity,
         requestBody: {
           required: true,
@@ -3205,7 +3232,10 @@ export const openApiSpec: OpenAPIV3.Document = {
           },
         },
         responses: {
-          "200": { description: "Signed URL" },
+          "200": {
+            description: "Presigned PUT",
+            content: { "application/json": { schema: { type: "object", properties: { path: { type: "string" }, uploadUrl: { type: "string", format: "uri" }, publicUrl: { type: "string", format: "uri" } } } } },
+          },
           "400": ErrorResponse,
           "401": ErrorResponse,
         },
@@ -3589,7 +3619,7 @@ export const openApiSpec: OpenAPIV3.Document = {
         tags: ["Admin — Observability"],
         summary: "Infrastructure health snapshot (admin)",
         description:
-          "Vercel deployments, Postgres latency/size/connections, Supabase Storage usage and this instance's own runtime metadata. Each section carries its own status ('ok' | 'unconfigured' | 'unauthorized' | 'error'), so the call succeeds even when an upstream is unreachable or the configured token lacks scope.",
+          "Vercel deployments, Postgres latency/size/connections, Cloudflare R2 bucket usage and this instance's own runtime metadata. Each section carries its own status ('ok' | 'unconfigured' | 'unauthorized' | 'error'), so the call succeeds even when an upstream is unreachable or the configured token lacks scope.",
         security: adminSecurity,
         responses: {
           "200": { description: "SystemHealthSnapshot — vercel, database, storage, app, capturedAt" },
@@ -3891,7 +3921,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Visitor", description: "Visitor count tracking and milestone rewards" },
     { name: "Artist Profile", description: "Profile, certificates, skills, social links, theme, favicon" },
     { name: "Sound Effects", description: "Site-wide sound effect configuration" },
-    { name: "Upload", description: "Image, audio, video, and 3D model uploads to Supabase Storage" },
+    { name: "Upload", description: "Image, audio, video, and 3D model uploads to Cloudflare R2" },
     { name: "Auth", description: "Password reset and pre-login credential check" },
     { name: "Admin — Security", description: "TOTP (2FA) setup, verification, disable, and inactivity auto sign-out" },
     { name: "Admin — Notifications", description: "In-app notification bell, spam/archive, blocked emails" },

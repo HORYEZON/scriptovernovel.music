@@ -21,12 +21,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import {
-  BUCKET,
   OPTIMIZED_MODEL_PREFIX,
   downloadObject,
   uploadOptimizedModel,
   deleteObject,
-} from "@/lib/supabase/storage";
+  publicUrl,
+} from "@/lib/storage/server";
 import { optimizeGlb } from "@/lib/museum/optimizeGlb";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
   }
 
   const fileName = path.slice("models/".length);
-  const rawUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+  const rawUrl = publicUrl(path);
 
   try {
     const source = await downloadObject(path);
@@ -84,6 +84,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url, optimized: true, beforeBytes, afterBytes });
   } catch (error) {
+    // Loud on the server as well as in the response. The fallback below is
+    // deliberately non-fatal for the admin, which made it silent in practice:
+    // two raw props (56 MB and 2.2 MB, both compressible) reached the entry
+    // room on 2026-09-16 with nothing in the logs to say why. The message is
+    // the same one the browser shows; this is the copy Vercel keeps.
+    console.error(`[model/optimize] ${path}: compression failed, keeping raw upload —`, error);
     return NextResponse.json({
       url: rawUrl,
       optimized: false,

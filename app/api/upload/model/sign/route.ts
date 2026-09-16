@@ -2,14 +2,14 @@
 //
 // Mints a short-lived signed upload URL/token for the Museum Scene
 // Editor's decorative-object (.glb) upload — see
-// lib/supabase/storage.ts's createModelUploadUrl doc comment for why this
-// is a two-step "sign, then the browser uploads directly to Supabase"
+// lib/storage/server.ts's createModelUploadUrl doc comment for why this
+// is a two-step "sign, then the browser uploads directly to R2"
 // flow instead of a single POST-the-file-here endpoint like every other
 // upload in this codebase: a .glb can be up to 100MB, well past Vercel's
 // ~4.5MB serverless function request-body cap.
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
-import { createModelUploadUrl } from "@/lib/supabase/storage";
+import { createModelUploadUrl } from "@/lib/storage/server";
 import { getErrorMessage } from "@/lib/utils";
 
 const ALLOWED_EXTENSIONS = [".glb"];
@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { path, token, publicUrl } = await createModelUploadUrl(filename);
-    return NextResponse.json({ path, token, publicUrl });
+    const { path, uploadUrl, publicUrl } = await createModelUploadUrl(filename);
+    return NextResponse.json({ path, uploadUrl, publicUrl });
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error, "Failed to prepare upload") }, { status: 500 });
   }

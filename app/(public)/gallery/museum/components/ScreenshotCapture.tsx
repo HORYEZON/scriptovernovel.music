@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import type { MutableRefObject } from "react";
 import toast from "@/lib/toast";
+import { corsImageUrl } from "@/lib/images/corsUrl";
 
 // How large the logo watermark renders, as a fraction of the captured
 // canvas's shorter dimension — "big" per request, roughly a quarter of the
@@ -21,14 +22,15 @@ const LOGO_OPACITY = 0.92;
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    // Same crossOrigin as loadDownscaledTexture.ts — Supabase Storage
-    // already serves CORS headers permissive enough for that (the exact
-    // same logoImage URL is already loaded as a WebGL texture in
-    // AboutRoomContents.tsx), so this should never actually fail here.
+    // Same crossOrigin as loadDownscaledTexture.ts, and the same cache-key
+    // split: this is the very URL Navbar.tsx shows in a plain <img>, and R2
+    // caches that CORS-less response for a year. Drawing it without the
+    // split reads it back from that entry and taints the composite — which
+    // is what broke [R] after the move from Supabase (see corsUrl.ts).
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error("Failed to load logo image"));
-    img.src = url;
+    img.src = corsImageUrl(url);
   });
 }
 

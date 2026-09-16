@@ -16,7 +16,7 @@
 // that is a 404 or, in a bulk pass, a row to skip.
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { deleteArtworkImage } from "@/lib/supabase/storage";
+import { deleteArtworkImage } from "@/lib/storage/server";
 
 export type TrashType =
   | "announcements"

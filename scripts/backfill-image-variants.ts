@@ -39,24 +39,30 @@
 // restriction (a 402 from the bucket) — the script checks and refuses.
 //
 // Usage:
-//   npx tsx scripts/backfill-image-variants.ts                  # dry run
-//   npx tsx scripts/backfill-image-variants.ts --apply --limit 3
-//   npx tsx scripts/backfill-image-variants.ts --apply
+//   npx tsx --env-file=.env scripts/backfill-image-variants.ts   # dry run
+//   npx tsx --env-file=.env scripts/backfill-image-variants.ts --apply --limit 3
+//   npx tsx --env-file=.env scripts/backfill-image-variants.ts --apply
 import "dotenv/config";
-import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
 import { compressImage } from "@/lib/images/compress";
-import { IMAGE_PREFIX, variantPaths } from "@/lib/images/variants";
-import { BUCKET } from "@/lib/supabase/bucket";
+import { IMAGE_PREFIX, ORIGINALS_PREFIX, originalPath, variantPaths } from "@/lib/images/variants";
+import { getObject, putObject, deleteObjects, publicUrl, pathFromPublicUrl } from "@/lib/storage/r2";
 
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
-const KEEP_ORIGINALS = args.includes("--keep-originals");
+// The original is never discarded: it moves to originals/<newid>.<ext>, the
+// same place uploadCompressedImage keeps a fresh upload's master. Pass
+// --drop-originals to delete it instead (not recommended — it is the only
+// copy the site has, and storage is free at this size).
+const DROP_ORIGINALS = args.includes("--drop-originals");
 const limitIdx = args.indexOf("--limit");
 const LIMIT = limitIdx >= 0 ? Number(args[limitIdx + 1]) : Infinity;
 
-// model → columns. `array: true` for String[] columns.
-type Column = { model: string; field: string; array?: boolean };
+// model → columns. `array: true` for String[] columns; `substring: true` for
+// a column that holds a JSON config blob with an image URL nested inside it
+// (the museum's scene-object configs keep `textureUrl` that way) — those are
+// rewritten by replacing the URL inside the string, not by replacing the value.
+type Column = { model: string; field: string; array?: boolean; substring?: boolean };
 const COLUMNS: Column[] = [
   { model: "artwork", field: "imageUrl" },
   { model: "artwork", field: "imageUrls", array: true },
@@ -72,6 +78,9 @@ const COLUMNS: Column[] = [
   { model: "profile", field: "backgroundImage" },
   { model: "profile", field: "profileImages", array: true },
   { model: "profile", field: "logoImage" },
+  { model: "profile", field: "callingCardFront" },
+  { model: "profile", field: "callingCardBack" },
+  { model: "museumSceneObject", field: "modelUrl", substring: true },
   { model: "siteTheme", field: "adminBackgroundImage" },
   { model: "digitalMuseum", field: "aboutWallTexture" },
   { model: "digitalMuseum", field: "aboutFloorTexture" },
@@ -85,13 +94,11 @@ const COLUMNS: Column[] = [
 
 const COMPRESSIBLE_EXT = /\.(jpe?g|png|webp|avif|tiff?)$/i;
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const PUBLIC_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/`;
-
 function objectPath(url: string): string | null {
-  if (!url.startsWith(PUBLIC_PREFIX)) return null;
-  const path = url.slice(PUBLIC_PREFIX.length);
+  const path = pathFromPublicUrl(url);
+  if (!path) return null; // not one of ours (Unsplash seed, retired host)
   if (path.startsWith(`${IMAGE_PREFIX}/`)) return null; // already compressed
+  if (path.startsWith(`${ORIGINALS_PREFIX}/`)) return null; // a master, never served
   if (!COMPRESSIBLE_EXT.test(path)) return null; // gif / video / audio / glb
   return path;
 }
@@ -101,6 +108,7 @@ interface Ref {
   field: string;
   id: string;
   array: boolean;
+  substring: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,9 +128,12 @@ async function collectRefs(): Promise<Map<string, Ref[]>> {
     });
     for (const row of rows) {
       const v = row[col.field];
-      const ref = { model: col.model, field: col.field, id: row.id as string, array: !!col.array };
+      const ref = { model: col.model, field: col.field, id: row.id as string, array: !!col.array, substring: !!col.substring };
       if (col.array && Array.isArray(v)) v.forEach((u) => typeof u === "string" && add(u, ref));
-      else if (typeof v === "string") add(v, ref);
+      else if (col.substring && typeof v === "string") {
+        // Every image URL inside the blob, not the blob itself.
+        for (const m of v.matchAll(/https?:\/\/[^"'\s]+\.(?:jpe?g|png|webp|avif|tiff?)/gi)) add(m[0], ref);
+      } else if (typeof v === "string") add(v, ref);
     }
   }
   return refs;
@@ -133,13 +144,6 @@ function newObjectId(): string {
 }
 
 async function main() {
-  const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-
-  // Refuse to start against a throttled bucket: every download would fail
-  // and the run would just be noise.
-  const probe = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/`);
-  const storageOk = probe.status !== 402;
-
   const refs = await collectRefs();
   const urls = [...refs.keys()].slice(0, LIMIT);
   const rowCount = [...refs.values()].reduce((n, r) => n + r.length, 0);
@@ -149,10 +153,6 @@ async function main() {
   const byModel = new Map<string, number>();
   for (const list of refs.values()) for (const r of list) byModel.set(`${r.model}.${r.field}`, (byModel.get(`${r.model}.${r.field}`) ?? 0) + 1);
   for (const [k, n] of [...byModel].sort()) console.log(`  ${k.padEnd(40)} ${n}`);
-  if (!storageOk) {
-    console.log("\nStorage is under an egress restriction (402) — nothing can be downloaded yet. Re-run once the quota has refilled.");
-    return;
-  }
   if (!APPLY) {
     console.log("\nDry run only. Pass --apply to migrate.");
     return;
@@ -167,32 +167,35 @@ async function main() {
     const path = objectPath(url)!;
     const label = `${done + 1}/${urls.length} ${path}`;
     try {
-      const { data, error } = await supabase.storage.from(BUCKET).download(path);
-      if (error || !data) throw new Error(error?.message ?? "download returned nothing");
-      const input = Buffer.from(await data.arrayBuffer());
+      const input = Buffer.from(await getObject(path));
       const { variants } = await compressImage(input);
-      const paths = variantPaths(newObjectId());
+      const id = newObjectId();
+      const paths = variantPaths(id);
+      const ext = path.split(".").pop() || "bin";
+      const master = originalPath(id, ext);
+      const mime = /png$/i.test(ext) ? "image/png" : /webp$/i.test(ext) ? "image/webp" : "image/jpeg";
 
-      const results = await Promise.all(
-        (Object.keys(paths) as (keyof typeof paths)[]).map((v) =>
-          supabase.storage.from(BUCKET).upload(paths[v], variants[v], {
-            contentType: "image/webp",
-            upsert: false,
-            cacheControl: "31536000",
-          })
-        )
-      );
-      const failed = results.find((r) => r.error);
-      if (failed?.error) {
-        await supabase.storage.from(BUCKET).remove(Object.values(paths));
-        throw new Error(`upload: ${failed.error.message}`);
+      try {
+        await Promise.all([
+          ...(Object.keys(paths) as (keyof typeof paths)[]).map((v) =>
+            putObject(paths[v], variants[v], "image/webp")
+          ),
+          ...(DROP_ORIGINALS ? [] : [putObject(master, input, mime)]),
+        ]);
+      } catch (err) {
+        await deleteObjects([...Object.values(paths), master]).catch(() => {});
+        throw new Error(`upload: ${err instanceof Error ? err.message : String(err)}`);
       }
-      const newUrl = supabase.storage.from(BUCKET).getPublicUrl(paths.full).data.publicUrl;
+      const newUrl = publicUrl(paths.full);
 
       // Rewrite every row that carried the old URL. Arrays are read back
       // and mapped so other entries (already-migrated or non-bucket) stay.
       for (const ref of refs.get(url)!) {
-        if (ref.array) {
+        if (ref.substring) {
+          const row = await db[ref.model].findUnique({ where: { id: ref.id }, select: { [ref.field]: true } });
+          const next = String(row[ref.field]).split(url).join(newUrl);
+          await db[ref.model].update({ where: { id: ref.id }, data: { [ref.field]: next } });
+        } else if (ref.array) {
           const row = await db[ref.model].findUnique({ where: { id: ref.id }, select: { [ref.field]: true } });
           const next = (row[ref.field] as string[]).map((u) => (u === url ? newUrl : u));
           await db[ref.model].update({ where: { id: ref.id }, data: { [ref.field]: next } });
@@ -201,7 +204,9 @@ async function main() {
         }
       }
 
-      if (!KEEP_ORIGINALS) await supabase.storage.from(BUCKET).remove([path]);
+      // Only once the variants (and the master copy) are written and every row
+      // repointed — the root-level file is then referenced by nothing.
+      await deleteObjects([path]);
 
       const total = Object.values(variants).reduce((n, b) => n + b.byteLength, 0);
       before += input.byteLength;

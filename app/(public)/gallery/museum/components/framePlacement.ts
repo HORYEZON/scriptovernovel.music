@@ -280,7 +280,8 @@ export const DIVIDER_FACE_MATCH_DISTANCE = 0.75;
  * to leave its art behind in mid-air, and frames placed before divider faces
  * anchored on the panel's real surface are stored a fixed 0.42m out in front
  * of it (the gap this is here to close). Matching by "same facing, and close
- * to this face's line" recovers the association well enough to keep the art
+ * to this face" — the face as a segment, ends included, so panels standing in
+ * a line stay distinct — recovers the association well enough to keep the art
  * where the panel now is, and returning null for everything else means a frame
  * on the room's own wall is never touched.
  *
@@ -304,14 +305,26 @@ export function snapToDividerFace(
       )
     );
     if (diff > 0.1) continue;
-    // Distance from the face's own line: the part of the offset that doesn't
-    // run along it. A frame sitting on the face has none.
+    // Distance from the face itself — the *segment*, not the line it lies on.
+    // The perpendicular part is the offset that doesn't run along the face; a
+    // frame sitting on it has none. The overshoot is how far past either end
+    // the frame's along-coordinate falls, zero anywhere within the panel.
+    //
+    // The overshoot is what tells two panels standing in a line apart. They
+    // share the same face lines, so measured to the line alone every frame
+    // on either panel matched whichever one was listed first (or a few
+    // centimetres nearer), and the clamp below then stacked the other
+    // panel's art at that one's end — the Compilations room's two collinear
+    // dividers had four frames dragged 6–9m onto the wrong panel on every
+    // load, and the editor's own write-back made that the saved position.
     const dx = item.x - wall.anchor[0];
     const dz = item.z - wall.anchor[1];
     const along = dx * wall.along[0] + dz * wall.along[1];
     const perpendicular = Math.hypot(dx - along * wall.along[0], dz - along * wall.along[1]);
-    if (perpendicular < bestDistance) {
-      bestDistance = perpendicular;
+    const overshoot = Math.max(0, along - wall.freeMax, wall.freeMin - along);
+    const distance = Math.hypot(perpendicular, overshoot);
+    if (distance < bestDistance) {
+      bestDistance = distance;
       best = wall;
     }
   }

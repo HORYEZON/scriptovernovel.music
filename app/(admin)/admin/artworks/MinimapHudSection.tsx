@@ -25,16 +25,25 @@ import type { MiniMapFrameState } from "@/app/(public)/gallery/museum/components
 import {
   MINIMAP_HUD_DEFAULTS,
   MINIMAP_ICON_NAMES,
+  MINIMAP_LABEL_FONT_OPTIONS,
+  MINIMAP_LABEL_POSITIONS,
+  MINIMAP_LABEL_STYLES,
+  MINIMAP_MAX_LABEL_LENGTH,
   MINIMAP_MIN_WIDTH,
   MINIMAP_MAX_WIDTH,
   MINIMAP_MIN_HEIGHT,
   MINIMAP_MAX_HEIGHT,
   MINIMAP_MIN_COUNTER_SCALE,
   MINIMAP_MAX_COUNTER_SCALE,
+  MINIMAP_MIN_LABEL_SIZE,
+  MINIMAP_MAX_LABEL_SIZE,
   type MinimapHudConfig,
   type MinimapIconName,
+  type MinimapLabelPosition,
+  type MinimapLabelStyle,
 } from "@/lib/museum/minimapHud";
-import { ColorField } from "./museum-ui";
+import { AdminSelect } from "@/components/admin/AdminSelect";
+import { ColorField, Toggle } from "./museum-ui";
 
 /** A stand-in room for the preview: a plain 10×8 m gallery with a doorway at
  *  each end, some art on the walls, two props on the floor and a companion
@@ -79,12 +88,43 @@ const ICON_LABELS: Record<MinimapIconName, string> = {
   activity: "Activity",
 };
 
+/** Which room the preview pretends to be, for the floor label's sake — the
+ *  three texts an admin can set each show on a different kind of room, so
+ *  the preview lets them flip between all three rather than only ever
+ *  showing the ground floor's. */
+type PreviewFloor = "ground" | "upper" | "stairs";
+const PREVIEW_FLOORS: { value: PreviewFloor; label: string; floor: number; roomType: string }[] = [
+  { value: "ground", label: "Ground floor", floor: 0, roomType: "GALLERY" },
+  { value: "upper", label: "Second floor", floor: 1, roomType: "GALLERY" },
+  { value: "stairs", label: "Stairs", floor: 0, roomType: "STAIRS" },
+];
+
+const LABEL_STYLE_NAMES: Record<MinimapLabelStyle, string> = {
+  normal: "Regular",
+  bold: "Bold",
+  italic: "Italic",
+  "bold-italic": "Bold Italic",
+};
+
+const LABEL_POSITION_NAMES: Record<MinimapLabelPosition, string> = {
+  "top-left": "Top left",
+  "top-center": "Top centre",
+  "top-right": "Top right",
+  "bottom-left": "Bottom left",
+  "bottom-center": "Bottom centre",
+  "bottom-right": "Bottom right",
+};
+
 /** The player walks a slow lap of the sample room so the wedge shows its
  *  colour *and* its facing, which a parked triangle doesn't. Drawn from the
  *  same ref the museum's own tracker writes, at the same frame rate, so this
  *  costs a canvas repaint and nothing else. */
-function useSampleFrame(): React.MutableRefObject<MiniMapFrameState | null> {
+function useSampleFrame(previewFloor: PreviewFloor): React.MutableRefObject<MiniMapFrameState | null> {
   const ref = useRef<MiniMapFrameState | null>(null);
+  // Read inside the rAF loop through a ref so flipping the preview floor
+  // doesn't restart the lap from the top.
+  const floorRef = useRef(previewFloor);
+  floorRef.current = previewFloor;
   useEffect(() => {
     let raf: number;
     const start = performance.now();
@@ -98,8 +138,11 @@ function useSampleFrame(): React.MutableRefObject<MiniMapFrameState | null> {
       const z = -Math.cos(angle) * 2.2;
       const dx = Math.cos(angle) * 3;
       const dz = Math.sin(angle) * 2.2;
+      const previewRoom = PREVIEW_FLOORS.find((f) => f.value === floorRef.current) ?? PREVIEW_FLOORS[0];
       ref.current = {
         roomId: "preview",
+        roomFloor: previewRoom.floor,
+        roomType: previewRoom.roomType,
         roomWidth: SAMPLE_ROOM.width,
         roomDepth: SAMPLE_ROOM.depth,
         hasNorthOpening: true,
@@ -157,6 +200,36 @@ function SizeSlider({
   );
 }
 
+/** One floor's label text. Capped at the same length the sanitizer keeps, so
+ *  what the admin types is what gets saved rather than being cut on the way
+ *  through. Blank is allowed while editing and falls back to the placeholder
+ *  on save (see sanitizeMinimapHudConfig). */
+function LabelTextField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="font-body text-xs text-ink-400 dark:text-ink-300 mb-1.5 block">{label}</label>
+      <input
+        type="text"
+        value={value}
+        maxLength={MINIMAP_MAX_LABEL_LENGTH}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="admin-input w-full px-3 py-2 rounded-xl text-sm"
+      />
+    </div>
+  );
+}
+
 /** One counter's icon picker — the icons themselves, not their names, since
  *  what an admin is choosing is a shape they'll see on the card. */
 function IconPicker({
@@ -205,12 +278,14 @@ export function MinimapHudSection({
   value: MinimapHudConfig;
   onChange: (patch: Partial<MinimapHudConfig>) => void;
 }) {
-  const frameRef = useSampleFrame();
+  const [previewFloor, setPreviewFloor] = useState<PreviewFloor>("ground");
+  const frameRef = useSampleFrame(previewFloor);
   // Sample counters, held still rather than ticking: the numbers are here to
   // show the icons and the size, and a running clock in a settings panel
   // reads as something the admin is supposed to be watching.
   const [sample] = useState({ steps: 1284, views: 12, elapsedSeconds: 372, wishlistAdds: 3 });
   const isDefault = JSON.stringify(value) === JSON.stringify(MINIMAP_HUD_DEFAULTS);
+  const labelControlsDisabled = !value.floorLabelEnabled;
 
   return (
     <div className="admin-card border rounded-2xl p-4 space-y-4">
@@ -257,6 +332,33 @@ export function MinimapHudSection({
             A sample room with the player walking a lap. The counters only appear in the museum
             when Badges &amp; Trophies and its HUD card are both switched on.
           </p>
+          {/* Which floor the sample room is on — only matters for the label,
+              so it hides along with it. */}
+          {value.floorLabelEnabled && (
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <span className="font-body text-[11px] text-ink-400 dark:text-ink-300 mr-1">
+                Preview as
+              </span>
+              {PREVIEW_FLOORS.map((f) => {
+                const active = f.value === previewFloor;
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setPreviewFloor(f.value)}
+                    className={`px-2.5 py-1 rounded-lg border font-jakarta text-[11px] font-medium transition-colors ${
+                      active
+                        ? "border-sepia bg-sepia/10 text-sepia"
+                        : "border-black/10 dark:border-white/10 text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:bg-black/5 dark:hover:bg-white/5"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* --- Controls ----------------------------------------------- */}
@@ -350,6 +452,138 @@ export function MinimapHudSection({
               Desk. Artwork and object dots keep their different weights so the pieces stay the
               louder mark even in one colour.
             </p>
+          </div>
+
+          <div className="space-y-2.5 pt-1 border-t border-black/5 dark:border-white/5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                  Floor label
+                </p>
+                <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-0.5">
+                  Names the floor the visitor is on, painted on the map itself.
+                </p>
+              </div>
+              <Toggle
+                checked={value.floorLabelEnabled}
+                onChange={(floorLabelEnabled) => onChange({ floorLabelEnabled })}
+                label="Show the floor label"
+              />
+            </div>
+            <div
+              className={`space-y-3 transition-opacity ${labelControlsDisabled ? "opacity-40 pointer-events-none" : ""}`}
+              aria-disabled={labelControlsDisabled}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <LabelTextField
+                  label="Ground floor"
+                  value={value.floorLabelGround}
+                  placeholder={MINIMAP_HUD_DEFAULTS.floorLabelGround}
+                  onChange={(floorLabelGround) => onChange({ floorLabelGround })}
+                />
+                <LabelTextField
+                  label="Second floor"
+                  value={value.floorLabelUpper}
+                  placeholder={MINIMAP_HUD_DEFAULTS.floorLabelUpper}
+                  onChange={(floorLabelUpper) => onChange({ floorLabelUpper })}
+                />
+                <LabelTextField
+                  label="Stairs"
+                  value={value.floorLabelStairs}
+                  placeholder={MINIMAP_HUD_DEFAULTS.floorLabelStairs}
+                  onChange={(floorLabelStairs) => onChange({ floorLabelStairs })}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="minimap-label-font"
+                    className="font-body text-xs text-ink-400 dark:text-ink-300 mb-1.5 block"
+                  >
+                    Font
+                  </label>
+                  <AdminSelect
+                    id="minimap-label-font"
+                    value={value.floorLabelFont}
+                    onChange={(e) => onChange({ floorLabelFont: e.target.value })}
+                    className="py-2 text-sm"
+                  >
+                    {MINIMAP_LABEL_FONT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value} className="bg-white dark:bg-ink-900">
+                        {opt.label}
+                      </option>
+                    ))}
+                  </AdminSelect>
+                </div>
+                <div>
+                  <label
+                    htmlFor="minimap-label-style"
+                    className="font-body text-xs text-ink-400 dark:text-ink-300 mb-1.5 block"
+                  >
+                    Style
+                  </label>
+                  <AdminSelect
+                    id="minimap-label-style"
+                    value={value.floorLabelStyle}
+                    onChange={(e) => onChange({ floorLabelStyle: e.target.value as MinimapLabelStyle })}
+                    className="py-2 text-sm"
+                  >
+                    {MINIMAP_LABEL_STYLES.map((style) => (
+                      <option key={style} value={style} className="bg-white dark:bg-ink-900">
+                        {LABEL_STYLE_NAMES[style]}
+                      </option>
+                    ))}
+                  </AdminSelect>
+                </div>
+                <div>
+                  <label
+                    htmlFor="minimap-label-position"
+                    className="font-body text-xs text-ink-400 dark:text-ink-300 mb-1.5 block"
+                  >
+                    Position
+                  </label>
+                  <AdminSelect
+                    id="minimap-label-position"
+                    value={value.floorLabelPosition}
+                    onChange={(e) =>
+                      onChange({ floorLabelPosition: e.target.value as MinimapLabelPosition })
+                    }
+                    className="py-2 text-sm"
+                  >
+                    {MINIMAP_LABEL_POSITIONS.map((pos) => (
+                      <option key={pos} value={pos} className="bg-white dark:bg-ink-900">
+                        {LABEL_POSITION_NAMES[pos]}
+                      </option>
+                    ))}
+                  </AdminSelect>
+                </div>
+                <ColorField
+                  label="Colour"
+                  value={value.floorLabelColor}
+                  defaultValue={MINIMAP_HUD_DEFAULTS.floorLabelColor}
+                  onChange={(floorLabelColor) => onChange({ floorLabelColor })}
+                />
+              </div>
+              <SizeSlider
+                label="Size"
+                value={value.floorLabelSize}
+                min={MINIMAP_MIN_LABEL_SIZE}
+                max={MINIMAP_MAX_LABEL_SIZE}
+                suffix="px"
+                onChange={(floorLabelSize) => onChange({ floorLabelSize })}
+              />
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={value.floorLabelUppercase}
+                  onChange={(e) => onChange({ floorLabelUppercase: e.target.checked })}
+                  className="accent-sepia"
+                />
+                <span className="font-body text-xs text-ink-400 dark:text-ink-300">
+                  Capitals with letter spacing (signage style)
+                </span>
+              </label>
+            </div>
           </div>
 
           <div className="space-y-2.5 pt-1 border-t border-black/5 dark:border-white/5">

@@ -1,7 +1,7 @@
 // lib/museum/loadDownscaledTexture.ts
 //
 // Manual texture load + client-side downscale. There's no Supabase image
-// transform/resize endpoint in this project (see lib/supabase/storage.ts) —
+// transform/resize endpoint in this project (see lib/storage/server.ts) —
 // original artwork uploads can be several MB at full resolution, which is
 // wasteful to hand straight to the GPU as a wall texture. This loads the
 // image once, draws it onto an offscreen canvas capped at MAX_TEXTURE_DIM,
@@ -10,6 +10,7 @@
 // as-is with no room for this downscale step.
 import * as THREE from "three";
 import { imageVariantUrl } from "@/lib/images/variants";
+import { corsImageUrl } from "@/lib/images/corsUrl";
 import { isLowEndDevice } from "./deviceTier";
 
 const MAX_TEXTURE_DIM = 1024;
@@ -152,7 +153,11 @@ export function loadDownscaledTexture(sourceUrl: string): Promise<LoadedMuseumTe
   // canvas below can use — at a fraction of the full-size download, and a
   // room fetches every wall, frame and prop at once. Pre-compression URLs
   // pass through unchanged (see lib/images/variants.ts).
-  const url = imageVariantUrl(sourceUrl, "medium");
+  //
+  // Then split off from any plain <img> of the same file — the browser must
+  // not answer this CORS request from a cache entry that has no CORS header
+  // (see lib/images/corsUrl.ts for the R2 behaviour that makes this matter).
+  const url = corsImageUrl(imageVariantUrl(sourceUrl, "medium"));
   const cached = inflight.get(url);
   if (cached) return cached;
 

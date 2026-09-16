@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { deleteArtworkImage } from "@/lib/supabase/storage";
+import { deleteArtworkImage } from "@/lib/storage/server";
 import { getErrorCode, getErrorMessage } from "@/lib/utils";
 
 function revalidateEventPaths() {

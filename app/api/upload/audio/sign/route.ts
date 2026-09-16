@@ -1,13 +1,15 @@
 // app/api/upload/audio/sign/route.ts
 //
-// Mints a short-lived signed upload URL for the Museum Soundtrack uploader.
+// Mints a short-lived presigned PUT for the Museum Soundtrack uploader.
 // Same pattern as /api/upload/model/sign — the browser then uploads directly
-// to Supabase Storage, bypassing Vercel's ~4.5MB serverless function body cap.
+// to R2, bypassing Vercel's ~4.5MB serverless function body cap.
 // Validation (MIME type, extension) is done here on the filename; actual
 // byte-level inspection isn't possible since the file never hits this server.
+// The validated MIME type is signed into the URL, so the browser must send
+// that exact Content-Type with the PUT — lib/storage/browser.ts does.
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
-import { createAudioUploadUrl } from "@/lib/supabase/storage";
+import { createAudioUploadUrl } from "@/lib/storage/server";
 import { ALLOWED_AUDIO_TYPES } from "@/lib/background-music";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -37,8 +39,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { path, token, publicUrl } = await createAudioUploadUrl(filename);
-    return NextResponse.json({ path, token, publicUrl });
+    const contentType = mimeType || "audio/mpeg";
+    const { path, uploadUrl, publicUrl } = await createAudioUploadUrl(filename, contentType);
+    return NextResponse.json({ path, uploadUrl, publicUrl, contentType });
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error, "Failed to prepare upload") }, { status: 500 });
   }

@@ -20,13 +20,13 @@ import Image from "@/components/ui/SafeImage";
 import { PawPrint, ImagePlus, Box, Trash2, Plus, AlertTriangle } from "lucide-react";
 import toast from "@/lib/toast";
 import { getErrorMessage } from "@/lib/utils";
-import { uploadModelViaSignedUrl } from "@/lib/supabase/browser-storage";
+import { uploadModelViaSignedUrl } from "@/lib/storage/browser";
 import { playSoundEffect } from "@/lib/sound/engine";
 import { Toggle } from "./museum-ui";
 
 const MAX_COMPANIONS = 5;
 // Same cap as the Museum Scene Editor's own .glb uploads — see
-// MuseumEditorClient.tsx's MAX_MODEL_SIZE and lib/supabase/storage.ts's
+// MuseumEditorClient.tsx's MAX_MODEL_SIZE and lib/storage/server.ts's
 // createModelUploadUrl for why this needs the signed-URL flow at all
 // (Vercel's ~4.5MB serverless request-body cap).
 const MAX_MODEL_SIZE = 100 * 1024 * 1024;
@@ -50,7 +50,7 @@ async function uploadAsset(file: File): Promise<{ assetType: "model" | "image"; 
     if (!signRes.ok) throw new Error(signData.error || "Failed to prepare upload");
     // Returns the compressed copy's URL, which is a different path from
     // signData.publicUrl — see uploadModelViaSignedUrl.
-    const assetUrl = await uploadModelViaSignedUrl(file, signData.path, signData.token, signData.publicUrl);
+    const assetUrl = await uploadModelViaSignedUrl(file, signData.path, signData.uploadUrl, signData.publicUrl);
     return { assetType: "model", assetUrl };
   }
   const fd = new FormData();

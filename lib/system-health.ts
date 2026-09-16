@@ -5,8 +5,8 @@
 // can measure about itself.
 //
 // It reuses the credentials that already exist (VERCEL_ANALYTICS_TOKEN /
-// VERCEL_PROJECT_ID for Vercel, NEXT_PUBLIC_SUPABASE_URL /
-// SUPABASE_SERVICE_ROLE_KEY for Storage, DATABASE_URL for Postgres) rather
+// VERCEL_PROJECT_ID for Vercel, R2_ACCOUNT_ID / R2_ACCESS_KEY_ID /
+// R2_SECRET_ACCESS_KEY / R2_BUCKET for Storage, DATABASE_URL for Postgres) rather
 // than asking for new ones. That has a consequence worth stating plainly:
 // VERCEL_ANALYTICS_TOKEN was minted for the Web Analytics endpoints, and
 // depending on its scope the deployments/project endpoints below may come
@@ -132,7 +132,12 @@ export function isVercelConfigured(): boolean {
 }
 
 export function isStorageConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(
+    process.env.R2_ACCOUNT_ID &&
+      process.env.R2_ACCESS_KEY_ID &&
+      process.env.R2_SECRET_ACCESS_KEY &&
+      process.env.R2_BUCKET
+  );
 }
 
 /** GET against the Vercel REST API. Distinguishes 401/403 from other
@@ -329,57 +334,25 @@ export async function getStorageHealth(): Promise<StorageHealth> {
   if (!isStorageConfigured()) return empty;
 
   try {
-    // Imported lazily so an unconfigured deployment never pays for the
-    // supabase-js module, and so this file stays importable at build time.
-    const { createClient } = await import("@supabase/supabase-js");
-    const { BUCKET } = await import("@/lib/supabase/storage");
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-      process.env.SUPABASE_SERVICE_ROLE_KEY as string
-    );
+    // Imported lazily so an unconfigured deployment never pays for the AWS
+    // SDK, and so this file stays importable at build time.
+    const { listObjects, bucket } = await import("@/lib/storage/r2");
 
-    const { data: bucketList, error: bucketError } = await supabase.storage.listBuckets();
-    if (bucketError) {
-      // listBuckets is the service-role-only call, so a failure here is
-      // almost always "this key isn't the service-role key".
-      return { ...empty, status: "unauthorized" };
-    }
+    // R2's listing is a flat prefix walk, so one call from the root sees the
+    // whole tree — no per-folder loop the way Supabase's list() needed.
+    // Capped so a bucket that has grown past what a health card should be
+    // paging through reports "truncated" instead of stalling the dashboard.
+    const { objects, truncated } = await listObjects("", STORAGE_PAGE_SIZE * STORAGE_PAGE_CAP);
 
-    let objectCount = 0;
     let totalBytes = 0;
-    let truncated = false;
-
-    // Storage's list() is per-prefix, not recursive, so this walks the
-    // folders the app actually writes to (see lib/supabase/storage.ts) rather
-    // than trying to discover the tree.
-    for (const prefix of ["", "artworks", "models", "videos", "uploads"]) {
-      for (let page = 0; page < STORAGE_PAGE_CAP; page++) {
-        const { data, error } = await supabase.storage.from(BUCKET).list(prefix, {
-          limit: STORAGE_PAGE_SIZE,
-          offset: page * STORAGE_PAGE_SIZE,
-        });
-        if (error || !data) break;
-        for (const item of data) {
-          const size = (item.metadata as { size?: number } | null)?.size;
-          // A folder placeholder has no size metadata; only real objects count.
-          if (typeof size === "number") {
-            objectCount += 1;
-            totalBytes += size;
-          }
-        }
-        if (data.length < STORAGE_PAGE_SIZE) break;
-        if (page === STORAGE_PAGE_CAP - 1) truncated = true;
-      }
-    }
+    for (const o of objects) totalBytes += o.size;
 
     return {
       status: "ok",
-      buckets: (bucketList ?? []).map((b) => ({
-        name: b.name,
-        public: Boolean((b as { public?: boolean }).public),
-        createdAt: (b as { created_at?: string }).created_at ?? null,
-      })),
-      objectCount,
+      // One bucket by construction; the token is scoped to it, so there is
+      // no account-level listing to enumerate others from.
+      buckets: [{ name: bucket(), public: Boolean(process.env.R2_PUBLIC_URL), createdAt: null }],
+      objectCount: objects.length,
       totalBytes,
       truncated,
     };

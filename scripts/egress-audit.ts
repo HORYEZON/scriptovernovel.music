@@ -3,7 +3,8 @@
 // Answers the only question that matters while the Supabase egress grace
 // period runs (see Docs/Museum_AssetOptimization.md): **how many bytes does one
 // fresh visitor actually pull down**, and therefore how many visits fit inside
-// the Free plan's 5 GB/month before the bucket has to move to R2.
+// the Free plan's 5 GB/month. (Media now lives on R2, which bills no egress —
+// the number is kept as a bytes-per-visit sanity check.)
 //
 // Read-only. It lists the storage bucket and reads a few columns; it writes
 // nothing, anywhere.
@@ -24,17 +25,15 @@
 // Usage:
 //   npx tsx scripts/egress-audit.ts
 import "dotenv/config";
-import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
-import { BUCKET } from "@/lib/supabase/storage";
+import { listObjects, bucket, publicOrigin } from "@/lib/storage/r2";
 
-/** Supabase Free plan's monthly cached-egress allowance. */
+/** Kept as the yardstick this report was built around. R2 itself bills no
+ *  egress, so this is now "how many visits would this have cost on Supabase"
+ *  — a sanity check on bytes-per-visit, not a budget. */
 const FREE_EGRESS_GB = 5;
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const BUCKET = bucket();
 
 const mb = (bytes: number) => bytes / 1024 / 1024;
 const fmt = (bytes: number) =>
@@ -42,31 +41,12 @@ const fmt = (bytes: number) =>
     ? `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
     : `${mb(bytes).toFixed(2)} MB`;
 
-/** Every object in the bucket, keyed by full path, with its byte size.
- *  Recursive because `list()` returns one directory level at a time and the
- *  models live two deep (`models/optimized/…`). */
-async function listAll(prefix = ""): Promise<Map<string, number>> {
-  const out = new Map<string, number>();
-  let offset = 0;
-  for (;;) {
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .list(prefix, { limit: 100, offset });
-    if (error) throw new Error(`list(${prefix}): ${error.message}`);
-    if (!data?.length) break;
-    for (const entry of data) {
-      const path = prefix ? `${prefix}/${entry.name}` : entry.name;
-      // A folder comes back with no `id`; a file carries size in metadata.
-      if (!entry.id) {
-        for (const [k, v] of await listAll(path)) out.set(k, v);
-      } else {
-        out.set(path, (entry.metadata?.size as number | undefined) ?? 0);
-      }
-    }
-    offset += data.length;
-    if (data.length < 100) break;
-  }
-  return out;
+/** Every object in the bucket, keyed by full path, with its byte size. One
+ *  flat prefix walk — S3-style listing is recursive by nature. */
+async function listAll(): Promise<Map<string, number>> {
+  const { objects, truncated } = await listObjects("", 100000);
+  if (truncated) console.warn("  (listing capped at 100k objects — totals are a floor)");
+  return new Map(objects.map((o) => [o.key, o.size]));
 }
 
 /** The bucket-relative path a stored public URL points at, or null if the URL
@@ -79,7 +59,7 @@ async function listAll(prefix = ""): Promise<Map<string, number>> {
  *  matched nothing in the bucket and was miscounted as a missing file. */
 function toPath(url: string | null | undefined): string | null {
   if (!url) return null;
-  const marker = `/storage/v1/object/public/${BUCKET}/`;
+  const marker = `${publicOrigin()}/`;
   const i = url.indexOf(marker);
   if (i === -1) return null;
   const rest = url.slice(i + marker.length);

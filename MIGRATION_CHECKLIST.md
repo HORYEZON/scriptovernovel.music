@@ -1,15 +1,16 @@
 # scriptovernovel.music — Migration Checklist (from kalamari.arts)
 
-Baseline: `kalamari.arts` @ `62cc2e3` (`Merge branch 'museum-inapp-browser-091526'`), synced 2026-09-15.
+Baseline: `kalamari.arts` @ `eaf56e5` (`fix: Add Decorative Object waits for a name…`), synced 2026-09-16.
 (Original snapshot was `565a277`; commits `565a277..79404f4` — release-notes trash fix,
 VR mirrored panels, cart squid heading, VR HUD — were ported file-by-file on 2026-09-13; `79404f4..99ef810` — site-music handoff
 fix + Share 360° — on 2026-09-14; `99ef810..1825a7e` — Share 360° black-square fix,
 Hide HUD button / editor toolbar wrap / 2FA back pill — on 2026-09-15; `1825a7e..c4727c2` — Share 360° phone-memory
 optimisation — on 2026-09-15; `c4727c2..62cc2e3` — Facebook in-app browser
-handling — on 2026-09-15.)
+handling — on 2026-09-15; `62cc2e3..eaf56e5` — **Supabase Storage → Cloudflare R2**,
+minimap floor label, divider snap, editor undo sync, draco wasm, decorative-object name — on 2026-09-16.)
 
 > ⚠️ `kalamari.arts` is still receiving bug fixes / features in parallel.
-> Anything committed there **after `62cc2e3`** is NOT in this copy — see the
+> Anything committed there **after `eaf56e5`** is NOT in this copy — see the
 > "Re-sync" section at the bottom before treating this folder as current.
 
 ## Done
@@ -54,6 +55,11 @@ handling — on 2026-09-15.)
   - ⚠️ `GMAIL_USER` got auto-renamed to `scriptovernovel.music@gmail.com` — set to a real mailbox + app password before testing email
   - Gmail / reCAPTCHA / Vercel → left as-is for now (decided)
 - [x] `supabase init` done (`supabase/config.toml`; `.temp/` ignored)
+- [ ] **Cloudflare R2** — since the 09/16 port every upload goes to R2 (`lib/storage/*`; Supabase Storage code deleted).
+  Create a bucket + Object Read & Write token, fill `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` /
+  `R2_BUCKET` / `R2_PUBLIC_URL` in `.env` (placeholders added). See `Docs/Media_Storage_R2.md`
+  (ported as a setup doc; its migration-record parts describe kalamari's data, not this project's).
+  `scripts/migrate-media-to-r2.ts` / `rewrite-media-urls.ts` are kalamari one-offs — not needed here.
 - [ ] **`supabase start`** — needs Docker Desktop running (it wasn't). Then compare the printed anon/service_role keys with `.env`
 - [x] `yarn install` (713 pkgs, Prisma client generated)
 - [ ] `yarn db:push` → `yarn db:seed` (after `supabase start`; `DATABASE_URL` is 127.0.0.1:54322, so this can only hit the local DB)
@@ -84,11 +90,11 @@ Instead, port commits:
 
 ```bash
 cd "/Users/jbriz/Documents/GitHub/0 Horyezon Indie Solutions/kalamari.arts"
-git log --oneline 62cc2e3..HEAD            # what's new since the snapshot
-git diff 62cc2e3..HEAD --stat              # which files
+git log --oneline eaf56e5..HEAD            # what's new since the snapshot
+git diff eaf56e5..HEAD --stat              # which files
 
 # per commit / range, make a patch and apply it to the copy:
-git format-patch 62cc2e3..HEAD --stdout > /tmp/kalamari-since-snapshot.patch
+git format-patch eaf56e5..HEAD --stdout > /tmp/kalamari-since-snapshot.patch
 cd "../scriptovernovel.music"
 git apply --3way /tmp/kalamari-since-snapshot.patch   # after git init
 ```

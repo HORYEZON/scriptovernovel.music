@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { deleteArtworkImage } from "@/lib/supabase/storage";
+import { deleteArtworkImage } from "@/lib/storage/server";
 import { getErrorCode } from "@/lib/utils";
 
 // PATCH /api/certificates/:id — update

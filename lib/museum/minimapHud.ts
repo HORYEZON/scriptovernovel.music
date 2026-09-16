@@ -18,6 +18,8 @@
 // hard-coded in MiniMapHud.tsx / AchievementHud.tsx, so "Reset to defaults"
 // restores today's museum rather than someone's idea of a nice one.
 
+import { isValidThemeFont } from "@/lib/theme";
+
 /** Which lucide icon a counter draws. Kept as a small curated list rather
  *  than "any icon name": the value is rendered by mapping to a real imported
  *  component (see MINIMAP_COUNTER_ICONS in AchievementHud.tsx), and an
@@ -38,6 +40,35 @@ export const MINIMAP_ICON_NAMES = [
 ] as const;
 
 export type MinimapIconName = (typeof MINIMAP_ICON_NAMES)[number];
+
+/** Where the floor label sits inside the map canvas. The map's room outline
+ *  is already centred with a padding band around it, so the label lives in
+ *  that band — top or bottom — rather than over the room itself. */
+export const MINIMAP_LABEL_POSITIONS = [
+  "top-left",
+  "top-center",
+  "top-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
+] as const;
+
+export type MinimapLabelPosition = (typeof MINIMAP_LABEL_POSITIONS)[number];
+
+/** Weight + slant together, since that is how an admin thinks of "style" —
+ *  and it maps one-to-one onto the `font-style font-weight` prefix a canvas
+ *  `ctx.font` string takes. */
+export const MINIMAP_LABEL_STYLES = ["normal", "bold", "italic", "bold-italic"] as const;
+
+export type MinimapLabelStyle = (typeof MINIMAP_LABEL_STYLES)[number];
+
+/** Font families the label can be set in. These are the same six the splash
+ *  tagline and site theme offer (lib/theme.ts's THEME_FONT_OPTIONS), so an
+ *  admin who already chose a look elsewhere finds the same list here. Values
+ *  are CSS font-family strings — the `var(--font-…)` ones are resolved to
+ *  their loaded family names before reaching the canvas, see
+ *  resolveCanvasFontFamily() in MiniMapHud.tsx. */
+export { THEME_FONT_OPTIONS as MINIMAP_LABEL_FONT_OPTIONS } from "@/lib/theme";
 
 export interface MinimapHudConfig {
   /** Map canvas size in CSS pixels, desktop. Mobile's tap-to-expand panel
@@ -70,6 +101,26 @@ export interface MinimapHudConfig {
   viewsIcon: MinimapIconName;
   timeIcon: MinimapIconName;
   wishlistIcon: MinimapIconName;
+  /** The floor label — "Ground Floor" / "Second Floor" painted in the map's
+   *  padding band, so a visitor who just came up the stairs can read which
+   *  floor they are on without opening the [M] map. One label per kind of
+   *  room a visitor can stand in: floor 0, floor 1, and the STAIRS connector
+   *  between them (which is neither — it carries floor 0 in the data but
+   *  reads as "between floors" to whoever is on it). */
+  floorLabelEnabled: boolean;
+  floorLabelGround: string;
+  floorLabelUpper: string;
+  floorLabelStairs: string;
+  /** A CSS font-family value from MINIMAP_LABEL_FONT_OPTIONS. */
+  floorLabelFont: string;
+  floorLabelStyle: MinimapLabelStyle;
+  /** Font size in CSS pixels. */
+  floorLabelSize: number;
+  floorLabelColor: string;
+  floorLabelPosition: MinimapLabelPosition;
+  /** Draw the label in capitals with a little tracking — the "signage" look
+   *  the [M] map's own "Second Floor" divider uses. Off draws it as typed. */
+  floorLabelUppercase: boolean;
 }
 
 export const MINIMAP_HUD_DEFAULTS: MinimapHudConfig = {
@@ -87,6 +138,21 @@ export const MINIMAP_HUD_DEFAULTS: MinimapHudConfig = {
   viewsIcon: "eye",
   timeIcon: "clock",
   wishlistIcon: "heart",
+  // The one default here that is *not* "what shipped before": the label is on
+  // by default because it was asked for as a visible feature, not as an
+  // option. Its look matches the rest of the card — the same DM Sans the
+  // counters use, at the room outline's own white, small and centred in the
+  // top band where the wall's doorway tick already draws the eye.
+  floorLabelEnabled: true,
+  floorLabelGround: "Ground Floor",
+  floorLabelUpper: "Second Floor",
+  floorLabelStairs: "Stairs",
+  floorLabelFont: "var(--font-dm-sans), system-ui, sans-serif",
+  floorLabelStyle: "normal",
+  floorLabelSize: 10,
+  floorLabelColor: "#ffffff",
+  floorLabelPosition: "top-center",
+  floorLabelUppercase: true,
 };
 
 export const MINIMAP_MIN_WIDTH = 160;
@@ -95,11 +161,32 @@ export const MINIMAP_MIN_HEIGHT = 120;
 export const MINIMAP_MAX_HEIGHT = 360;
 export const MINIMAP_MIN_COUNTER_SCALE = 70;
 export const MINIMAP_MAX_COUNTER_SCALE = 180;
+export const MINIMAP_MIN_LABEL_SIZE = 8;
+export const MINIMAP_MAX_LABEL_SIZE = 24;
+/** Long enough for "Mezzanine Level" in any language; short enough that it
+ *  can't run off a 160px-wide map at the smallest size. */
+export const MINIMAP_MAX_LABEL_LENGTH = 32;
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.round(Math.min(max, Math.max(min, n)));
+}
+
+/** A label's text: trimmed and capped. Empty falls back to the default rather
+ *  than to nothing — "no label" is what the enabled switch is for, and a
+ *  blank field an admin forgot to fill shouldn't silently erase one floor's
+ *  sign while the other floor keeps its own. */
+function sanitizeLabelText(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim().slice(0, MINIMAP_MAX_LABEL_LENGTH);
+  return trimmed || fallback;
+}
+
+function sanitizeOneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === "string" && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : fallback;
 }
 
 /** Hex only — these are painted straight onto a canvas (and, for the dots,
@@ -143,7 +230,41 @@ export function sanitizeMinimapHudConfig(value: unknown): MinimapHudConfig {
     viewsIcon: sanitizeIcon(raw.viewsIcon, d.viewsIcon),
     timeIcon: sanitizeIcon(raw.timeIcon, d.timeIcon),
     wishlistIcon: sanitizeIcon(raw.wishlistIcon, d.wishlistIcon),
+    floorLabelEnabled:
+      typeof raw.floorLabelEnabled === "boolean" ? raw.floorLabelEnabled : d.floorLabelEnabled,
+    floorLabelGround: sanitizeLabelText(raw.floorLabelGround, d.floorLabelGround),
+    floorLabelUpper: sanitizeLabelText(raw.floorLabelUpper, d.floorLabelUpper),
+    floorLabelStairs: sanitizeLabelText(raw.floorLabelStairs, d.floorLabelStairs),
+    floorLabelFont: isValidThemeFont(raw.floorLabelFont) ? raw.floorLabelFont : d.floorLabelFont,
+    floorLabelStyle: sanitizeOneOf(raw.floorLabelStyle, MINIMAP_LABEL_STYLES, d.floorLabelStyle),
+    floorLabelSize: clampNumber(
+      raw.floorLabelSize,
+      MINIMAP_MIN_LABEL_SIZE,
+      MINIMAP_MAX_LABEL_SIZE,
+      d.floorLabelSize
+    ),
+    floorLabelColor: sanitizeHex(raw.floorLabelColor, d.floorLabelColor),
+    floorLabelPosition: sanitizeOneOf(
+      raw.floorLabelPosition,
+      MINIMAP_LABEL_POSITIONS,
+      d.floorLabelPosition
+    ),
+    floorLabelUppercase:
+      typeof raw.floorLabelUppercase === "boolean" ? raw.floorLabelUppercase : d.floorLabelUppercase,
   };
+}
+
+/**
+ * Which of the three label texts a given room shows. STAIRS is checked
+ * first: it is stored as floor 0 (see page.tsx) but a visitor climbing it is
+ * on neither floor, and "Ground Floor" halfway up a staircase reads as wrong.
+ */
+export function floorLabelFor(
+  config: MinimapHudConfig,
+  room: { floor: number; roomType: string }
+): string {
+  if (room.roomType === "STAIRS") return config.floorLabelStairs;
+  return room.floor >= 1 ? config.floorLabelUpper : config.floorLabelGround;
 }
 
 /** The stored column → a usable config. Null (never configured) and invalid

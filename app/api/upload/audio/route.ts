@@ -5,7 +5,7 @@
 // than overloading the image one with a "type" switch.
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
-import { uploadAudioFile } from "@/lib/supabase/storage";
+import { uploadAudioFile } from "@/lib/storage/server";
 import { ALLOWED_AUDIO_TYPES, MAX_AUDIO_FILE_SIZE, MAX_AUDIO_FILE_SIZE_MB } from "@/lib/background-music";
 import { getErrorMessage } from "@/lib/utils";
 

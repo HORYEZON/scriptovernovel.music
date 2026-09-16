@@ -6,7 +6,7 @@ import { Upload, X, Music } from "lucide-react";
 import toast from "@/lib/toast";
 import { ALLOWED_AUDIO_TYPES, MAX_AUDIO_FILE_SIZE, MAX_AUDIO_FILE_SIZE_MB } from "@/lib/background-music";
 import { getErrorMessage } from "@/lib/utils";
-import { uploadAudioViaSignedUrl } from "@/lib/supabase/browser-storage";
+import { uploadAudioViaSignedUrl } from "@/lib/storage/browser";
 
 // Same drag-free "click to upload" card pattern as BackgroundUploader.tsx /
 // LogoUploader.tsx, adapted for audio — a native <audio controls> preview
@@ -44,10 +44,12 @@ export function AudioUploader({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: file.name, mimeType: file.type }),
       });
-      const signData = await signRes.json().catch(() => ({})) as { path?: string; token?: string; publicUrl?: string; error?: string };
+      const signData = await signRes.json().catch(() => ({})) as { path?: string; uploadUrl?: string; publicUrl?: string; contentType?: string; error?: string };
       if (!signRes.ok) throw new Error(signData.error || "Failed to prepare upload");
 
-      await uploadAudioViaSignedUrl(file, signData.path!, signData.token!);
+      // The Content-Type is part of the presigned signature, so it has to be
+      // the one the server validated and signed — not re-read from the file.
+      await uploadAudioViaSignedUrl(file, signData.uploadUrl!, signData.contentType!);
       onChange(signData.publicUrl!);
       toast.success("Track uploaded");
     } catch (err) {

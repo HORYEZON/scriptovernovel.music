@@ -91,7 +91,7 @@ import {
   colliderWorldBaseY,
 } from "@/app/(public)/gallery/museum/components/roomConstants";
 import type { ModelFit } from "@/app/(public)/gallery/museum/components/CustomSceneObject";
-import { uploadModelViaSignedUrl } from "@/lib/supabase/browser-storage";
+import { uploadModelViaSignedUrl } from "@/lib/storage/browser";
 import { playSoundEffect } from "@/lib/sound/engine";
 import {
   ABOUT_PHOTO_KIND,
@@ -704,7 +704,7 @@ function modelUnitScale(nativeSpan: number | undefined): number {
   return MODEL_FIT_TARGET / nativeSpan;
 }
 const PAGE_SIZE_OPTIONS = [5, 10] as const;
-const MAX_MODEL_SIZE = 100 * 1024 * 1024; // 100 MB — uploaded directly to Supabase Storage, see uploadModelViaSignedUrl
+const MAX_MODEL_SIZE = 100 * 1024 * 1024; // 100 MB — uploaded directly to R2, see uploadModelViaSignedUrl
 
 type Selection =
   | { type: "scene"; id: string }
@@ -914,10 +914,16 @@ export function MuseumEditorClient({
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
   const [uploading, setUploading] = useState(false);
-  // Optional name typed in the upload modal, stored on the new object's
-  // `label` so it shows in the list instead of the generic "Decorative
-  // Object". Cleared whenever the modal opens or closes.
+  // Name typed in the upload modal, stored on the new object's `label` so it
+  // shows in the list instead of the generic "Decorative Object". Required:
+  // it used to be optional, and choosing a file uploaded immediately and
+  // closed the modal — so the field was only ever filled by someone who
+  // happened to type before picking the file. Cleared whenever the modal
+  // opens or closes.
   const [newObjectName, setNewObjectName] = useState("");
+  // The .glb chosen in the modal, held until "Add object" is pressed. Picking
+  // a file no longer starts the upload on its own, for the reason above.
+  const [pendingModelFile, setPendingModelFile] = useState<File | null>(null);
   // Auto-measured footprint radius (model units) per custom scene object,
   // reported by MuseumEditorScene once each .glb loads — the "auto-fit"
   // default for the Solid collider. Not persisted; recomputed every open.
@@ -1448,43 +1454,84 @@ export function MuseumEditorClient({
   // scale/list order), not anything already Saved to the server — undoing
   // past a Save would need re-issuing the old PATCH, which this doesn't do,
   // same "explicit Save is the only thing that's truly durable" model the
-  // rest of this editor already follows.
+  // rest of this editor already follows. (Which objects *exist* is the one
+  // thing that is synced — see reconcileSceneObjects below.)
   const snapshot = useCallback(() => {
     setUndoStack((prev) => [...prev, { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, freedomWallNotes }]);
     setRedoStack([]);
   }, [sceneObjects, artworks, stories, miniGames, cosplays, freedomWallNotes]);
 
+  // The one exception to "local state only": which scene objects *exist*.
+  // Add, Duplicate and Remove each write to the server the moment they are
+  // clicked (a row has to exist before it can be dragged), so a snapshot from
+  // either side of one of those disagrees with the database about the room's
+  // contents. Rewinding the list alone left the row where it was — an undone
+  // Add became a divider the editor no longer showed but every visitor walked
+  // into (the Compilations room: a 7m panel across the middle of the room,
+  // and frames on the neighbouring dividers snapping onto its faces), and an
+  // undone Remove came back on screen but soft-deleted underneath, so the
+  // next Save hit the route's 409. Stepping the history now diffs the two
+  // lists by id and issues the matching soft-delete / restore, which is what
+  // makes the two directions symmetric: undo of an Add removes, redo of it
+  // restores, and the reverse for a Remove.
+  const reconcileSceneObjects = useCallback(async (from: SceneObject[], to: SceneObject[]) => {
+    const toIds = new Set(to.map((o) => o.id));
+    const fromIds = new Set(from.map((o) => o.id));
+    const removed = from.filter((o) => !toIds.has(o.id));
+    const restored = to.filter((o) => !fromIds.has(o.id));
+    if (removed.length === 0 && restored.length === 0) return;
+    // Keep the Recently Removed strip truthful either way: an object undo has
+    // just soft-deleted is offered back there, one it has just restored isn't.
+    setRecentlyDeleted((prev) => [...prev.filter((o) => !restored.some((r) => r.id === o.id)), ...removed]);
+    const results = await Promise.all([
+      ...removed.map((o) => fetch(`/api/digital-museum/scene-objects/${o.id}`, { method: "DELETE" })),
+      ...restored.map((o) =>
+        fetch(`/api/digital-museum/scene-objects/${o.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ restore: true }),
+        })
+      ),
+    ]);
+    if (results.some((res) => !res.ok)) {
+      toast.error("Couldn't sync an added or removed object — reload the scene before saving");
+    }
+  }, []);
+
+  // Read the stacks from the closure and step them with plain setters rather
+  // than doing the work inside a functional updater: the reconcile above is a
+  // network side effect, and React may run an updater more than once.
   const undo = useCallback(() => {
-    setUndoStack((prev) => {
-      if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      setRedoStack((r) => [...r, { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, freedomWallNotes }]);
-      setSceneObjects(last.sceneObjects);
-      setArtworks(last.artworks);
-      setStories(last.stories);
-      setMiniGames(last.miniGames);
-      setCosplays(last.cosplays);
-      setFreedomWallNotes(last.freedomWallNotes);
-      setDirty(true);
-      return prev.slice(0, -1);
-    });
-  }, [sceneObjects, artworks, stories, miniGames, cosplays, freedomWallNotes]);
+    if (undoStack.length === 0) return;
+    const last = undoStack[undoStack.length - 1];
+    const current: HistorySnapshot = { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, freedomWallNotes };
+    setUndoStack(undoStack.slice(0, -1));
+    setRedoStack((r) => [...r, current]);
+    setSceneObjects(last.sceneObjects);
+    setArtworks(last.artworks);
+    setStories(last.stories);
+    setMiniGames(last.miniGames);
+    setCosplays(last.cosplays);
+    setFreedomWallNotes(last.freedomWallNotes);
+    setDirty(true);
+    void reconcileSceneObjects(current.sceneObjects, last.sceneObjects);
+  }, [undoStack, sceneObjects, artworks, stories, miniGames, cosplays, freedomWallNotes, reconcileSceneObjects]);
 
   const redo = useCallback(() => {
-    setRedoStack((prev) => {
-      if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      setUndoStack((u) => [...u, { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, freedomWallNotes }]);
-      setSceneObjects(last.sceneObjects);
-      setArtworks(last.artworks);
-      setStories(last.stories);
-      setMiniGames(last.miniGames);
-      setCosplays(last.cosplays);
-      setFreedomWallNotes(last.freedomWallNotes);
-      setDirty(true);
-      return prev.slice(0, -1);
-    });
-  }, [sceneObjects, artworks, stories, miniGames, cosplays, freedomWallNotes]);
+    if (redoStack.length === 0) return;
+    const last = redoStack[redoStack.length - 1];
+    const current: HistorySnapshot = { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, freedomWallNotes };
+    setRedoStack(redoStack.slice(0, -1));
+    setUndoStack((u) => [...u, current]);
+    setSceneObjects(last.sceneObjects);
+    setArtworks(last.artworks);
+    setStories(last.stories);
+    setMiniGames(last.miniGames);
+    setCosplays(last.cosplays);
+    setFreedomWallNotes(last.freedomWallNotes);
+    setDirty(true);
+    void reconcileSceneObjects(current.sceneObjects, last.sceneObjects);
+  }, [redoStack, sceneObjects, artworks, stories, miniGames, cosplays, freedomWallNotes, reconcileSceneObjects]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -1829,7 +1876,7 @@ export function MuseumEditorClient({
       // Stores the *compressed* copy's URL, not the signing route's — the
       // upload helper runs every .glb through /api/upload/model/optimize and
       // the result lives at a different path. Same for every upload below.
-      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.token, signData.publicUrl);
+      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.uploadUrl, signData.publicUrl);
       updateContactConfig("url", modelUrl);
       toast.success("Contact Desk model set — remember to Save");
     } catch (err) {
@@ -2702,7 +2749,7 @@ export function MuseumEditorClient({
       const signData = await signRes.json().catch(() => ({}));
       if (!signRes.ok) throw new Error(signData.error || "Failed to prepare upload");
 
-      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.token, signData.publicUrl);
+      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.uploadUrl, signData.publicUrl);
       await saveStandeeConfig(
         { url: modelUrl },
         "Standee model set — every standee in this room now uses it"
@@ -2735,7 +2782,7 @@ export function MuseumEditorClient({
       const signData = await signRes.json().catch(() => ({}));
       if (!signRes.ok) throw new Error(signData.error || "Failed to prepare upload");
 
-      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.token, signData.publicUrl);
+      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.uploadUrl, signData.publicUrl);
       await saveArcadeConfig(
         { cabinetModelUrl: modelUrl },
         "Cabinet model set — every cabinet in this room now uses it"
@@ -2768,7 +2815,7 @@ export function MuseumEditorClient({
       const signData = await signRes.json().catch(() => ({}));
       if (!signRes.ok) throw new Error(signData.error || "Failed to prepare upload");
 
-      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.token, signData.publicUrl);
+      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.uploadUrl, signData.publicUrl);
       await savePodiumModelConfig({ url: modelUrl });
       toast.success("Podium model set — every podium in this room now uses it");
     } catch (err) {
@@ -2793,8 +2840,8 @@ export function MuseumEditorClient({
       // would be rejected by Vercel's serverless function body-size cap
       // (~4.5MB) long before it reached our own validation. This gets a
       // one-time signed URL from our server, then uploads the actual
-      // bytes straight from the browser to Supabase Storage — see
-      // lib/supabase/storage.ts's createModelUploadUrl doc comment.
+      // bytes straight from the browser to R2 — see
+      // lib/storage/server.ts's createModelUploadUrl doc comment.
       const signRes = await fetch("/api/upload/model/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2803,7 +2850,7 @@ export function MuseumEditorClient({
       const signData = await signRes.json().catch(() => ({}));
       if (!signRes.ok) throw new Error(signData.error || "Failed to prepare upload");
 
-      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.token, signData.publicUrl);
+      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.uploadUrl, signData.publicUrl);
 
       snapshot();
       const name = newObjectName.trim().slice(0, MAX_SCENE_LABEL);
@@ -2820,6 +2867,7 @@ export function MuseumEditorClient({
       setMode("translate");
       setUploadModalOpen(false);
       setNewObjectName("");
+      setPendingModelFile(null);
       toast.success(`${name || "Decorative object"} added — drag it into place, then Save`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
@@ -2890,7 +2938,7 @@ export function MuseumEditorClient({
       const signData = await signRes.json().catch(() => ({}));
       if (!signRes.ok) throw new Error(signData.error || "Failed to prepare upload");
 
-      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.token, signData.publicUrl);
+      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.uploadUrl, signData.publicUrl);
 
       const res = await fetch(`/api/digital-museum/scene-objects/${target.id}`, {
         method: "PATCH",
@@ -3267,7 +3315,7 @@ export function MuseumEditorClient({
                   hint: "Upload a .glb prop",
                   icon: Upload,
                   tone: "text-sepia",
-                  run: () => { setNewObjectName(""); setUploadModalOpen(true); },
+                  run: () => { setNewObjectName(""); setPendingModelFile(null); setUploadModalOpen(true); },
                 },
               ] as const).map(({ key, label, hint, icon: Icon, tone, run }) => (
                 <button
@@ -7479,7 +7527,7 @@ export function MuseumEditorClient({
               <p className="font-jakarta text-lg font-semibold text-ink dark:text-cream">Add Decorative Object</p>
               <button
                 type="button"
-                onClick={() => { setUploadModalOpen(false); setNewObjectName(""); }}
+                onClick={() => { setUploadModalOpen(false); setNewObjectName(""); setPendingModelFile(null); }}
                 className="p-1 rounded-lg text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:bg-black/10 dark:hover:bg-white/10"
               >
                 <X size={18} />
@@ -7491,7 +7539,7 @@ export function MuseumEditorClient({
             </p>
             <label className="block mb-4">
               <span className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300 mb-1 block">
-                Name <span className="normal-case tracking-normal">(optional)</span>
+                Name <span className="normal-case tracking-normal">(required)</span>
               </span>
               <input
                 type="text"
@@ -7500,11 +7548,15 @@ export function MuseumEditorClient({
                 onChange={(e) => setNewObjectName(e.target.value)}
                 placeholder="e.g. Lobby Ficus, Red Carpet"
                 className="admin-input w-full px-3 py-2 rounded-xl text-sm"
+                autoFocus
               />
               <span className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1 block">
                 Shows in the object list instead of &ldquo;Decorative Object&rdquo;. You can rename it later.
               </span>
             </label>
+            {/* Picking a file only stages it. The upload starts from the Add
+                button below, once a name is in — nothing here closes the
+                modal on its own. */}
             <input
               ref={fileInputRef}
               type="file"
@@ -7512,19 +7564,48 @@ export function MuseumEditorClient({
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleUploadModel(file);
                 e.target.value = "";
+                if (!file) return;
+                if (!file.name.toLowerCase().endsWith(".glb")) { toast.error("Only .glb files are supported"); return; }
+                if (file.size > MAX_MODEL_SIZE) { toast.error("File too large — 100MB max"); return; }
+                setPendingModelFile(file);
               }}
             />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="w-full flex flex-col items-center justify-center gap-2 p-8 rounded-2xl border border-dashed border-black/15 dark:border-white/15 text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:border-black/30 dark:hover:border-white/30 transition-colors disabled:opacity-50"
+              className="w-full flex flex-col items-center justify-center gap-2 p-6 rounded-2xl border border-dashed border-black/15 dark:border-white/15 text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:border-black/30 dark:hover:border-white/30 transition-colors disabled:opacity-50"
             >
               <Upload size={22} />
-              <span className="font-body text-sm">{uploading ? "Uploading…" : "Choose a .glb file"}</span>
+              {pendingModelFile ? (
+                <span className="font-body text-sm text-ink dark:text-cream break-all text-center">
+                  {pendingModelFile.name}
+                  <span className="block text-[11px] text-ink-400 dark:text-ink-300 mt-0.5">
+                    {(pendingModelFile.size / 1048576).toFixed(1)} MB · click to change
+                  </span>
+                </span>
+              ) : (
+                <span className="font-body text-sm">Choose a .glb file</span>
+              )}
             </button>
+            <button
+              type="button"
+              onClick={() => { if (pendingModelFile) handleUploadModel(pendingModelFile); }}
+              disabled={uploading || !pendingModelFile || !newObjectName.trim()}
+              className="mt-4 w-full px-4 py-2.5 rounded-xl bg-ink dark:bg-cream text-cream dark:text-ink text-sm font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {uploading ? "Uploading…" : "Add object"}
+            </button>
+            {!uploading && (!pendingModelFile || !newObjectName.trim()) && (
+              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-2 text-center">
+                {!newObjectName.trim() && !pendingModelFile
+                  ? "Enter a name and choose a file to continue."
+                  : !newObjectName.trim()
+                    ? "Enter a name to continue."
+                    : "Choose a .glb file to continue."}
+              </p>
+            )}
           </div>
         </div>
       )}

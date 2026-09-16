@@ -357,7 +357,7 @@ export function SystemHealthPanel({
         {storage.status !== "ok" ? (
           <StatusNote
             status={storage.status}
-            hint="Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to see bucket usage."
+            hint="Set the R2_* variables (see .env.example) to see bucket usage."
           />
         ) : (
           <div className="space-y-4">

@@ -1053,7 +1053,7 @@ export function MuseumScene({
   // on, and a visitor sat behind the loading bar until *every* room had
   // downloaded. That read as "it hangs, and only a refresh fixes it": on the
   // second load every file is served from the browser cache (uploads carry a
-  // one-year Cache-Control, see lib/supabase/storage.ts) so the same wait
+  // one-year Cache-Control, see lib/storage/server.ts) so the same wait
   // collapses to nothing.
   //
   // Keying off the manager going idle fixes both: the entry room loads

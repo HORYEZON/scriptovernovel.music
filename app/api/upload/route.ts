@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
-import { uploadCompressedImage } from "@/lib/supabase/storage";
+import { uploadCompressedImage } from "@/lib/storage/server";
 import { getErrorMessage } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB

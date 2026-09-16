@@ -21,6 +21,20 @@
 
 export const IMAGE_PREFIX = "img";
 
+// Where the untouched upload is kept, next to its three display renditions.
+// Never linked from any page — the site only ever serves the `img/` files —
+// so the master is not reachable by browsing, only by knowing its random key.
+// It exists so a print order, a re-encode with better settings, or a plain
+// "give me the file back" is possible without the artist having kept their
+// own copy. Keyed by the same id as its variants so cleanup can find it.
+export const ORIGINALS_PREFIX = "originals";
+
+/** Bucket-relative path of an upload's master file. The extension is the
+ *  upload's own (png, jpg, …), so the object is usable as-is if downloaded. */
+export function originalPath(id: string, ext: string): string {
+  return `${ORIGINALS_PREFIX}/${id}.${ext.replace(/^\./, "").toLowerCase()}`;
+}
+
 export type ImageVariant = "full" | "medium" | "thumb";
 
 const SUFFIX: Record<ImageVariant, string> = {
@@ -57,9 +71,19 @@ export function imageVariantUrl(url: string | null | undefined, variant: ImageVa
 
 /** Inverse of the above for cleanup: given a stored full-size URL, the
  *  bucket-relative paths of every sibling to delete alongside it — or null
- *  when the URL isn't a compressed upload (delete just the one path). */
+ *  when the URL isn't a compressed upload (delete just the one path). The
+ *  master under `originals/` is not listed here because its extension isn't
+ *  derivable from the .webp URL; callers that remove an upload use
+ *  `uploadIdFromUrl` and delete by prefix instead. */
 export function siblingPathsFromUrl(url: string): string[] | null {
   const m = FULL_URL_RE.exec(url);
   if (!m) return null;
   return Object.values(variantPaths(m[1]));
+}
+
+/** The upload id inside a stored full-size URL, or null for anything that
+ *  isn't a compressed upload. */
+export function uploadIdFromUrl(url: string): string | null {
+  const m = FULL_URL_RE.exec(url);
+  return m ? m[1] : null;
 }

@@ -11,7 +11,10 @@ export default function AdminBackupPage() {
   // the data are *our* uploaded files rather than links out to someone else's
   // site. Read here rather than in the client so it comes from the same env
   // var the uploader writes with, instead of a second copy of the hostname.
-  const storageOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  // The origin every media URL in the database starts with — what the
+  // exporter uses to tell "one of our files" from an Unsplash seed or a
+  // retired host. See lib/storage/r2.ts's publicOrigin.
+  const storageOrigin = (process.env.R2_PUBLIC_URL ?? "").replace(/\/+$/, "");
 
   return (
     <div>

@@ -21,6 +21,12 @@ import { getLayoutAtZ, type RoomLayout } from "./roomLayout";
 
 export interface MiniMapFrameState {
   roomId: string;
+  /** Which storey the room is on (MuseumRoom.floor — 0 ground, 1 second) and
+   * its type, together enough for MiniMapHud.tsx to pick the floor label
+   * (lib/museum/minimapHud.ts's floorLabelFor). The STAIRS connector is
+   * stored as floor 0 but labelled as its own thing, hence both. */
+  roomFloor: number;
+  roomType: string;
   roomWidth: number;
   roomDepth: number;
   hasNorthOpening: boolean;
@@ -181,6 +187,8 @@ export function MiniMapTracker({
 
     stateRef.current = {
       roomId: layout.room.id,
+      roomFloor: layout.room.floor,
+      roomType: layout.room.roomType,
       roomWidth: layout.width,
       roomDepth: layout.depth,
       hasNorthOpening: layout.hasNorthOpening,

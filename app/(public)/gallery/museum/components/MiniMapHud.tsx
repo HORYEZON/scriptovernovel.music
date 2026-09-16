@@ -5,7 +5,9 @@
 // MuseumMap.tsx's [M] modal for the full room list / travel picker, which
 // this doesn't replace). Plots the room's own artwork frames and whichever
 // active Chase Companions are physically in it, alongside the player's own
-// facing dot. No stats of its own — MuseumClient.tsx stacks the existing
+// facing dot, with a small floor label ("Ground Floor" / "Second Floor" /
+// "Stairs", admin-styled) in the padding band above or below the room.
+// No stats of its own — MuseumClient.tsx stacks the existing
 // top-bar HUD (AchievementHud.tsx, steps/views/time) directly underneath
 // this component instead of duplicating those numbers here; this file only
 // owns its own little rounded box, not the outer positioning.
@@ -27,6 +29,7 @@ import { DOORWAY_WIDTH } from "./roomConstants";
 import type { MiniMapFrameState } from "./MiniMapTracker";
 import {
   MINIMAP_HUD_DEFAULTS,
+  floorLabelFor,
   withAlpha,
   type MinimapHudConfig,
 } from "@/lib/museum/minimapHud";
@@ -57,6 +60,46 @@ const OBJECT_ALPHA = 0.45;
 // dot rather than any [E]-interact range, since a note has no per-item
 // target the way an artwork does.
 const STICKY_NOTE_NEAR_DISTANCE = 3;
+// Breathing room between the floor label and the canvas edge, and between
+// the label and the room outline when the label's band is taller than the
+// standard PADDING.
+const LABEL_INSET = 5;
+// Only when the admin's "uppercase" switch is on — the tracking is what
+// makes small capitals read as signage rather than shouting.
+const LABEL_UPPERCASE_TRACKING = "0.12em";
+
+/**
+ * A CSS font-family value as the canvas can actually use it.
+ *
+ * The admin's font choices are the site's own (lib/theme.ts), and four of
+ * the six are `var(--font-…)` references to families next/font loads under a
+ * generated name. A DOM node resolves those for free; `ctx.font` does not —
+ * it silently drops the whole declaration and draws in the default serif.
+ * So each custom property is swapped for its computed value off <html>
+ * (where app/layout.tsx puts the variables), once per family, and cached:
+ * the loaded names never change for the life of the page.
+ */
+const canvasFontFamilyCache = new Map<string, string>();
+export function resolveCanvasFontFamily(family: string): string {
+  const cached = canvasFontFamilyCache.get(family);
+  if (cached) return cached;
+  if (typeof document === "undefined") return family;
+  const rootStyle = getComputedStyle(document.documentElement);
+  const resolved = family.replace(/var\((--[\w-]+)\)/g, (_, name: string) => {
+    const value = rootStyle.getPropertyValue(name).trim();
+    return value || "system-ui";
+  });
+  canvasFontFamilyCache.set(family, resolved);
+  return resolved;
+}
+
+/** The `ctx.font` shorthand for the floor label — `[style] [weight] size family`. */
+function labelFont(config: MinimapHudConfig): string {
+  const style = config.floorLabelStyle;
+  const prefix =
+    style === "bold" ? "bold " : style === "italic" ? "italic " : style === "bold-italic" ? "italic bold " : "";
+  return `${prefix}${config.floorLabelSize}px ${resolveCanvasFontFamily(config.floorLabelFont)}`;
+}
 
 /**
  * The "you're on this" dot: a solid mark with a soft halo behind it, in the
@@ -231,14 +274,51 @@ export function drawMiniMap(
   const objectFill = withAlpha(config.objectColor, OBJECT_ALPHA);
   const activeFill = config.activeColor;
 
+  // The floor label lives in the padding band above or below the room, and
+  // at the default size it fits inside the standard PADDING. Set larger, the
+  // band on its side grows to hold it and the room shrinks to fit the rest,
+  // so a big label never draws across the room's own top or bottom wall.
+  // The room stays centred in whatever is left, so on the label's side the
+  // outline moves in a little rather than the whole map lurching.
+  const label = config.floorLabelEnabled ? floorLabelFor(config, { floor: state.roomFloor, roomType: state.roomType }) : "";
+  const labelBand = label ? config.floorLabelSize + LABEL_INSET * 2 : 0;
+  const labelOnTop = config.floorLabelPosition.startsWith("top");
+  const padTop = labelOnTop ? Math.max(PADDING, labelBand) : PADDING;
+  const padBottom = labelOnTop ? PADDING : Math.max(PADDING, labelBand);
+
   const scale = Math.min(
     (w - PADDING * 2) / state.roomWidth,
-    (h - PADDING * 2) / state.roomDepth
+    (h - padTop - padBottom) / state.roomDepth
   );
   const rectW = state.roomWidth * scale;
   const rectH = state.roomDepth * scale;
   const rectX = (w - rectW) / 2;
-  const rectY = (h - rectH) / 2;
+  const rectY = padTop + (h - padTop - padBottom - rectH) / 2;
+
+  if (label) {
+    ctx.save();
+    ctx.font = labelFont(config);
+    ctx.fillStyle = config.floorLabelColor;
+    ctx.textBaseline = labelOnTop ? "top" : "bottom";
+    const y = labelOnTop ? LABEL_INSET : h - LABEL_INSET;
+    // Horizontal anchor + alignment fall out of the position's suffix; the
+    // side inset matches PADDING so a corner label lines up with the room's
+    // own east/west wall rather than floating past it.
+    const align = config.floorLabelPosition.endsWith("left")
+      ? "left"
+      : config.floorLabelPosition.endsWith("right")
+        ? "right"
+        : "center";
+    ctx.textAlign = align;
+    const x = align === "left" ? PADDING : align === "right" ? w - PADDING : w / 2;
+    // letterSpacing is newer canvas (Chrome 99 / Safari 17 / Firefox 121);
+    // where it's missing the caps just draw untracked, which is still fine.
+    if (config.floorLabelUppercase && "letterSpacing" in ctx) {
+      (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = LABEL_UPPERCASE_TRACKING;
+    }
+    ctx.fillText(config.floorLabelUppercase ? label.toUpperCase() : label, x, y, w - PADDING * 2);
+    ctx.restore();
+  }
   const doorSpan = DOORWAY_WIDTH * scale;
   // Room-local → canvas: rooms are centered at world X=0/local Z=0,
   // so the rect's own center is the natural origin for both.

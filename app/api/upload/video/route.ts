@@ -8,7 +8,7 @@
 // only re-checks type/size, it doesn't inspect duration.
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
-import { uploadArtworkVideo } from "@/lib/supabase/storage";
+import { uploadArtworkVideo } from "@/lib/storage/server";
 import { ALLOWED_VIDEO_TYPES, MAX_VIDEO_UPLOAD_FILE_SIZE, MAX_VIDEO_UPLOAD_FILE_SIZE_MB } from "@/lib/artwork-video";
 import { getErrorMessage } from "@/lib/utils";
 

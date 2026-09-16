@@ -1,6 +1,6 @@
 # ScriptOverNovel — House of Arts Portfolio
 
-A minimalist art gallery and portfolio site for showcasing original artwork. Features a section-based masonry gallery, artwork detail modals, an FAQ chatbox, announcements, a full admin dashboard (artworks, sections, products, orders, FAQs, announcements, about/profile, trash/soft-delete), image uploads to Supabase Storage, and dark/light theming.
+A minimalist art gallery and portfolio site for showcasing original artwork. Features a section-based masonry gallery, artwork detail modals, an FAQ chatbox, announcements, a full admin dashboard (artworks, sections, products, orders, FAQs, announcements, about/profile, trash/soft-delete), image uploads to Cloudflare R2, and dark/light theming.
 
 ![Next.js](https://img.shields.io/badge/Next.js_15-black?style=flat&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
@@ -21,7 +21,7 @@ A minimalist art gallery and portfolio site for showcasing original artwork. Fea
 | ORM                  | Prisma 7 (`@prisma/adapter-pg` driver adapter over `pg`)                                                                               |
 | Database             | PostgreSQL (Supabase-hosted, pooled via Supavisor)                                                                                     |
 | Auth                 | NextAuth v5 beta (Credentials provider, JWT sessions, Prisma adapter)                                                                  |
-| Image Storage        | Supabase Storage (`scriptovernovel.music-artworks` bucket)                                                                                     |
+| Media Storage        | Cloudflare R2 (`scriptovernovel-music-website` bucket, zero-egress) — see [`Docs/Media_Storage_R2.md`](Docs/Media_Storage_R2.md)             |
 | State                | Zustand (cart, V2; wishlist)                                                                                                           |
 | Animation            | Framer Motion                                                                                                                          |
 | Masonry Layout       | `react-masonry-css` (gallery section modal — see [`app/(public)/gallery/GalleryClient.tsx`](<app/(public)/gallery/GalleryClient.tsx>)) |
@@ -92,7 +92,7 @@ A minimalist art gallery and portfolio site for showcasing original artwork. Fea
 - **Notifications bell** (fixed top-right corner, every admin page) — in-app alerts for new paid orders and new mini-game highscores, with an unread badge and mark-as-read. Both event types also always email separately; the bell is a secondary view, not the primary alert. See [Admin Notifications & Login Security](#admin-notifications--login-security) below
 - **Website Analytics** (dashboard's own tab, next to Overview) — visitor stats for the public storefront only (never admin sessions), powered by the Vercel Web Analytics API: visitors/pageviews/pages-per-visit, a two-line (page views + visitors) area chart with a hover tooltip, top pages, top traffic sources, and a device breakdown. A 7D/14D/30D/90D date-range filter drives every widget at once, switched client-side via `/api/analytics` (admin-only) without reloading the page — the selection survives navigating to the Overview tab and back. The initial 30-day load is server-rendered inside its own `<Suspense>` boundary so a slow analytics API never blocks the rest of the dashboard, and it degrades to a "Connect Vercel Analytics" prompt if unconfigured — see [Website Analytics setup](#website-analytics-vercel-web-analytics) below
 - **About** — bio, headline, profile images/slideshow, background/logo, social links, artist skills, certificates & awards, contact/commission copy
-- **Timeline / Events** (`/admin/events`) — full CRUD for the public Timeline/Gigs map: title, venue, description, date, click-to-drop-pin location picker (falls back to manual lat/lng inputs without a Maps key), enable toggle, reorder, and a **Next Event** star toggle (server-enforced single flag, same transactional pattern as the Digital Museum's entry-room). Photo/video upload straight to Supabase Storage. Wired into **Global Search** and the sidebar
+- **Timeline / Events** (`/admin/events`) — full CRUD for the public Timeline/Gigs map: title, venue, description, date, click-to-drop-pin location picker (falls back to manual lat/lng inputs without a Maps key), enable toggle, reorder, and a **Next Event** star toggle (server-enforced single flag, same transactional pattern as the Digital Museum's entry-room). Photo/video upload straight to R2. Wired into **Global Search** and the sidebar
 - **Cosplays** (`/admin/cosplays`) — costume photography kept out of Artworks on purpose: character, series, cosplayer, photographer, year and event, with two images per entry (the shot printed on its life-size standee, and an optional photo hung on the panel behind it). The list has the same **Grid / List** view toggle as the other admin modules, defaulting to the card grid. Publishing one gives it a standee in the Digital Museum's **Cosplay Room**, where every field but the description reads on the standee's own plaque (character, series, event · year, credits) — the description stays behind the **[E]** info panel. Membership *and order* are mirrored from this module, so the reorder arrows move standees around the room's walls. There is no separate public page. See [`Docs/Museum_CosplayRoom.md`](Docs/Museum_CosplayRoom.md)
 - **Trash** — soft-delete recovery for artworks, sections, products, cosplays, announcements, marquees, notifications, Digital Museum rooms, and Timeline events (`deletedAt`)
 - **Global Search** (⌘K / Ctrl+K, `components/admin/GlobalSearch.tsx`) — command-palette search across Artworks, Products, Orders, Sections, Rooms, Announcements, FAQs, and Timeline Events, plus a quick-nav shortcut to every admin page
@@ -131,11 +131,15 @@ NEXTAUTH_SECRET="your-secret-here"
 NEXTAUTH_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
-# Supabase Storage (get from Supabase Dashboard > Settings > API)
-# NEXT_PUBLIC_SUPABASE_URL is safe to expose (public anon access)
-# SUPABASE_SERVICE_ROLE_KEY is server-only — NEVER expose to the browser
-NEXT_PUBLIC_SUPABASE_URL="https://[project-ref].supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIs..."
+# Cloudflare R2 — all media (images, .glb props, audio, video). All server-only.
+# Token: R2 > Manage R2 API Tokens > Object Read & Write, scoped to the bucket.
+# Public URL: the bucket's custom domain, or its Public Development URL
+# (https://pub-….r2.dev). No trailing slash. See Docs/Media_Storage_R2.md.
+R2_ACCOUNT_ID="…"
+R2_ACCESS_KEY_ID="…"
+R2_SECRET_ACCESS_KEY="…"
+R2_BUCKET="scriptovernovel-music-website"
+R2_PUBLIC_URL="https://pub-….r2.dev"
 
 # === OPTIONAL ===
 
@@ -191,14 +195,14 @@ VERCEL_PROJECT_ID="prj_..."
 VERCEL_TEAM_ID=""                                # only if the project is under a team
 ```
 
-### 3. Supabase Storage bucket
+### 3. Cloudflare R2 bucket
 
-In the Supabase Dashboard:
+In the Cloudflare Dashboard → **R2**:
 
-1. Go to **Storage** → **New Bucket**
-2. Name: `scriptovernovel.music-artworks`
-3. Toggle **Public bucket** ON (public read; writes go through the service role key only — see [Storage policies](#storage-bucket-policies) below)
-4. Save
+1. **Create bucket** — name it (the app reads the name from `R2_BUCKET`); location hint APAC to sit near the `sin1` Vercel region
+2. **Settings → Public access** — connect a custom domain, or enable the **Public Development URL**. Whichever you use is `R2_PUBLIC_URL`
+3. **Settings → CORS Policy** — required, or the museum's WebGL textures and the browser's direct `.glb`/audio uploads fail. Paste the policy from [`Docs/Media_Storage_R2.md`](Docs/Media_Storage_R2.md#cors)
+4. **Manage R2 API Tokens → Create** — *Object Read & Write*, scoped to this bucket only. That pair is `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`
 
 ### 4. Database setup
 
@@ -522,6 +526,8 @@ The bottom-left radar card — a live plan of just the room the visitor is stand
 
 Its look is admin-configurable museum-wide (Artworks ▸ Digital Museum ▸ General Settings ▸ **Minimap HUD**): the map's width/height (the width is the map's own size, not a floor under whatever the counter row needs — as a minimum it was overruled by that row, so the slider read as dead until dragged past it), the counter row's size as a percentage, an icon per counter from a fixed set, and a colour each for the player pointer, artwork dots, object dots, the nearby glow, companion dots, the room outline and its doorways. Stored as one JSON blob in `DigitalMuseum.minimapConfig` with defaults in [`lib/museum/minimapHud.ts`](lib/museum/minimapHud.ts) that are the literal values the components shipped with — a museum that never configures it renders identically, and **Reset to defaults** restores that rather than someone's idea of a nice one. Per-mark *opacity* stays in the drawing code: those alphas are what make a prop dot recede behind an artwork dot, so an admin picks the hue and the relationship between the marks holds. The admin preview is the real two components fed a sample room and a walking player, not a mock of them.
 
+The map also carries a **floor label** in the padding band above (or below) the room — "Ground Floor" / "Second Floor", or "Stairs" while on the connector (which is stored as floor 0 but is neither floor to whoever is climbing it; `floorLabelFor()` checks the room type first). It's painted onto the same canvas as the room, so the VR radar and the phone's expandable map carry it for free, and a label sized past the padding band grows the band on its side rather than drawing across the wall. The same admin section's **Floor label** group sets the three texts, font (the site theme's six, via [`lib/theme.ts`](lib/theme.ts)'s `THEME_FONT_OPTIONS`), style, size, colour, position and a tracked-capitals switch, with a **Preview as** toggle to see each text. One wrinkle: four of those fonts are `var(--font-…)` references that next/font loads under generated names, which `ctx.font` silently rejects — `resolveCanvasFontFamily()` in `MiniMapHud.tsx` reads each custom property's computed value off `<html>` once and caches it.
+
 ### Wall/Floor/Ceiling colors & textures
 
 Each room (and the synthetic About room, via the museum-wide `about*` fields above) has independent **Wall**, **Floor**, and **Ceiling** color pickers, each with an optional **texture upload** — drop in an actual concrete, wood, or fabric photo and it replaces the flat color on that surface. Edited from the Rooms tab's per-room edit form (Floor → Wall → Ceiling order) with a cursor-following hover preview on the uploaded thumbnail. A texture is tiled (`THREE.RepeatWrapping`) rather than stretched across a whole wall — [`MuseumRoom.tsx`](<app/(public)/gallery/museum/components/MuseumRoom.tsx>) assumes `TEXTURE_TILE_METERS` (2m) per repeat and clones the loaded texture per wall/floor/ceiling segment (never mutates the shared cached `THREE.Texture` instance `loadDownscaledTexture` returns, since multiple differently-sized segments — or a different room entirely — can reuse the same uploaded image). Clearing a texture falls back to the plain color underneath it.
@@ -540,10 +546,10 @@ Each room has its own 3D editor at `/admin/artworks/museum-editor/[roomId]` ([`M
 - **Artwork frames** — hang position per wall (North / South / East / West, and either side of a doorway), horizontal and vertical (Y) placement, and a reorder/pagination list mirroring the Rooms tab's controls. Alignment guides appear beside neighbouring pieces while dragging
 - **Decorative objects** — upload a `.glb` (100MB max) or tile a texture: carpets, pots, lights, furniture. Drag, rotate and resize with gizmos. A model that isn't authored in metres — common for anything routed through FBX — is measured on arrival and scaled once to about door height, so it lands where you can see it instead of vanishing as a 3km-wide object
 - **Text labels** — free text placed on a wall, with its own colours
-- **Dividers** — **+ Add Divider** drops a freestanding partition wall into the room. Drag and turn it like any other object, size it with **Width / Height / Thickness** in metres, and finish it in a plain colour or an uploaded texture tiled the same way a room's own walls are (with an optional **Mirror Texture** so the tile joins read as a reflection instead of a seam). Solid by default — visitors are stopped by it, using a rectangular barrier rather than the circular footprint props use, so a panel blocks along its whole face at any angle. Once a divider is in a room, **both of its faces appear in every artwork's Wall picker** (`Divider Wall 1 · Front` / `· Back`) alongside North/South/East/West, so art can hang on it — flush against the face, and following the panel if it is later moved, turned or resized (the association is recovered by facing and distance in `snapToDividerFace`, so nothing has to be stored against a panel that can be deleted). Deleting a divider returns its art to the room's own walls rather than leaving it floating. New panels spawn staggered rather than at the room's centre, since two identical slabs at the origin look like one. Uploading or clearing the texture, and toggling **Mirror Texture**, each raise a toast confirming the change is staged until **Save**
+- **Dividers** — **+ Add Divider** drops a freestanding partition wall into the room. Drag and turn it like any other object, size it with **Width / Height / Thickness** in metres, and finish it in a plain colour or an uploaded texture tiled the same way a room's own walls are (with an optional **Mirror Texture** so the tile joins read as a reflection instead of a seam). Solid by default — visitors are stopped by it, using a rectangular barrier rather than the circular footprint props use, so a panel blocks along its whole face at any angle. Once a divider is in a room, **both of its faces appear in every artwork's Wall picker** (`Divider Wall 1 · Front` / `· Back`) alongside North/South/East/West, so art can hang on it — flush against the face, and following the panel if it is later moved, turned or resized (the association is recovered by facing and distance to the face *segment* in `snapToDividerFace` — ends included, so two panels standing in a line stay distinct (v6.41.3) — and nothing has to be stored against a panel that can be deleted). Deleting a divider returns its art to the room's own walls rather than leaving it floating. New panels spawn staggered rather than at the room's centre, since two identical slabs at the origin look like one. Uploading or clearing the texture, and toggling **Mirror Texture**, each raise a toast confirming the change is staged until **Save**
 - **Room fixtures** — provisioned by the room rather than added by hand, and listed separately for that reason: the About room's five content blocks, the **Contact Desk** (walk up, press **[E]**, and the museum's own Send an Email form opens), the **Digital Wall Clock** (drawn in code so it keeps real time, with 12/24-hour, seconds, date line, caption, time zone and colours), and the Freedom Wall plaque. Each has a **Visible in museum / Hidden from museum** switch — an artist with no certificates can have no Certificates Strip. Hiding keeps the upload, wording, placement and size
 - **Solid** — a per-object collision footprint with a **Collision Size** slider in metres, **Collision Position** sliders that move the circle off the prop's origin (a .glb exported away from its own origin otherwise gets a ring beside it, not under it), **Fit to model** to wrap the geometry where it actually stands, and an orange ring in the preview showing exactly what's blocked. Stored in model units and in the prop's own frame, so the footprint resizes and turns with it. **Collision Height** (off by default) gives that circle a top, measured up from the prop's own base: without it the footprint is a floor-to-ceiling column and a prop is solid at every height or not at all, so a hanging lamp blocked the floor beneath it and an archway couldn't be walked through. With a height set, visitors are only stopped while their own body overlaps it — the preview draws the blocked volume as a translucent cylinder
-- Undo/redo, a light/dark toggle so a room can be judged in both, and a leave-confirmation guard on unsaved changes
+- Undo/redo, a light/dark toggle so a room can be judged in both, and a leave-confirmation guard on unsaved changes. Undo/redo is local like everything else here, with one synced exception: Add, Duplicate and Remove write a row the moment they're clicked, so stepping the history diffs the object list and soft-deletes / restores the matching rows (`reconcileSceneObjects`) — an undone Add used to leave a divider live in the museum that the editor no longer showed (v6.41.2)
 
 > 💡 **Room Type (Main Hall / Gallery / Special Exhibition) only changes size and lighting** — a Main Hall is the largest, and Special Exhibition uses moodier lighting. There is no other built-in behavior difference; despite the name, `SPECIAL_EXHIBITION` has nothing to do with the removed Exhibitions feature.
 
@@ -596,11 +602,12 @@ The fix is to compress **once, at upload**, and store three sizes:
 
 - **[`lib/images/compress.ts`](lib/images/compress.ts)** — sharp, WebP quality 82, EXIF-rotated, metadata stripped, alpha preserved. Node-only. GIFs pass through untouched. Roughly 9× / 25× / 95× smaller than a typical phone-camera original.
 - **[`lib/images/variants.ts`](lib/images/variants.ts)** — pure string helpers. `imageVariantUrl(url, "thumb")` derives a sibling URL from the stored full-size one, and returns the input **unchanged** for anything not under `img/` (pre-compression uploads, Unsplash seeds, GIFs), so there is no schema change and no migration.
-- **`uploadCompressedImage()`** in [`lib/supabase/storage.ts`](lib/supabase/storage.ts) is the path every admin image route takes (`/api/upload`, `/api/upload/event-image`, `/api/backup/media`). All three files land or none do; `deleteArtworkImage()` removes the siblings with the original.
+- **[`lib/images/corsUrl.ts`](lib/images/corsUrl.ts)** — `corsImageUrl(url)` appends `?cors=1` to any image the museum will *read back as pixels* (WebGL texture, canvas `drawImage`). R2 only sends `Access-Control-Allow-Origin` when the request carried an `Origin` header, and a plain `<img>` doesn't, so the navbar's cached, CORS-less copy of the logo used to be handed to the About Room plaque and the `[R]` watermark and fail both (v6.41.1). A distinct query string is a distinct cache key. Fetch-time only; stored URLs are untouched. Every `crossOrigin` load must go through it — details under CORS in [`Docs/Media_Storage_R2.md`](Docs/Media_Storage_R2.md).
+- **`uploadCompressedImage()`** in [`lib/storage/server.ts`](lib/storage/server.ts) is the path every admin image route takes (`/api/upload`, `/api/upload/event-image`, `/api/backup/media`). All three files land or none do; `deleteArtworkImage()` removes the siblings with the original.
 
 Rendering rule of thumb: a grid card asks for `thumb`, anything full-bleed or 3D asks for `medium`, and only a lightbox or detail view should receive the stored URL as-is.
 
-> `storage.ts` now imports sharp, so it is server-only. Browser code that needs the bucket name imports it from [`lib/supabase/bucket.ts`](lib/supabase/bucket.ts) instead — importing `storage.ts` from a client component breaks the build on `node:events`.
+> `lib/storage/server.ts` imports sharp and the AWS SDK, so it is server-only. The browser half is [`lib/storage/browser.ts`](lib/storage/browser.ts), which is dependency-free — it only ever PUTs to a presigned URL the server minted. The one value both need (`IMMUTABLE_CACHE`) lives in [`lib/storage/cache.ts`](lib/storage/cache.ts).
 
 ---
 
@@ -610,12 +617,12 @@ Rendering rule of thumb: a grid card asks for `thumb`, anything full-bleed or 3D
 
 ### Two doors, two locks
 
-There are two independent ways into the Supabase project, and they are secured by completely different mechanisms:
+Supabase is **Postgres only** as of the R2 migration (2026-09-15). There are still two independent ways into it, secured by completely different mechanisms:
 
 | Connection | Used by | Credentials | What secures it |
 | --- | --- | --- | --- |
 | Postgres (`DATABASE_URL` / `DIRECT_URL`) | Prisma (`lib/prisma.ts`), every `app/api/**` route | Role `postgres` | **Not RLS.** This role has `BYPASSRLS`, so every policy is invisible to it. What actually authorizes these calls is `requireAdmin()` in the route handler. |
-| PostgREST + Storage (`/rest/v1`, `/storage/v1`) | Reachable by anyone holding the public anon key — which ships in the JS bundle | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **Grants and RLS.** No application code is involved, so this is the door that fails silently. |
+| PostgREST (`/rest/v1`) | Reachable by anyone holding the public anon key | anon key (no longer shipped in the JS bundle — nothing in the browser uses Supabase any more) | **Grants and RLS.** No application code is involved, so this is the door that fails silently. |
 
 This distinction matters more than it looks. RLS is not this app's access control — it is the lock on the *other* door, the one the browser can knock on directly.
 
@@ -633,19 +640,16 @@ So a future table with a badly written policy — or no policy — cannot leak, 
 
 An event trigger, **`ensure_rls`**, enables RLS on every newly created table in `public`. This is what stops `yarn db:push` from quietly shipping an unprotected table. Do not remove it.
 
-### Storage
+### Storage (Cloudflare R2)
 
-The `scriptovernovel.music-artworks` bucket is **Public**, so `getPublicUrl()` URLs render unsigned — Supabase serves `/storage/v1/object/public/…` without consulting RLS at all.
+Media no longer lives in Supabase. The R2 bucket is public-read behind `R2_PUBLIC_URL`; every write path is one of:
 
-There are **no policies on `storage.objects`**, and that is the correct state:
+- **Server writes** from `lib/storage/server.ts` using the R2 API token (`Object Read & Write`, scoped to this one bucket, never in the browser).
+- **Browser uploads** (the Museum Scene Editor's `.glb` and audio files, too large for Vercel's ~4.5MB body cap) use a **presigned PUT** minted server-side — `createModelUploadUrl` / `createAudioUploadUrl`. The URL is scoped to one object, one content type and ten minutes; it *is* the authorization. `lib/storage/browser.ts` holds no key of any kind.
 
-- **Reads** work anyway, via the public-bucket path above.
-- **Writes** come from server code holding `SUPABASE_SERVICE_ROLE_KEY`, which bypasses RLS.
-- **Browser uploads** (the Museum Scene Editor's `.glb` and audio files, too large for Vercel's ~4.5MB body cap) use **signed upload URLs** minted server-side — `createModelUploadUrl` / `createAudioUploadUrl` in [`lib/supabase/storage.ts`](lib/supabase/storage.ts). A signed URL carries its own authorization and bypasses storage RLS by design.
+The bucket's CORS policy allows `GET`/`HEAD` from anywhere (the objects are public anyway, and WebGL needs the header) and `PUT` only from the site's own origins. The old Supabase bucket's history — including the `anon INSERT` policy the security audit found and dropped — is in [`Docs/System_Security.md`](Docs/System_Security.md).
 
-None of those three paths needs an `anon` policy. The audit found one anyway — a dashboard-template `Allow Uploads` policy granting `INSERT` to `anon` — and it was exploitable: a single `curl` with the public anon key wrote arbitrary HTML, SVG and a 50MB blob into the bucket. It has been dropped, and the bucket now carries a 100MB size cap and a MIME allowlist that excludes `text/html` and `image/svg+xml`.
-
-> ⚠️ **Never add a storage policy for `anon`.** If a new upload feature appears to need one, it is being built the wrong way — copy the signed-URL pattern instead.
+> ⚠️ **Never put an R2 credential in a `NEXT_PUBLIC_` variable or a client component.** If a new upload feature appears to need one, it is being built the wrong way — copy the presigned-PUT pattern instead.
 
 ### Adding a new table later
 
@@ -787,7 +791,7 @@ scriptovernovel.music/
 │       │                            #   public/ (no auth, enabled + non-deleted only — feeds
 │       │                            #   EventsMap.tsx on /about)
 │       ├── upload/video/            # Timelapse video upload for Artworks (see lib/artwork-video.ts)
-│       ├── upload/event-image/, upload/event-video/ # Timeline/Events photo/video upload to Supabase Storage
+│       ├── upload/event-image/, upload/event-video/ # Timeline/Events photo/video upload to R2
 │       ├── sections/[id]/reorder/   # Section CRUD + reorder API
 │       ├── products/[id]/           # Product CRUD API (V2)
 │       ├── orders/[id]/             # Order API (V2)
@@ -816,7 +820,7 @@ scriptovernovel.music/
 │       │                            #   Admin-only: config/ (GET list + PUT one key)
 │       ├── openapi.json/        # GET /api/openapi.json — serves the OpenAPI spec
 │       │                        #   (admin-only, no CDN cache); consumed by /admin/api-docs
-│       └── upload/, upload/audio/   # Image + background-music/sound-effect audio upload to Supabase Storage
+│       └── upload/, upload/audio/   # Image + background-music/sound-effect audio upload to R2
 ├── components/
 │   ├── AnimatedFavicon.tsx          # Animated browser-tab favicon (Chrome glow fix)
 │   ├── public/                      # Navbar, Footer, CartProvider, ArtworkDetailModal,
@@ -873,6 +877,9 @@ scriptovernovel.music/
 │   ├── intro-splash.ts              # Entrance splash effect/speed/text option lists + sanitisers
 │   ├── museum-splash.ts             # Digital Museum's per-room entry splash — defaults/sanitisers
 │   │                                 #   only; reuses lib/intro-splash.ts's transition engine
+│   ├── images/corsUrl.ts             # corsImageUrl() — ?cors=1 on every pixel-reading image load so a
+│   │                                 #   CORS request never hits the browser's CORS-less <img> cache entry
+│   │                                 #   (R2 omits Access-Control-Allow-Origin without an Origin header)
 │   ├── museum/loadDownscaledTexture.ts # Downscales artwork images (and wall/floor/ceiling texture
 │   │                                 #   uploads) client-side before they become Three.js textures,
 │   │                                 #   so the museum never uploads a full-res image straight to the GPU
@@ -911,7 +918,7 @@ scriptovernovel.music/
 │   ├── vercel-analytics.ts          # Server-only Vercel Web Analytics API client (visits/
 │   │                                 # count + visits/aggregate), safe-empty on missing
 │   │                                 # config or API failure — feeds WebsiteAnalytics.tsx
-│   ├── supabase/storage.ts          # Supabase Storage upload/delete (service role)
+│   ├── storage/                     # Cloudflare R2: r2.ts (S3 adapter), server.ts (uploads), browser.ts (presigned PUT)
 │   ├── mail.ts                      # Nodemailer (Gmail SMTP) — password reset, order
 │   │                                 #   confirmation/alert, and generic sendMail() used by
 │   │                                 #   lib/notifications/*

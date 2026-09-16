@@ -19,6 +19,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Billboard } from "@react-three/drei";
 import { loadDownscaledTexture } from "@/lib/museum/loadDownscaledTexture";
+import { corsImageUrl } from "@/lib/images/corsUrl";
 
 // World-unit height of the sprite — a small creature/character size, not a
 // wall-sized image; width follows from the source image's own aspect ratio.
@@ -65,7 +66,10 @@ export function CompanionImage({ url }: { url: string }) {
       img.onerror = () => {
         // Fail silently — same behaviour as the non-GIF path below.
       };
-      img.src = url;
+      // Same cache-key split loadDownscaledTexture applies for its own CORS
+      // load — the admin preview shows this GIF in a plain <img>, and R2
+      // caches that CORS-less response (see lib/images/corsUrl.ts).
+      img.src = corsImageUrl(url);
     } else {
       loadDownscaledTexture(url)
         .then((loaded) => {
