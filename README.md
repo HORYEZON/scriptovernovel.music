@@ -1068,6 +1068,8 @@ Leave `API_SECRET_KEY` unset (or empty) to disable key-based auth entirely — t
 | `VERCEL_ANALYTICS_TOKEN` / `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID`         | Server                   | Only needed for the admin dashboard's "Website Analytics" section (optional) — see below   |
 | `API_SECRET_KEY`                                                          | Server                   | Static API key for `x-api-key` header auth. Leave unset to disable. `openssl rand -hex 32` |
 
+> **Paste values without the surrounding quotes.** `.env` wraps values in `"..."` for the local dotenv parser, but Vercel stores whatever you paste literally. A quoted `DATABASE_URL` parses as "no host", and `pg` then silently connects to `127.0.0.1:5432` — the site 500s on every page with `Can't reach database server at 127.0.0.1:5432` even though the variable *looks* set. `lib/prisma.ts` now strips stray quotes and throws `DATABASE_URL is not set` if the value is empty, so the failure is at least named. Setting from the CLI avoids the copy/paste entirely: `printf '%s' "$VALUE" | vercel env add DATABASE_URL production --sensitive --force`.
+
 3. After first deploy, push the schema: `npx prisma db push` / `yarn prisma db push`
 4. Apply the RLS SQL from [Supabase Row-Level Security](#supabase-row-level-security-rls) above in the Supabase SQL Editor.
 5. Set up the R2 bucket below — the deploy boots without it, but every upload and every museum texture fails until it exists.
