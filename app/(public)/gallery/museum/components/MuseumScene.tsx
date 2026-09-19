@@ -23,7 +23,6 @@ import { VrContactPanel } from "./VrContactPanel";
 import { VrInteractionPrompt } from "./VrInteractionPrompt";
 import { VrHud, type VrHudProps } from "./VrHud";
 import { VrMapPanel } from "./VrMapPanel";
-import { VrFlipView } from "./VrFlipView";
 import { VrPrompt } from "./VrPrompt";
 import { XR, createXRStore } from "@react-three/xr";
 import { TouchControls } from "./TouchControls";
@@ -2049,12 +2048,8 @@ export function MuseumScene({
                 onDismissAchievement={vrHud.onDismissAchievement}
                 splashEnabled={vrHud.splashEnabled}
                 splashSpeedMs={vrHud.splashSpeedMs}
-                flipView={vrHud.flipView}
-                onToggleFlipView={vrHud.onToggleFlipView}
               />
             )}
-            {/* Phone-in-goggles upside-down fix — see VrFlipView.tsx. */}
-            <VrFlipView enabled={Boolean(vrHud?.flipView)} />
             {vrHud?.mapOpen && !anyPanelOpen && (
               <VrMapPanel
                 rooms={rooms}

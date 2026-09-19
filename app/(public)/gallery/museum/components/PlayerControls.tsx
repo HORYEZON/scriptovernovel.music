@@ -5,6 +5,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { PointerLockControls } from "@react-three/drei";
 import { useXR, useXRControllerLocomotion, useXRInputSourceEvent } from "@react-three/xr";
 import { vrUiPressedRecently } from "./VrUi";
+import { readMuseumGamepad } from "@/lib/museum/gamepad";
 import * as THREE from "three";
 import {
   EYE_HEIGHT,
@@ -28,6 +29,19 @@ import { getChainZBounds, getFloorYAt, getLayoutAtZ, type RoomLayout, type RoomT
 // outside this band the corridor's full ROOM_WIDTH applies, same as walking
 // down the middle of any single room.
 const DOORWAY_CLEARANCE_ZONE = WALL_THICKNESS / 2 + 0.4;
+
+// For the VR-exit handover below — never allocated in an effect.
+const scratchExitDir = new THREE.Vector3();
+
+// Gamepad (lib/museum/gamepad.ts) — any Bluetooth/USB controller, every
+// mode. Right stick outside VR turns smoothly at this many radians per
+// second at full deflection; inside VR it snap-turns instead (comfort —
+// the same 45° useXRControllerLocomotion uses for a headset's own
+// thumbstick), re-armed once the stick returns inside this dead zone.
+const GAMEPAD_LOOK_SPEED = 2.2;
+const GAMEPAD_SNAP_TURN_RAD = THREE.MathUtils.degToRad(45);
+const GAMEPAD_SNAP_DEAD_ZONE = 0.5;
+const scratchGamepadEuler = new THREE.Euler(0, 0, 0, "YXZ");
 
 // Comfort vignette (Phase 4) — the translation speed (units/sec) at which
 // its fade reaches full intensity, and how dark "full intensity" actually
@@ -172,6 +186,13 @@ export function PlayerControls({
   // their real floor, and adding EYE_HEIGHT on top of that would
   // double-count it (see Docs/Museum_VRMode.md §3.2).
   const eyeOffset = isPresenting ? 0 : EYE_HEIGHT;
+  // Refs of the two above for the spawn effect, which must *not* re-run on a
+  // VR transition (it would re-spawn the visitor at the entry room on every
+  // Exit VR) but does need their current values when it runs.
+  const eyeOffsetRef = useRef(eyeOffset);
+  eyeOffsetRef.current = eyeOffset;
+  const isPresentingRef = useRef(isPresenting);
+  isPresentingRef.current = isPresenting;
 
   // Comfort vignette (Docs/Museum_VRMode.md's Phase 4) — darkens the
   // visual periphery while the rig is actually translating in VR, a
@@ -249,6 +270,9 @@ export function PlayerControls({
   // there's nothing else driving camera rotation.
   const yaw = useRef(0);
   const pitch = useRef(0);
+  // Gamepad snap-turn: one turn per push of the right stick, re-armed once
+  // it comes back to centre — same latch useXRControllerLocomotion keeps.
+  const gamepadSnapArmed = useRef(true);
   // Briefly disabling PointerLockControls after an unlock — which unbinds
   // its document-wide "click re-locks" listener — stops it from ever
   // attempting a request during Chrome's post-Escape cooldown, avoiding
@@ -286,19 +310,58 @@ export function PlayerControls({
     // entry room isn't guaranteed to have a solid south wall to spawn
     // "just inside" of — it could be anywhere in the chain — so the center
     // is the one position that always works.
-    rig.position.set(0, getFloorYAt(layouts, spawnZ) + eyeOffset, spawnZ);
+    rig.position.set(0, getFloorYAt(layouts, spawnZ) + eyeOffsetRef.current, spawnZ);
     // Rotation stays on the camera, not the rig — see §2's invariant. Skip
     // entirely in VR: the headset owns rotation there, and forcing it to
     // (0,0,0) would just fight next frame's pose update for no reason. The
     // rig itself also starts at rotation.y = 0 by construction (a fresh
     // `<XROrigin>`/`<group>` — see PlayerRig.tsx), so a VR spawn still
     // faces north; only the *camera*-level reset is skippable here.
-    if (!isPresenting) camera.rotation.set(0, 0, 0);
+    if (!isPresentingRef.current) camera.rotation.set(0, 0, 0);
     yaw.current = 0;
     pitch.current = 0;
     activeRef.current = null;
     roomRef.current = null;
-  }, [camera, rigRef, spawnZ, layouts, eyeOffset, isPresenting]);
+    // eyeOffset/isPresenting deliberately read through refs, not deps: a VR
+    // enter/exit is not a spawn. The exit transition has its own effect below.
+  }, [camera, rigRef, spawnZ, layouts]);
+
+  // Leaving VR: hand the camera back to the 2D controls where the visitor
+  // is standing, not floating and not at the entry room.
+  //
+  // While presenting, three's WebXRManager writes the headset's tracked
+  // pose into the camera's *local* transform inside the rig — position
+  // (0.1, 1.6, -0.05)-ish, the visitor's real eye height and lean, and the
+  // full head orientation including roll. The 2D loop never touches
+  // camera.position (position is the rig's job — see PlayerRig.tsx) so
+  // after the session that offset just stayed, on top of the EYE_HEIGHT the
+  // rig went back to adding: floor + 1.7 + 1.6. Hence the float.
+  //
+  // So on the presenting -> not-presenting edge: zero the camera's local
+  // position, fold whatever yaw the rig accumulated from snap-turns (plus
+  // the head's own) into a clean camera yaw, zero the rig's rotation (§2's
+  // invariant: outside VR the rig never rotates), and seed the touch
+  // yaw/pitch to match. Pitch and roll are dropped — a level horizon is what
+  // every 2D spawn/travel gives too. X/Z are left alone: same spot, same
+  // room, facing the same way.
+  const wasPresenting = useRef(false);
+  useEffect(() => {
+    const rig = rigRef.current;
+    if (wasPresenting.current && !isPresenting && rig) {
+      camera.getWorldDirection(scratchExitDir);
+      // A camera with rotation.y = θ (pitch 0) looks along (-sin θ, 0, -cos θ).
+      const worldYaw = Math.atan2(-scratchExitDir.x, -scratchExitDir.z);
+      rig.rotation.set(0, 0, 0);
+      camera.position.set(0, 0, 0);
+      camera.rotation.order = "YXZ";
+      camera.rotation.set(0, worldYaw, 0);
+      yaw.current = worldYaw;
+      pitch.current = 0;
+      jumpOffset.current = 0;
+      jumpVelocity.current = 0;
+    }
+    wasPresenting.current = isPresenting;
+  }, [isPresenting, camera, rigRef]);
 
   // MuseumMap.tsx room click — same reset as the spawn effect above (drop
   // dead-center, facing north, clear any active artwork/room tracking) but
@@ -451,33 +514,88 @@ export function PlayerControls({
       }
     }
 
-    // No keyboard/joystick input in VR — locomotion there comes from
-    // useXRControllerLocomotion below, which moves rig.position.x/z (and
-    // rig.rotation.y, for snap-turn) directly rather than through this
-    // forward/strafe path. Forcing both to 0 rather than skipping the block
-    // entirely is what lets the boundary/doorway/obstacle/barrier clamps
-    // further down stay unconditional — they run every frame regardless of
+    // A plain gamepad (lib/museum/gamepad.ts) — read in every mode. In VR
+    // it is the only way a phone-in-goggles visitor can walk at all
+    // (useXRControllerLocomotion below only hears a headset's own tracked
+    // controllers); on a desktop or phone it simply joins the keyboard /
+    // on-screen joystick. Movement is added into the same forward/strafe
+    // below, so every clamp and collision applies to it unchanged.
+    const pad = readMuseumGamepad();
+    if (pad.connected) {
+      if (isPresenting) {
+        // Snap-turn on the rig, like the headset-thumbstick path — never a
+        // smooth turn in VR, and never the camera (the headset owns it).
+        const x = pad.lookX;
+        if (Math.abs(x) < GAMEPAD_SNAP_DEAD_ZONE) gamepadSnapArmed.current = true;
+        else if (gamepadSnapArmed.current) {
+          gamepadSnapArmed.current = false;
+          rig.rotation.y += (x > 0 ? -1 : 1) * GAMEPAD_SNAP_TURN_RAD;
+        }
+        if (pad.turnLeft) rig.rotation.y += GAMEPAD_SNAP_TURN_RAD;
+        if (pad.turnRight) rig.rotation.y -= GAMEPAD_SNAP_TURN_RAD;
+      } else {
+        // Smooth look on the camera, in the same YXZ yaw/pitch space the
+        // mouse (PointerLockControls) and the touch drag both use — read
+        // the camera's *current* orientation rather than this component's
+        // yaw/pitch refs so it composes with the mouse on desktop, then
+        // write those refs back so the touch path (which rebuilds the
+        // rotation from them every frame) doesn't undo it.
+        if (pad.lookX !== 0 || pad.lookY !== 0 || pad.turnLeft || pad.turnRight) {
+          scratchGamepadEuler.setFromQuaternion(camera.quaternion, "YXZ");
+          scratchGamepadEuler.y -= pad.lookX * GAMEPAD_LOOK_SPEED * delta;
+          if (pad.turnLeft) scratchGamepadEuler.y += GAMEPAD_SNAP_TURN_RAD;
+          if (pad.turnRight) scratchGamepadEuler.y -= GAMEPAD_SNAP_TURN_RAD;
+          scratchGamepadEuler.x = THREE.MathUtils.clamp(
+            scratchGamepadEuler.x + pad.lookY * GAMEPAD_LOOK_SPEED * delta,
+            -MAX_PITCH,
+            MAX_PITCH
+          );
+          scratchGamepadEuler.z = 0;
+          camera.quaternion.setFromEuler(scratchGamepadEuler);
+          yaw.current = scratchGamepadEuler.y;
+          pitch.current = scratchGamepadEuler.x;
+        }
+        // Jump stays a 2D-only thing (see the VR plan's open questions).
+        if (pad.jump && jumpOffset.current <= 0) jumpVelocity.current = JUMP_VELOCITY;
+      }
+      // A / right trigger opens what's in range; B closes what's open —
+      // both through the same handleActivate [E] uses (it toggles). The
+      // VR pointer-conflict that keeps the *session* select from closing
+      // (see useXRInputSourceEvent above) doesn't apply to a gamepad
+      // button: it never clicks a panel button.
+      if (pad.activate && !panelOpen) onActivate?.();
+      if (pad.back && panelOpen) onActivate?.();
+    }
+
+    // Keyboard and on-screen joystick are 2D-only (in VR the headset's own
+    // controllers move the rig directly via useXRControllerLocomotion, and
+    // there's no keyboard); the gamepad joins in every mode. Summing rather
+    // than skipping keeps the boundary/doorway/obstacle/barrier clamps
+    // further down unconditional — they run every frame regardless of
     // *how* the rig moved, VR included.
     const move = moveRef?.current ?? { x: 0, y: 0 };
-    const forward = isPresenting
+    const keyForward = isPresenting
       ? 0
       : isCoarsePointer
         ? move.y
         : (keys.current["KeyW"] || keys.current["ArrowUp"] ? 1 : 0) -
           (keys.current["KeyS"] || keys.current["ArrowDown"] ? 1 : 0);
-    const strafe = isPresenting
+    const keyStrafe = isPresenting
       ? 0
       : isCoarsePointer
         ? move.x
         : (keys.current["KeyD"] || keys.current["ArrowRight"] ? 1 : 0) -
           (keys.current["KeyA"] || keys.current["ArrowLeft"] ? 1 : 0);
+    const forward = THREE.MathUtils.clamp(keyForward + pad.moveY, -1, 1);
+    const strafe = THREE.MathUtils.clamp(keyStrafe + pad.moveX, -1, 1);
 
     if (forward !== 0 || strafe !== 0) {
-      // Keyboard input is always a full -1/0/1 combo, so this is always 1
-      // for desktop (no diagonal speed boost, same as before) — touch's
-      // joystick is analog, so a half-deflected stick now actually walks
-      // at half speed instead of snapping straight to full speed.
-      const magnitude = isCoarsePointer ? Math.min(Math.hypot(strafe, forward), 1) : 1;
+      // Keyboard input is always a full -1/0/1 combo, so this is 1 for
+      // desktop keys (no diagonal speed boost, same as before) — the touch
+      // joystick and a gamepad stick are analog, so a half-deflected stick
+      // actually walks at half speed instead of snapping to full.
+      const analog = isCoarsePointer || pad.moveX !== 0 || pad.moveY !== 0;
+      const magnitude = analog ? Math.min(Math.hypot(strafe, forward), 1) : 1;
       direction.current.set(strafe, 0, -forward).normalize();
       // World quaternion, not local: world = rig yaw (0 outside VR) ×
       // camera rotation, which in VR is rig yaw × headset rotation — giving

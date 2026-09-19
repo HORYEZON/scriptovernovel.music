@@ -101,9 +101,6 @@ function lightModeFromStored(v: string | null): MuseumLightMode {
 // Mobile-only forced-landscape preference (CSS rotate, not a real OS
 // orientation lock — see the state declaration below for why).
 const LANDSCAPE_MODE_STORAGE_KEY = "museum_landscape_mode";
-// Phone-in-goggles upside-down fix — see VrFlipView.tsx. Persisted: it is a
-// property of the visitor's goggles, not of a visit.
-const VR_FLIP_VIEW_STORAGE_KEY = "museum_vr_flip_view";
 
 function detectWebGL(): boolean {
   try {
@@ -411,18 +408,6 @@ export function MuseumClient({
   // no WebXR support at all (most of them, still); `isSessionSupported`
   // additionally checks for an actual capable device/runtime.
   const [vrSupported, setVrSupported] = useState(false);
-  // Renders the stereo frame upside down with the eyes swapped, for a phone
-  // whose auto-rotate picked the other landscape from the one Chrome lays
-  // the eyes out for (see VrFlipView.tsx). Read from storage after mount,
-  // same reason as darkMode: the server render can't know it.
-  const [vrFlipView, setVrFlipView] = useState(false);
-  useEffect(() => {
-    try {
-      setVrFlipView(localStorage.getItem(VR_FLIP_VIEW_STORAGE_KEY) === "1");
-    } catch {
-      // Storage blocked — stays off for this visit.
-    }
-  }, []);
   // Facebook/Messenger/Instagram's in-app browser — no WebXR and no file
   // downloads (see lib/museum/inAppBrowser.ts). Only changes the *wording*
   // of what's already unavailable: the VR row's hint and the Share 360°
@@ -786,18 +771,6 @@ export function MuseumClient({
     setVrMode((prev) => !prev);
   }
 
-  function toggleVrFlipView() {
-    setVrFlipView((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(VR_FLIP_VIEW_STORAGE_KEY, next ? "1" : "0");
-      } catch {
-        // Non-persistent this session — harmless.
-      }
-      return next;
-    });
-  }
-
   // MuseumScene reports back once its own store's session actually starts
   // or ends — a headset's *own* "Exit VR" UI ends the session without ever
   // going through this button, and without this the button would keep
@@ -1124,40 +1097,6 @@ export function MuseumClient({
                             />
                           </span>
                         </button>
-                        {/* Phone-in-goggles: the stereo view came out upside
-                            down (the OS's auto-rotate and Chrome's eye layout
-                            disagreeing on which landscape) — see
-                            VrFlipView.tsx. Set here, before entering: a
-                            Cardboard-style viewer has no controller to press
-                            the same switch in the in-headset HUD with. */}
-                        {vrSupported && (
-                          <button
-                            type="button"
-                            onClick={toggleVrFlipView}
-                            className="w-full flex items-center justify-between gap-3 px-3 py-3.5 rounded-lg text-xs font-medium tracking-wide text-white/85 hover:bg-white/10 active:bg-white/15 transition-colors"
-                          >
-                            <span className="flex flex-col items-start gap-0.5 min-w-0">
-                              <span className="flex items-center gap-2">
-                                <RectangleHorizontal size={14} className="rotate-180" />
-                                Flip VR view
-                              </span>
-                              <span className="font-normal tracking-normal text-[10px] text-white/35 leading-tight">
-                                If the museum looks upside down in your goggles
-                              </span>
-                            </span>
-                            <span
-                              className={`w-8 h-4 rounded-full relative transition-colors shrink-0 ${
-                                vrFlipView ? "bg-emerald-500/70" : "bg-white/20"
-                              }`}
-                            >
-                              <span
-                                className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
-                                  vrFlipView ? "translate-x-4" : "translate-x-0"
-                                }`}
-                              />
-                            </span>
-                          </button>
-                        )}
                         {/* Hide HUD — same switch the desktop-only Screenshot
                             button drives (toggleHud/hudHidden above), just
                             reachable here too: that button is gated to
@@ -1623,8 +1562,6 @@ export function MuseumClient({
             onDismissAchievement: achievementsState.dismissBanner,
             splashEnabled,
             splashSpeedMs,
-            flipView: vrFlipView,
-            onToggleFlipView: toggleVrFlipView,
           }}
         />
         </div>

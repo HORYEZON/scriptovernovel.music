@@ -77,11 +77,6 @@ export interface VrHudProps {
   onDismissAchievement: () => void;
   splashEnabled: boolean;
   splashSpeedMs: number;
-  /** Phone-in-goggles: render the stereo frame upside down with the eyes
-   *  swapped — see VrFlipView.tsx. Persisted upstream; a property of the
-   *  visitor's goggles, not of a visit. */
-  flipView: boolean;
-  onToggleFlipView: () => void;
 }
 
 export function VrHud({
@@ -104,8 +99,6 @@ export function VrHud({
   onDismissAchievement,
   splashEnabled,
   splashSpeedMs,
-  flipView,
-  onToggleFlipView,
 }: {
   rooms: MuseumRoomPublic[];
   currentRoomId: string | null;
@@ -132,8 +125,6 @@ export function VrHud({
   /** Museum-wide room-splash switch; the per-room one is read off `rooms`. */
   splashEnabled: boolean;
   splashSpeedMs: number;
-  flipView?: boolean;
-  onToggleFlipView?: () => void;
 }) {
   const { camera } = useThree();
   const groupRef = useRef<THREE.Group>(null);
@@ -214,11 +205,6 @@ export function VrHud({
   buttons.push({ label: lightModeLabel ?? (darkMode ? "Dark" : "Light"), onClick: onToggleDarkMode });
   if (rooms.length > 1) buttons.push({ label: mapOpen ? "Close map" : "Map", onClick: onToggleMap, active: mapOpen });
   buttons.push({ label: "Hide HUD", onClick: onToggleHud });
-  // Phone-in-goggles upside-down fix (VrFlipView.tsx). Reachable here for a
-  // headset with a pointer; a Cardboard-style viewer has no ray, so the same
-  // switch also lives in MuseumClient.tsx's mobile View dropdown, set before
-  // entering.
-  if (onToggleFlipView) buttons.push({ label: flipView ? "Flip: on" : "Flip view", onClick: onToggleFlipView, active: flipView });
   buttons.push({ label: "Exit VR", onClick: onExitVr });
 
   const roomTitle = currentRoom?.name ?? "";
