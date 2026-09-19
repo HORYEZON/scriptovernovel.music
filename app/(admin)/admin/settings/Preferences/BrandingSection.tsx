@@ -741,9 +741,9 @@ export function BrandingSection({
           },
           {
             id: "stories",
-            label: "Stories",
+            label: "Tales",
             description:
-              "Controls how the Stories shelf's book covers behave on small screens.",
+              "Controls how the Tales shelf's book covers behave on small screens.",
             idPrefix: "stories",
             mode: form.storiesCarouselMode,
             speed: form.storiesCarouselSpeed,

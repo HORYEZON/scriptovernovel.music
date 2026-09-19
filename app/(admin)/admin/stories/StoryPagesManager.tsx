@@ -346,7 +346,7 @@ export function StoryPagesManager({
               Delete Page {deleteConfirm.pageNumber}
             </h3>
             <p className="text-sm text-ink-400 dark:text-ink-300 mb-6">
-              Remove this page from the story? The remaining pages are renumbered
+              Remove this page from the tale? The remaining pages are renumbered
               automatically. This cannot be undone.
             </p>
             <div className="flex items-center justify-end gap-3">

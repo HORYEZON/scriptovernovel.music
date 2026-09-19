@@ -111,7 +111,7 @@ export async function PUT(
       (pageIds as string[]).some((pageId) => !existingIds.has(pageId))
     ) {
       return NextResponse.json(
-        { error: "pageIds must contain every page of this story exactly once" },
+        { error: "pageIds must contain every page of this tale exactly once" },
         { status: 400 }
       );
     }

@@ -45,6 +45,9 @@ export default async function MuseumEditorPage({ params }: { params: Promise<{ r
         wallTexture: true,
         floorTexture: true,
         ceilingTexture: true,
+        lightColor: true,
+        lightScale: true,
+        lightModelUrl: true,
         artworks: {
           orderBy: { displayOrder: "asc" },
           select: {
@@ -54,7 +57,24 @@ export default async function MuseumEditorPage({ params }: { params: Promise<{ r
             positionZ: true,
             rotationY: true,
             scale: true,
-            artwork: { select: { id: true, title: true, imageUrl: true } },
+            artwork: {
+              select: {
+                id: true,
+                title: true,
+                imageUrl: true,
+                // Only the Services Room's frames have one — its price plaque
+                // (ServicesRoomContents' PriceTag) is drawn in the editor too,
+                // so the Room Label Style card's glass and shimmer can be seen
+                // on the thing they style. Same price/variant read the public
+                // page does.
+                // deletedAt comes along so a product sitting in Trash reads as
+                // no product: it's a to-one relation, so it can't be filtered
+                // here, and a trashed ₱10 row showed up under a frame once.
+                product: {
+                  select: { price: true, deletedAt: true, variants: { orderBy: { sortOrder: "asc" }, select: { price: true } } },
+                },
+              },
+            },
           },
         },
         // Only ever non-empty on the Stories Room — its podiums, which the

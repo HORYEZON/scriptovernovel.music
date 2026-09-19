@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(stories);
   } catch {
-    return NextResponse.json({ error: "Failed to fetch stories" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch tales" }, { status: 500 });
   }
 }
 
@@ -142,6 +142,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(story, { status: 201 });
   } catch {
-    return NextResponse.json({ error: "Failed to create story" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create tale" }, { status: 500 });
   }
 }

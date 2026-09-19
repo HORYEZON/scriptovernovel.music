@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Map, MonitorSmartphone, Sun, Moon, Camera, Volume2, VolumeX, RectangleHorizontal, Compass, Settings2, Aperture, EyeOff, Eye, Glasses, Share2 } from "lucide-react";
+import { ArrowLeft, Map, MonitorSmartphone, Sun, SunDim, Moon, Camera, Volume2, VolumeX, RectangleHorizontal, Compass, Settings2, Aperture, EyeOff, Eye, Glasses, Globe, Loader2 } from "lucide-react";
 import type { MuseumRoomPublic, MuseumAboutData, MuseumChaseCompanion, MuseumAchievementPublic, FreedomWallNotePublic } from "@/types";
 import type { IntroEffect } from "@/lib/intro-splash";
 import type { SplashStyle } from "@/lib/museum-splash";
@@ -25,6 +25,7 @@ import { isInAppBrowser } from "@/lib/museum/inAppBrowser";
 import toast from "@/lib/toast";
 import { MiniMapHud } from "./components/MiniMapHud";
 import type { MinimapHudConfig } from "@/lib/museum/minimapHud";
+import type { ArtworkShimmerConfig } from "@/lib/museum/artworkShimmer";
 import { VISION_FILTER_STORAGE_KEY, type VisionFilter } from "@/lib/museum/visionFilters";
 import { StatsMinimapPanel } from "./components/StatsMinimapPanel";
 import type { MiniMapFrameState } from "./components/MiniMapTracker";
@@ -85,9 +86,24 @@ type View = "loading" | "3d" | "unsupported";
 // The new key gives all visitors the light-mode default once; from there
 // the [L] toggle persists their real choice as before.
 const DARK_MODE_STORAGE_KEY = "museum_dark_mode_v2";
+// The three lighting modes [L] cycles through, in that order. Stored under
+// the key above as "0" / "2" / "1" — "1" was already dark and "0" light, so
+// a visitor's saved choice from before Dim existed still means the same
+// thing; Dim simply took the next free digit.
+export type MuseumLightMode = "light" | "dim" | "dark";
+const LIGHT_MODE_ORDER: MuseumLightMode[] = ["light", "dim", "dark"];
+const LIGHT_MODE_STORED: Record<MuseumLightMode, string> = { light: "0", dim: "2", dark: "1" };
+function lightModeFromStored(v: string | null): MuseumLightMode {
+  if (v === "1") return "dark";
+  if (v === "2") return "dim";
+  return "light";
+}
 // Mobile-only forced-landscape preference (CSS rotate, not a real OS
 // orientation lock — see the state declaration below for why).
 const LANDSCAPE_MODE_STORAGE_KEY = "museum_landscape_mode";
+// Phone-in-goggles upside-down fix — see VrFlipView.tsx. Persisted: it is a
+// property of the visitor's goggles, not of a visit.
+const VR_FLIP_VIEW_STORAGE_KEY = "museum_vr_flip_view";
 
 function detectWebGL(): boolean {
   try {
@@ -111,6 +127,7 @@ export function MuseumClient({
   achievementsEnabled,
   achievementsHudEnabled,
   minimapConfig,
+  artworkShimmer,
   achievements,
   splashEnabled,
   splashStyle,
@@ -124,6 +141,7 @@ export function MuseumClient({
   museumMusicVolume = 50,
   brightnessLight = 50,
   brightnessDark = 50,
+  brightnessDim = 25,
   visionFilters = [],
   servicesRoomId = null,
   storiesRoomId = null,
@@ -150,6 +168,9 @@ export function MuseumClient({
    *  lib/museum/minimapHud.ts; an unconfigured museum gets that module's
    *  defaults, which are the values these components shipped with. */
   minimapConfig: MinimapHudConfig;
+  /** The light sweep on the artwork the visitor is standing at — see
+   *  lib/museum/artworkShimmer.ts. */
+  artworkShimmer: ArtworkShimmerConfig;
   achievements: MuseumAchievementPublic[];
   splashEnabled: boolean;
   /** "full-page" (fullscreen reveal) or "side-popup" (slide-in card from the
@@ -171,6 +192,9 @@ export function MuseumClient({
   brightnessLight?: number;
   /** Admin-set scene brightness (0–100, 50 = baseline) for dark mode. */
   brightnessDark?: number;
+  /** Admin-set scene brightness for Dim — the third [L] mode: light mode's
+   *  own colour presets at this brightness (see MuseumLightMode). */
+  brightnessDim?: number;
   /** The looks a visitor can cycle with [Q] / the HUD button, already
    *  resolved from the museum's config (see lib/museum/visionFilters.ts).
    *  Empty means the feature is switched off for this museum, and neither
@@ -334,17 +358,13 @@ export function MuseumClient({
   const handleShare360 = useCallback(async () => {
     if (rendering360 || !share360Ref.current) return;
     setRendering360(true);
-    const toastId = toast.loading("Rendering 360°…");
     try {
       const result = await share360Ref.current();
       if (result) setShare360(result);
       else toast.error("Couldn't work out which room you're in — take a step and try again");
     } catch {
-      // A tainted canvas (a texture without CORS clearance) or the GPU
-      // refusing a 4096-wide target — either way nothing is half-done.
       toast.error("Couldn't render the 360° photo — try again");
     } finally {
-      toast.dismiss(toastId);
       setRendering360(false);
     }
   }, [rendering360]);
@@ -357,7 +377,11 @@ export function MuseumClient({
   // localStorage preference overrides this once the effect runs client-side.
   // Using `false` here means a first-time visitor immediately sees the lit
   // gallery instead of a dark flash that snaps to light after hydration.
-  const [darkMode, setDarkMode] = useState(false);
+  const [lightMode, setLightMode] = useState<MuseumLightMode>("light");
+  // Everything downstream still speaks in darkMode + a single brightness:
+  // Dim is light mode's presets at the Dim brightness, so that is all it
+  // takes to add the third mode without touching the scene.
+  const darkMode = lightMode === "dark";
 
   // Forced-landscape (mobile only) — a pure-CSS rotate, not the Screen
   // Orientation Lock API (screen.orientation.lock has no support on iOS
@@ -387,6 +411,18 @@ export function MuseumClient({
   // no WebXR support at all (most of them, still); `isSessionSupported`
   // additionally checks for an actual capable device/runtime.
   const [vrSupported, setVrSupported] = useState(false);
+  // Renders the stereo frame upside down with the eyes swapped, for a phone
+  // whose auto-rotate picked the other landscape from the one Chrome lays
+  // the eyes out for (see VrFlipView.tsx). Read from storage after mount,
+  // same reason as darkMode: the server render can't know it.
+  const [vrFlipView, setVrFlipView] = useState(false);
+  useEffect(() => {
+    try {
+      setVrFlipView(localStorage.getItem(VR_FLIP_VIEW_STORAGE_KEY) === "1");
+    } catch {
+      // Storage blocked — stays off for this visit.
+    }
+  }, []);
   // Facebook/Messenger/Instagram's in-app browser — no WebXR and no file
   // downloads (see lib/museum/inAppBrowser.ts). Only changes the *wording*
   // of what's already unavailable: the VR row's hint and the Share 360°
@@ -533,9 +569,9 @@ export function MuseumClient({
         // First visit — seed the stored value so the toggle correctly persists
         // subsequent changes from the light-first default.
         localStorage.setItem(DARK_MODE_STORAGE_KEY, "0");
-        setDarkMode(false);
+        setLightMode("light");
       } else {
-        setDarkMode(stored === "1");
+        setLightMode(lightModeFromStored(stored));
       }
     } catch {
       // Storage blocked — stays on the light-mode default (useState(false) above).
@@ -686,11 +722,14 @@ export function MuseumClient({
     };
   }, [mobileMenuOpen]);
 
+  // Light → Dim → Dark → Light. Still named for the toggle it grew out of:
+  // every caller ([L], the HUD button, the VR HUD, TouchControls) just wants
+  // "next lighting mode" and none of them care how many there are.
   function toggleDarkMode() {
-    setDarkMode((prev) => {
-      const next = !prev;
+    setLightMode((prev) => {
+      const next = LIGHT_MODE_ORDER[(LIGHT_MODE_ORDER.indexOf(prev) + 1) % LIGHT_MODE_ORDER.length];
       try {
-        localStorage.setItem(DARK_MODE_STORAGE_KEY, next ? "1" : "0");
+        localStorage.setItem(DARK_MODE_STORAGE_KEY, LIGHT_MODE_STORED[next]);
       } catch {
         // Non-persistent this session — harmless, just won't carry over.
       }
@@ -745,6 +784,18 @@ export function MuseumClient({
   // avoid.
   function toggleVrMode() {
     setVrMode((prev) => !prev);
+  }
+
+  function toggleVrFlipView() {
+    setVrFlipView((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(VR_FLIP_VIEW_STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        // Non-persistent this session — harmless.
+      }
+      return next;
+    });
   }
 
   // MuseumScene reports back once its own store's session actually starts
@@ -1073,6 +1124,40 @@ export function MuseumClient({
                             />
                           </span>
                         </button>
+                        {/* Phone-in-goggles: the stereo view came out upside
+                            down (the OS's auto-rotate and Chrome's eye layout
+                            disagreeing on which landscape) — see
+                            VrFlipView.tsx. Set here, before entering: a
+                            Cardboard-style viewer has no controller to press
+                            the same switch in the in-headset HUD with. */}
+                        {vrSupported && (
+                          <button
+                            type="button"
+                            onClick={toggleVrFlipView}
+                            className="w-full flex items-center justify-between gap-3 px-3 py-3.5 rounded-lg text-xs font-medium tracking-wide text-white/85 hover:bg-white/10 active:bg-white/15 transition-colors"
+                          >
+                            <span className="flex flex-col items-start gap-0.5 min-w-0">
+                              <span className="flex items-center gap-2">
+                                <RectangleHorizontal size={14} className="rotate-180" />
+                                Flip VR view
+                              </span>
+                              <span className="font-normal tracking-normal text-[10px] text-white/35 leading-tight">
+                                If the museum looks upside down in your goggles
+                              </span>
+                            </span>
+                            <span
+                              className={`w-8 h-4 rounded-full relative transition-colors shrink-0 ${
+                                vrFlipView ? "bg-emerald-500/70" : "bg-white/20"
+                              }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
+                                  vrFlipView ? "translate-x-4" : "translate-x-0"
+                                }`}
+                              />
+                            </span>
+                          </button>
+                        )}
                         {/* Hide HUD — same switch the desktop-only Screenshot
                             button drives (toggleHud/hudHidden above), just
                             reachable here too: that button is gated to
@@ -1132,7 +1217,7 @@ export function MuseumClient({
                   title="Share this room as a 360° photo"
                   className="pointer-events-auto inline-flex items-center gap-2 px-2.5 sm:px-4 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-medium tracking-wide hover:bg-black/75 disabled:opacity-60 transition-colors"
                 >
-                  <Share2 size={14} />
+                  <Globe size={14} />
                   <span className="hidden sm:inline">Share 360°</span>
                 </button>
               )}
@@ -1162,11 +1247,17 @@ export function MuseumClient({
                 <button
                   type="button"
                   onClick={toggleDarkMode}
-                  title={darkMode ? "Switch to Light Mode [L]" : "Switch to Dark Mode [L]"}
+                  title={
+                    lightMode === "light"
+                      ? "Switch to Dim Mode [L]"
+                      : lightMode === "dim"
+                        ? "Switch to Dark Mode [L]"
+                        : "Switch to Light Mode [L]"
+                  }
                   className="pointer-events-auto inline-flex items-center gap-2 px-2.5 sm:px-4 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-medium tracking-wide hover:bg-black/75 transition-colors"
                 >
-                  {darkMode ? <Moon size={14} /> : <Sun size={14} />}
-                  <span className="hidden sm:inline">{darkMode ? "Dark" : "Light"}</span>
+                  {lightMode === "dark" ? <Moon size={14} /> : lightMode === "dim" ? <SunDim size={14} /> : <Sun size={14} />}
+                  <span className="hidden sm:inline">{lightMode === "dark" ? "Dark" : lightMode === "dim" ? "Dim" : "Light"}</span>
                 </button>
               )}
 
@@ -1391,6 +1482,22 @@ export function MuseumClient({
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {rendering360 && (
+          <motion.div
+            key="rendering-360-indicator"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2 }}
+            className="fixed z-50 pointer-events-none flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/15 text-white text-xs font-medium tracking-wide shadow-lg left-4 top-1/2 -translate-y-1/2 sm:left-auto sm:top-auto sm:translate-y-0 sm:bottom-6 sm:right-6"
+          >
+            <Loader2 size={16} className="animate-spin" />
+            <span>Rendering 360°…</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Two phases of the same overlay, deliberately not merged: before the
           canvas exists there is nothing to measure (the scene chunk itself is
           still downloading), so LoadingScreen runs indeterminate; once it is
@@ -1458,8 +1565,11 @@ export function MuseumClient({
           viewportSize={measuredSize ? sceneSize : undefined}
           onRoomChange={setCurrentRoomId}
           darkMode={darkMode}
-          brightnessLight={brightnessLight}
+          lightModeLabel={lightMode === "dark" ? "Dark" : lightMode === "dim" ? "Dim" : "Light"}
+          // Dim is light mode at its own brightness — see lightMode above.
+          brightnessLight={lightMode === "dim" ? brightnessDim : brightnessLight}
           brightnessDark={brightnessDark}
+          artworkShimmer={artworkShimmer}
           onToggleDarkMode={toggleDarkMode}
           onToggleMap={toggleMap}
           onToggleHud={toggleHud}
@@ -1513,6 +1623,8 @@ export function MuseumClient({
             onDismissAchievement: achievementsState.dismissBanner,
             splashEnabled,
             splashSpeedMs,
+            flipView: vrFlipView,
+            onToggleFlipView: toggleVrFlipView,
           }}
         />
         </div>

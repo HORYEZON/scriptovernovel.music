@@ -38,7 +38,7 @@ const DISTANCE = 1.15;
 const EDGE_X = 0.58;
 const EDGE_Y = 0.38;
 
-const BUTTON_W = 0.125;
+const BUTTON_W = 0.115;
 const BUTTON_H = 0.052;
 const BUTTON_GAP = 0.01;
 
@@ -77,6 +77,11 @@ export interface VrHudProps {
   onDismissAchievement: () => void;
   splashEnabled: boolean;
   splashSpeedMs: number;
+  /** Phone-in-goggles: render the stereo frame upside down with the eyes
+   *  swapped — see VrFlipView.tsx. Persisted upstream; a property of the
+   *  visitor's goggles, not of a visit. */
+  flipView: boolean;
+  onToggleFlipView: () => void;
 }
 
 export function VrHud({
@@ -85,6 +90,7 @@ export function VrHud({
   hudHidden,
   onToggleHud,
   darkMode,
+  lightModeLabel,
   onToggleDarkMode,
   musicPlaying,
   onToggleMusic,
@@ -98,12 +104,17 @@ export function VrHud({
   onDismissAchievement,
   splashEnabled,
   splashSpeedMs,
+  flipView,
+  onToggleFlipView,
 }: {
   rooms: MuseumRoomPublic[];
   currentRoomId: string | null;
   hudHidden: boolean;
   onToggleHud?: () => void;
   darkMode: boolean;
+  /** What the lighting button says — "Light" / "Dim" / "Dark", the mode the
+   *  visitor is in now (the DOM HUD's own wording). Falls back to darkMode. */
+  lightModeLabel?: string;
   onToggleDarkMode?: () => void;
   /** Undefined when the museum has no soundtrack configured — no button. */
   musicPlaying?: boolean;
@@ -121,6 +132,8 @@ export function VrHud({
   /** Museum-wide room-splash switch; the per-room one is read off `rooms`. */
   splashEnabled: boolean;
   splashSpeedMs: number;
+  flipView?: boolean;
+  onToggleFlipView?: () => void;
 }) {
   const { camera } = useThree();
   const groupRef = useRef<THREE.Group>(null);
@@ -198,13 +211,19 @@ export function VrHud({
   // ── Top-right controls, right-aligned like the DOM row. ────────────────
   const buttons: { label: string; onClick?: () => void; active?: boolean }[] = [];
   if (onToggleMusic) buttons.push({ label: musicPlaying ? "Music: on" : "Music: off", onClick: onToggleMusic, active: musicPlaying });
-  buttons.push({ label: darkMode ? "Dark" : "Light", onClick: onToggleDarkMode });
+  buttons.push({ label: lightModeLabel ?? (darkMode ? "Dark" : "Light"), onClick: onToggleDarkMode });
   if (rooms.length > 1) buttons.push({ label: mapOpen ? "Close map" : "Map", onClick: onToggleMap, active: mapOpen });
   buttons.push({ label: "Hide HUD", onClick: onToggleHud });
+  // Phone-in-goggles upside-down fix (VrFlipView.tsx). Reachable here for a
+  // headset with a pointer; a Cardboard-style viewer has no ray, so the same
+  // switch also lives in MuseumClient.tsx's mobile View dropdown, set before
+  // entering.
+  if (onToggleFlipView) buttons.push({ label: flipView ? "Flip: on" : "Flip view", onClick: onToggleFlipView, active: flipView });
   buttons.push({ label: "Exit VR", onClick: onExitVr });
 
   const roomTitle = currentRoom?.name ?? "";
-  const roomPillW = Math.min(0.5, 0.05 + roomTitle.length * 0.0155);
+  // Capped so six buttons on the right never run into it.
+  const roomPillW = Math.min(0.36, 0.05 + roomTitle.length * 0.0155);
 
   return (
     <group ref={groupRef}>
@@ -253,7 +272,7 @@ export function VrHud({
                 label={b.label}
                 width={BUTTON_W}
                 height={BUTTON_H}
-                fontSize={0.019}
+                fontSize={0.018}
                 position={[x, EDGE_Y, 0]}
                 onClick={b.onClick}
                 variant={b.active ? "primary" : "ghost"}

@@ -37,6 +37,8 @@ import {
   MINIMAP_MAX_COUNTER_SCALE,
   MINIMAP_MIN_LABEL_SIZE,
   MINIMAP_MAX_LABEL_SIZE,
+  MINIMAP_MIN_LABEL_SPACING,
+  MINIMAP_MAX_LABEL_SPACING,
   type MinimapHudConfig,
   type MinimapIconName,
   type MinimapLabelPosition,
@@ -571,6 +573,17 @@ export function MinimapHudSection({
                 max={MINIMAP_MAX_LABEL_SIZE}
                 suffix="px"
                 onChange={(floorLabelSize) => onChange({ floorLabelSize })}
+              />
+              {/* Room between the label and what's around it — the card's
+                  edge on one side, the room outline on the other. The room
+                  gives way to it, so the label never crowds the wall. */}
+              <SizeSlider
+                label="Spacing"
+                value={value.floorLabelSpacing}
+                min={MINIMAP_MIN_LABEL_SPACING}
+                max={MINIMAP_MAX_LABEL_SPACING}
+                suffix="px"
+                onChange={(floorLabelSpacing) => onChange({ floorLabelSpacing })}
               />
               <label className="flex items-center gap-2 cursor-pointer">
                 <input

@@ -58,7 +58,7 @@ import { cn, formatPrice, ORDER_STATUS_COLORS } from "@/lib/utils";
 import { storyTypeLabel } from "@/lib/stories";
 
 type PageGroupLabel =
-  "Overview" | "Artworks" | "Stories" | "Content" | "Shop" | "Site" | "Settings" | "Trash";
+  "Overview" | "Artworks" | "Tales" | "Content" | "Shop" | "Site" | "Settings" | "Trash";
 type AdminPage = {
   label: string;
   href: string;
@@ -74,7 +74,7 @@ type AdminPage = {
 const PAGE_GROUP_ORDER: PageGroupLabel[] = [
   "Overview",    // Dashboard, Notifications
   "Artworks",    // Artworks + Digital Museum + Mini Games tabs
-  "Stories",     // Books, novels, comics & manga
+  "Tales",       // Books, novels, comics & manga
   "Content",     // Sections, Announcements, FAQ Chatbox
   "Shop",        // Products, Orders
   "Site",        // About
@@ -138,18 +138,18 @@ const ADMIN_PAGES: AdminPage[] = [
   },
   // ── Stories ──────────────────────────────────────────────────────────────
   {
-    label: "Stories",
+    label: "Tales",
     href: "/admin/stories",
     icon: BookOpen,
-    keywords: "stories books novels comics manga anthology artbook zine webtoon pages reader cover",
-    group: "Stories",
+    keywords: "tales stories books novels comics manga anthology artbook zine webtoon pages reader cover",
+    group: "Tales",
   },
   {
     label: "Cosplays",
     href: "/admin/cosplays",
     icon: Shirt,
     keywords: "cosplay cosplays costume standee character series convention con photoshoot wig prop",
-    group: "Stories",
+    group: "Tales",
   },
   // ── Content ──────────────────────────────────────────────────────────────
   // Tab on the Artworks page (ArtworksTabs.tsx reads ?tab=sections).
@@ -530,7 +530,7 @@ export function GlobalSearch() {
     if (results.stories.length > 0) {
       list.push({
         key: "stories",
-        label: "Stories",
+        label: "Tales",
         icon: BookOpen,
         items: results.stories.map((s) => ({
           key: s.id,

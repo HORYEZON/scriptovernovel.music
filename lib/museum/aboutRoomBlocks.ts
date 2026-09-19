@@ -304,8 +304,29 @@ export interface AboutLabelConfig {
   textColor: string;
   /** Hex color of the plate behind the text. */
   backgroundColor: string;
-  /** Plate opacity 0–1 — 0 hides the plate entirely. */
+  /** Plate opacity 0–1 — 0 hides the plate entirely. With glass on this is
+   *  the glass's own translucency; with it off the plate is painted solid
+   *  whenever it's above 0. */
   backgroundOpacity: number;
+  /**
+   * The heading's own frosted-glass switch and shimmer — the same controls
+   * the Room Label Style card offers every other room's labels, kept per
+   * heading here because these three (Calling Card, Timeline & Gigs,
+   * Certificates & Awards) have always carried their own look block by
+   * block. The room's card still supplies the finish they don't set: edge
+   * width, panel texture, brightness, font. Defaults match the room card's
+   * own defaults, so a heading and the big plaque agree until told otherwise.
+   */
+  glassEnabled: boolean;
+  shimmerEnabled: boolean;
+  /** Sweeps per second. */
+  shimmerSpeed: number;
+  /** 0–1. */
+  shimmerStrength: number;
+  /** Extra room between the heading and what it labels, in metres — pushed
+   *  further above the certificate strip and the gigs map, further below the
+   *  calling cards. 0 is the designed spacing. */
+  titleGap: number;
   /**
    * Timeline & Gigs only — a multiplier on the caption strip under the map
    * (the next event's name and, below it, its date and venue). 1 is the
@@ -319,6 +340,9 @@ export interface AboutLabelConfig {
   descriptionScale: number;
 }
 
+export const ABOUT_TITLE_GAP_MIN = 0;
+export const ABOUT_TITLE_GAP_MAX = 1.2;
+
 export const DEFAULT_CERTS_LABEL_CONFIG: Required<AboutLabelConfig> = {
   text:              "CERTIFICATES & AWARDS",
   fontFamily:        "/fonts/DMSans-Regular.woff",
@@ -327,6 +351,11 @@ export const DEFAULT_CERTS_LABEL_CONFIG: Required<AboutLabelConfig> = {
   backgroundColor:   "#d4d0c6",
   backgroundOpacity: 0.62,
   descriptionScale:  1,
+  glassEnabled:      true,
+  shimmerEnabled:    false,
+  shimmerSpeed:      0.5,
+  shimmerStrength:   0.5,
+  titleGap:          0,
 };
 
 export const DEFAULT_CARD_LABEL_CONFIG: Required<AboutLabelConfig> = {
@@ -337,6 +366,11 @@ export const DEFAULT_CARD_LABEL_CONFIG: Required<AboutLabelConfig> = {
   backgroundColor:   "#d4d0c6",
   backgroundOpacity: 0,
   descriptionScale:  1,
+  glassEnabled:      true,
+  shimmerEnabled:    false,
+  shimmerSpeed:      0.5,
+  shimmerStrength:   0.5,
+  titleGap:          0,
 };
 
 export const DEFAULT_GIGS_LABEL_CONFIG: Required<AboutLabelConfig> = {
@@ -347,6 +381,11 @@ export const DEFAULT_GIGS_LABEL_CONFIG: Required<AboutLabelConfig> = {
   backgroundColor:   "#d4d0c6",
   backgroundOpacity: 0.62,
   descriptionScale:  1,
+  glassEnabled:      true,
+  shimmerEnabled:    false,
+  shimmerSpeed:      0.5,
+  shimmerStrength:   0.5,
+  titleGap:          0,
 };
 
 /** Default label config per block kind (the kinds that have a heading). */

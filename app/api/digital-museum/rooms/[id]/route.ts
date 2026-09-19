@@ -26,6 +26,9 @@ const ROOM_SELECT = {
   wallTexture: true,
   floorTexture: true,
   ceilingTexture: true,
+  lightColor: true,
+  lightScale: true,
+  lightModelUrl: true,
   splashIcon: true,
   splashTitle: true,
   splashEnabled: true,
@@ -33,6 +36,9 @@ const ROOM_SELECT = {
 } as const;
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+// Same bounds as the editor's "Size" slider on the Room Lights card.
+const LIGHT_SCALE_MIN = 0.25;
+const LIGHT_SCALE_MAX = 4;
 
 function revalidateMuseumPaths() {
   revalidatePath("/", "layout");
@@ -97,6 +103,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       wallTexture,
       floorTexture,
       ceilingTexture,
+      lightColor,
+      lightScale,
+      lightModelUrl,
       splashIcon,
       splashTitle,
       splashEnabled,
@@ -169,6 +178,30 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
       }
       data.ceilingTexture = ceilingTexture?.trim() || null;
+    }
+    // Room lights (Scene Editor's "Room Lights" card) — see
+    // prisma/schema.prisma's MuseumRoom.lightColor. Colour is a hex or
+    // null (back to the roomType preset); scale is clamped to the same
+    // range the editor's slider offers; the fixture model is a URL from the
+    // signed .glb upload, or "" / null to go back to the built-in fixture.
+    if (lightColor !== undefined) {
+      if (lightColor !== null && lightColor !== "" && (typeof lightColor !== "string" || !HEX_COLOR.test(lightColor))) {
+        return NextResponse.json({ error: "Invalid light color" }, { status: 400 });
+      }
+      data.lightColor = lightColor || null;
+    }
+    if (lightScale !== undefined) {
+      const s = Number(lightScale);
+      if (!Number.isFinite(s)) {
+        return NextResponse.json({ error: "Invalid light scale" }, { status: 400 });
+      }
+      data.lightScale = Math.min(LIGHT_SCALE_MAX, Math.max(LIGHT_SCALE_MIN, s));
+    }
+    if (lightModelUrl !== undefined) {
+      if (lightModelUrl !== null && typeof lightModelUrl !== "string") {
+        return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      }
+      data.lightModelUrl = lightModelUrl?.trim() || null;
     }
     // Room-entry splash overrides — see RoomSplashContent.tsx. splashIcon
     // isn't validated against the real icon catalog (same trade-off
@@ -299,7 +332,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     // Same rule, same reasoning, for the Stories Room (lib/museum/storiesRoom.ts).
     if (target?.roomType === "STORIES") {
       return NextResponse.json(
-        { error: "The Stories Room can't be deleted — turn it off with its toggle instead." },
+        { error: "The Tales Room can't be deleted — turn it off with its toggle instead." },
         { status: 409 }
       );
     }

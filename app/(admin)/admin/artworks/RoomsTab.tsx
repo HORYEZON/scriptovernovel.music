@@ -31,7 +31,7 @@ import toast from "@/lib/toast";
 import { playSoundEffect } from "@/lib/sound/engine";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import type { MuseumRoomType } from "@/types";
-import { Toggle, ColorField, TextureField } from "./museum-ui";
+import { Toggle } from "./museum-ui";
 import { IconPicker } from "../settings/Preferences/IconPicker";
 import { ArtworkPicker, type PickableArtwork, type PickerEntry } from "./ArtworkPicker";
 
@@ -76,6 +76,11 @@ export interface RoomConfig {
   wallTexture: string | null;
   floorTexture: string | null;
   ceilingTexture: string | null;
+  // The room's ceiling lights — set from the Scene Editor's "Room Lights"
+  // card; carried here only so the Digital Museum preview draws them.
+  lightColor: string | null;
+  lightScale: number;
+  lightModelUrl: string | null;
   // Room-entry splash overrides — see RoomSplashContent.tsx. Null icon
   // falls back to the glowing squid mark; null title falls back to `name`.
   splashIcon: string | null;
@@ -145,10 +150,6 @@ export interface AboutRoomVisuals {
   aboutSplashEnabled: boolean;
 }
 
-const DEFAULT_WALL_COLOR = "#ece7db";
-const DEFAULT_FLOOR_COLOR = "#c9c0ad";
-const DEFAULT_CEILING_COLOR = "#f4f2ec";
-
 // Friendly names for updateRoom's success/failure toast — only these fields
 // get a named confirmation (see updateRoom below); every other field this
 // tab can patch (enabled, entry room) stays silent-on-success as before.
@@ -182,7 +183,7 @@ const ROOM_TYPE_LABEL: Record<AdminRoomType, string> = {
   GALLERY: "Gallery",
   SPECIAL_EXHIBITION: "Special Exhibition",
   SERVICES: "Services",
-  STORIES: "Stories",
+  STORIES: "Tales",
   ARCADE: "Arcade",
   COSPLAY: "Cosplay",
 };
@@ -268,14 +269,12 @@ export function RoomsTab({
   freedomWallEnabled,
   onToggleFreedomWall,
   freedomWallVisuals,
-  onUpdateFreedomWallVisuals,
   freedomWallFloor,
   onUpdateFreedomWallFloor,
   freedomWallSplashEnabled,
   onUpdateFreedomWallSplashEnabled,
   stairsRoomId,
   stairsVisuals,
-  onUpdateStairsVisuals,
   stairsSplashEnabled,
   onUpdateStairsSplashEnabled,
 }: {
@@ -303,7 +302,6 @@ export function RoomsTab({
   onToggleFreedomWall: (enabled: boolean) => void;
   /** Null until DigitalMuseumPanel.tsx's initial fetch resolves. */
   freedomWallVisuals: FreedomWallRoomVisuals | null;
-  onUpdateFreedomWallVisuals: (patch: Partial<FreedomWallRoomVisuals>) => void;
   freedomWallFloor: number;
   onUpdateFreedomWallFloor: (floor: number) => void;
   /** Independent of DigitalMuseum.splashEnabled — both must be true for
@@ -317,7 +315,6 @@ export function RoomsTab({
    * admin-editable. */
   stairsRoomId: string | null;
   stairsVisuals: FreedomWallRoomVisuals | null;
-  onUpdateStairsVisuals: (patch: Partial<FreedomWallRoomVisuals>) => void;
   stairsSplashEnabled: boolean;
   onUpdateStairsSplashEnabled: (enabled: boolean) => void;
 }) {
@@ -363,7 +360,13 @@ export function RoomsTab({
 
   useLockBodyScroll(Boolean(deleteConfirm));
 
-  const orderedRooms = [...rooms].sort((a, b) => a.displayOrder - b.displayOrder);
+  // Listed in corridor order — the order the Museum Map shows and a visitor
+  // walks: every Ground Floor room first, then the Second Floor's, each block
+  // by displayOrder (page.tsx builds the corridor the same way, with the
+  // Stairs between the two). Sorting by displayOrder alone interleaved the two
+  // floors, so a room sent upstairs kept its old slot in this list while the
+  // map showed it at the far end of the walk.
+  const orderedRooms = [...rooms].sort((a, b) => a.floor - b.floor || a.displayOrder - b.displayOrder);
 
   function patchRoom(id: string, patch: Partial<RoomConfig>) {
     setRooms(rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -474,6 +477,11 @@ export function RoomsTab({
   async function moveRoom(index: number, direction: "up" | "down") {
     const target = direction === "up" ? index - 1 : index + 1;
     if (target < 0 || target >= orderedRooms.length) return;
+    // A room only ever trades places with a neighbour on its own floor — the
+    // 1F/2F button is how it changes floors, and swapping displayOrder across
+    // the boundary would move nothing visible (floor sorts first) while still
+    // rewriting both rooms' order.
+    if (orderedRooms[index].floor !== orderedRooms[target].floor) return;
     const reordered = [...orderedRooms];
     [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
     const order = reordered.map((r, i) => ({ id: r.id, displayOrder: i }));
@@ -704,8 +712,8 @@ export function RoomsTab({
               <>
                 <p className="font-body text-xs text-ink-400 dark:text-ink-300 mt-1">
                   Stands every <strong>published</strong> story from the{" "}
-                  <strong>Stories</strong> module on its own podium — no picking needed.
-                  Unpublish or delete a story and its podium leaves the floor.
+                  <strong>Tales</strong> module on its own podium — no picking needed.
+                  Unpublish or delete a tale and its podium leaves the floor.
                 </p>
                 {storyCount > PODIUM_COMFORT_LIMIT && (
                   <p className="flex items-start gap-1.5 font-body text-xs text-amber-600 dark:text-amber-400 mt-1.5">
@@ -757,7 +765,7 @@ export function RoomsTab({
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => moveRoom(index, "up")}
-              disabled={index === 0}
+              disabled={index === 0 || orderedRooms[index - 1].floor !== room.floor}
               className="p-1.5 rounded-lg text-ink-400 hover:text-ink dark:hover:text-cream hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
               title="Move up"
             >
@@ -765,7 +773,7 @@ export function RoomsTab({
             </button>
             <button
               onClick={() => moveRoom(index, "down")}
-              disabled={index === orderedRooms.length - 1}
+              disabled={index === orderedRooms.length - 1 || orderedRooms[index + 1].floor !== room.floor}
               className="p-1.5 rounded-lg text-ink-400 hover:text-ink dark:hover:text-cream hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
               title="Move down"
             >
@@ -789,7 +797,7 @@ export function RoomsTab({
               <Pencil size={14} />
             </button>
             {/* Not for either mirror room — the Services Room's frames
-                mirror the live shop listing and the Stories Room's podiums
+                mirror the live shop listing and the Tales Room's podiums
                 mirror the published library, so neither has a hand-picked
                 selection for this picker to manage. */}
             {!isMirrorRoom && (
@@ -878,7 +886,7 @@ export function RoomsTab({
                     {isServices
                       ? "Services — fixed"
                       : isStories
-                        ? "Stories — fixed"
+                        ? "Tales — fixed"
                         : isArcade
                           ? "Arcade — fixed"
                           : "Cosplay — fixed"}
@@ -916,46 +924,16 @@ export function RoomsTab({
                 placeholder="Optional"
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <ColorField
-                label="Floor Color"
-                value={room.floorColor}
-                defaultValue={DEFAULT_FLOOR_COLOR}
-                onChange={(value) => updateRoom(room.id, { floorColor: value })}
-              />
-              <ColorField
-                label="Wall Color"
-                value={room.wallColor}
-                defaultValue={DEFAULT_WALL_COLOR}
-                onChange={(value) => updateRoom(room.id, { wallColor: value })}
-              />
-              <ColorField
-                label="Ceiling Color"
-                value={room.ceilingColor}
-                defaultValue={DEFAULT_CEILING_COLOR}
-                onChange={(value) => updateRoom(room.id, { ceilingColor: value })}
-              />
-            </div>
-            {/* Optional textures — each overrides its matching color
-                above when uploaded (concrete, wood, ...), tiled across
-                the surface rather than stretched. See MuseumRoom.tsx. */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <TextureField
-                label="Floor Texture"
-                value={room.floorTexture}
-                onChange={(url) => updateRoom(room.id, { floorTexture: url })}
-              />
-              <TextureField
-                label="Wall Texture"
-                value={room.wallTexture}
-                onChange={(url) => updateRoom(room.id, { wallTexture: url })}
-              />
-              <TextureField
-                label="Ceiling Texture"
-                value={room.ceilingTexture}
-                onChange={(url) => updateRoom(room.id, { ceilingTexture: url })}
-              />
-            </div>
+            {/* Wall / floor / ceiling colour and texture moved to the Scene
+                Editor's "Room Surfaces" card, where a change is seen on the
+                room as it's made. */}
+            <p className="font-body text-xs text-ink-400 dark:text-ink-300">
+              Wall, floor and ceiling colours and textures are set in this room&apos;s{" "}
+              <Link href={`/admin/artworks/museum-editor/${room.id}`} className="underline underline-offset-2 hover:text-ink dark:hover:text-cream">
+                Scene Editor
+              </Link>
+              , under <strong>Room Surfaces</strong>.
+            </p>
             {/* Room-entry splash overrides — see RoomSplashContent.tsx.
                 Both optional: an unset icon shows the glowing squid
                 mark, an unset title shows this room's own Name above. */}
@@ -1044,6 +1022,31 @@ export function RoomsTab({
   const createdRooms = withIndex.filter(({ room }) => !MIRROR_ROOM_TYPES.includes(room.roomType));
   const fixedMirrorRooms = withIndex.filter(({ room }) => MIRROR_ROOM_TYPES.includes(room.roomType));
 
+  // The cards of one group in corridor order, with a floor divider where the
+  // walk goes upstairs — the same "Second Floor" break the Museum Map draws —
+  // so the list reads as the corridor rather than as a pile of cards with a
+  // 1F/2F badge each. No divider when a group is all on one floor.
+  function renderFloorOrdered(entries: { room: RoomConfig; index: number }[]) {
+    const out: ReactNode[] = [];
+    let lastFloor: number | null = null;
+    for (const { room, index } of entries) {
+      if (lastFloor !== null && room.floor !== lastFloor) {
+        out.push(
+          <div key={`floor-${room.floor}`} className="flex items-center gap-2 px-1 pt-1">
+            <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
+            <span className="font-body text-[10px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+              {room.floor === 1 ? "Second Floor" : "Ground Floor"}
+            </span>
+            <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
+          </div>
+        );
+      }
+      lastFloor = room.floor;
+      out.push(renderRoomCard(room, index));
+    }
+    return out;
+  }
+
   return (
     <div className="space-y-3">
       <RoomGroup
@@ -1059,7 +1062,7 @@ export function RoomsTab({
             No rooms of your own yet — use <strong>New Room</strong> below to add one.
           </p>
         ) : (
-          createdRooms.map(({ room, index }) => renderRoomCard(room, index))
+          renderFloorOrdered(createdRooms)
         )}
       </RoomGroup>
 
@@ -1071,7 +1074,7 @@ export function RoomsTab({
         open={openGroups.fixed}
         onToggle={() => toggleGroup("fixed")}
       >
-        {fixedMirrorRooms.map(({ room, index }) => renderRoomCard(room, index))}
+        {renderFloorOrdered(fixedMirrorRooms)}
 
         {/* ── Fixed "Freedom Wall" card ──────────────────────────────────── */}
         {/* A special MuseumRoom row (roomType FREEDOM_WALL) — not part of the
@@ -1146,43 +1149,16 @@ export function RoomsTab({
 
           {expanded?.id === "freedom-wall" && freedomWallVisuals && (
             <div className="border-t border-black/5 dark:border-white/5 p-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <ColorField
-                  label="Floor Color"
-                  value={freedomWallVisuals.floorColor}
-                  defaultValue={DEFAULT_FLOOR_COLOR}
-                  onChange={(value) => onUpdateFreedomWallVisuals({ floorColor: value })}
-                />
-                <ColorField
-                  label="Wall Color"
-                  value={freedomWallVisuals.wallColor}
-                  defaultValue={DEFAULT_WALL_COLOR}
-                  onChange={(value) => onUpdateFreedomWallVisuals({ wallColor: value })}
-                />
-                <ColorField
-                  label="Ceiling Color"
-                  value={freedomWallVisuals.ceilingColor}
-                  defaultValue={DEFAULT_CEILING_COLOR}
-                  onChange={(value) => onUpdateFreedomWallVisuals({ ceilingColor: value })}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <TextureField
-                  label="Floor Texture"
-                  value={freedomWallVisuals.floorTexture}
-                  onChange={(url) => onUpdateFreedomWallVisuals({ floorTexture: url })}
-                />
-                <TextureField
-                  label="Wall Texture"
-                  value={freedomWallVisuals.wallTexture}
-                  onChange={(url) => onUpdateFreedomWallVisuals({ wallTexture: url })}
-                />
-                <TextureField
-                  label="Ceiling Texture"
-                  value={freedomWallVisuals.ceilingTexture}
-                  onChange={(url) => onUpdateFreedomWallVisuals({ ceilingTexture: url })}
-                />
-              </div>
+              {/* Wall / floor / ceiling colour and texture moved to the Scene
+                  Editor's "Room Surfaces" card, where a change is seen on the
+                  room as it's made. */}
+              <p className="font-body text-xs text-ink-400 dark:text-ink-300">
+                Wall, floor and ceiling colours and textures are set in this room&apos;s{" "}
+                <Link href={`/admin/artworks/museum-editor/${freedomWallRoomId}`} className="underline underline-offset-2 hover:text-ink dark:hover:text-cream">
+                  Scene Editor
+                </Link>
+                , under <strong>Room Surfaces</strong>.
+              </p>
               <label className="flex items-center gap-2 cursor-pointer w-fit">
                 <input
                   type="checkbox"
@@ -1300,43 +1276,16 @@ export function RoomsTab({
 
           {expanded?.id === "about" && aboutVisuals && (
             <div className="border-t border-black/5 dark:border-white/5 p-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <ColorField
-                  label="Floor Color"
-                  value={aboutVisuals.aboutFloorColor}
-                  defaultValue={DEFAULT_FLOOR_COLOR}
-                  onChange={(value) => onUpdateAboutVisuals({ aboutFloorColor: value })}
-                />
-                <ColorField
-                  label="Wall Color"
-                  value={aboutVisuals.aboutWallColor}
-                  defaultValue={DEFAULT_WALL_COLOR}
-                  onChange={(value) => onUpdateAboutVisuals({ aboutWallColor: value })}
-                />
-                <ColorField
-                  label="Ceiling Color"
-                  value={aboutVisuals.aboutCeilingColor}
-                  defaultValue={DEFAULT_CEILING_COLOR}
-                  onChange={(value) => onUpdateAboutVisuals({ aboutCeilingColor: value })}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <TextureField
-                  label="Floor Texture"
-                  value={aboutVisuals.aboutFloorTexture}
-                  onChange={(url) => onUpdateAboutVisuals({ aboutFloorTexture: url })}
-                />
-                <TextureField
-                  label="Wall Texture"
-                  value={aboutVisuals.aboutWallTexture}
-                  onChange={(url) => onUpdateAboutVisuals({ aboutWallTexture: url })}
-                />
-                <TextureField
-                  label="Ceiling Texture"
-                  value={aboutVisuals.aboutCeilingTexture}
-                  onChange={(url) => onUpdateAboutVisuals({ aboutCeilingTexture: url })}
-                />
-              </div>
+              {/* Wall / floor / ceiling colour and texture moved to the Scene
+                  Editor's "Room Surfaces" card, where a change is seen on the
+                  room as it's made. */}
+              <p className="font-body text-xs text-ink-400 dark:text-ink-300">
+                Wall, floor and ceiling colours and textures are set in this room&apos;s{" "}
+                <Link href={`/admin/artworks/museum-editor/${aboutRoomId}`} className="underline underline-offset-2 hover:text-ink dark:hover:text-cream">
+                  Scene Editor
+                </Link>
+                , under <strong>Room Surfaces</strong>.
+              </p>
               {/* Same Room Splash controls as a real room's edit form above —
                   unset icon falls back to the glowing squid mark, unset title
                   falls back to "About ScriptOverNovel". */}
@@ -1439,43 +1388,16 @@ export function RoomsTab({
 
           {expanded?.id === "stairs" && stairsVisuals && (
             <div className="border-t border-black/5 dark:border-white/5 p-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <ColorField
-                  label="Floor Color"
-                  value={stairsVisuals.floorColor}
-                  defaultValue={DEFAULT_FLOOR_COLOR}
-                  onChange={(value) => onUpdateStairsVisuals({ floorColor: value })}
-                />
-                <ColorField
-                  label="Wall Color"
-                  value={stairsVisuals.wallColor}
-                  defaultValue={DEFAULT_WALL_COLOR}
-                  onChange={(value) => onUpdateStairsVisuals({ wallColor: value })}
-                />
-                <ColorField
-                  label="Ceiling Color"
-                  value={stairsVisuals.ceilingColor}
-                  defaultValue={DEFAULT_CEILING_COLOR}
-                  onChange={(value) => onUpdateStairsVisuals({ ceilingColor: value })}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <TextureField
-                  label="Floor Texture"
-                  value={stairsVisuals.floorTexture}
-                  onChange={(url) => onUpdateStairsVisuals({ floorTexture: url })}
-                />
-                <TextureField
-                  label="Wall Texture"
-                  value={stairsVisuals.wallTexture}
-                  onChange={(url) => onUpdateStairsVisuals({ wallTexture: url })}
-                />
-                <TextureField
-                  label="Ceiling Texture"
-                  value={stairsVisuals.ceilingTexture}
-                  onChange={(url) => onUpdateStairsVisuals({ ceilingTexture: url })}
-                />
-              </div>
+              {/* Wall / floor / ceiling colour and texture moved to the Scene
+                  Editor's "Room Surfaces" card, where a change is seen on the
+                  room as it's made. */}
+              <p className="font-body text-xs text-ink-400 dark:text-ink-300">
+                Wall, floor and ceiling colours and textures are set in this room&apos;s{" "}
+                <Link href={`/admin/artworks/museum-editor/${stairsRoomId}`} className="underline underline-offset-2 hover:text-ink dark:hover:text-cream">
+                  Scene Editor
+                </Link>
+                , under <strong>Room Surfaces</strong>.
+              </p>
               <label className="flex items-center gap-2 cursor-pointer w-fit">
                 <input
                   type="checkbox"

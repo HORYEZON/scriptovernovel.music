@@ -98,7 +98,7 @@ const NAV: NavEntry[] = [
       // browser tab agree on what "Digital Museum" looks like.
       { href: "/admin/museum", label: "Digital Museum", icon: Landmark },
       { href: "/admin/freedom-wall", label: "Freedom Wall", icon: StickyNote },
-      { href: "/admin/stories", label: "Stories", icon: BookOpen },
+      { href: "/admin/stories", label: "Tales", icon: BookOpen },
       { href: "/admin/cosplays", label: "Cosplays", icon: Shirt },
       { href: "/admin/announcement", label: "Announcements", icon: Megaphone },
     ],

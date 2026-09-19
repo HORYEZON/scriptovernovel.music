@@ -33,7 +33,7 @@ export interface ReleaseNote {
 export const RELEASE_NOTE_CATEGORIES = [
   "Digital Museum",
   "Gallery",
-  "Stories",
+  "Tales",
   "Shop",
   "Freedom Wall",
   "Mini Games",
@@ -100,6 +100,7 @@ export function releaseNoteAccent(category: string): string {
     case "Gallery":
       return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25";
     case "Stories":
+    case "Tales":
       return "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/25";
     case "Shop":
       return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25";

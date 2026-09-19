@@ -21,6 +21,7 @@ import {
   clampSplashSpeed,
 } from "@/lib/museum-splash";
 import { parseMinimapHudConfig } from "@/lib/museum/minimapHud";
+import { parseArtworkShimmerConfig } from "@/lib/museum/artworkShimmer";
 import {
   DEFAULT_WALL_COLOR,
   DEFAULT_FLOOR_COLOR,
@@ -142,11 +143,13 @@ async function getMuseum() {
       achievementsEnabled: true,
       achievementsHudEnabled: true,
       minimapConfig: true,
+      artworkShimmerConfig: true,
       museumMusicUrl: true,
       museumMusicEnabled: true,
       museumMusicVolume: true,
       museumBrightnessLight: true,
       museumBrightnessDark: true,
+      museumBrightnessDim: true,
       visionFiltersEnabled: true,
       visionFilterConfig: true,
       rooms: {
@@ -251,6 +254,9 @@ const ROOM_CONTENT_SELECT = {
   wallTexture: true,
   floorTexture: true,
   ceilingTexture: true,
+  lightColor: true,
+  lightScale: true,
+  lightModelUrl: true,
   splashIcon: true,
   splashTitle: true,
   splashEnabled: true,
@@ -380,6 +386,9 @@ function mapRoomContent(
     wallTexture: room.wallTexture,
     floorTexture: room.floorTexture,
     ceilingTexture: room.ceilingTexture,
+    lightColor: room.lightColor,
+    lightScale: room.lightScale,
+    lightModelUrl: room.lightModelUrl,
     splashIcon: room.splashIcon,
     splashTitle: room.splashTitle,
     splashEnabled: room.splashEnabled,
@@ -937,6 +946,11 @@ export default async function DigitalMuseumPage({
     wallTexture: museum.aboutWallTexture,
     floorTexture: museum.aboutFloorTexture,
     ceilingTexture: museum.aboutCeilingTexture,
+    // The lights, unlike the surfaces above, are new enough to live on the
+    // row itself like every other room's — no DigitalMuseum.about* twin.
+    lightColor: aboutRoomContent?.lightColor ?? null,
+    lightScale: aboutRoomContent?.lightScale ?? 1,
+    lightModelUrl: aboutRoomContent?.lightModelUrl ?? null,
     splashIcon: museum.aboutSplashIcon,
     splashTitle: museum.aboutSplashTitle,
     // Own DigitalMuseum field, not the row's own splashEnabled column —
@@ -1052,6 +1066,9 @@ export default async function DigitalMuseumPage({
     wallTexture: freedomWallRoomContent?.wallTexture ?? null,
     floorTexture: freedomWallRoomContent?.floorTexture ?? null,
     ceilingTexture: freedomWallRoomContent?.ceilingTexture ?? null,
+    lightColor: freedomWallRoomContent?.lightColor ?? null,
+    lightScale: freedomWallRoomContent?.lightScale ?? 1,
+    lightModelUrl: freedomWallRoomContent?.lightModelUrl ?? null,
     splashIcon: freedomWallRoomContent?.splashIcon ?? null,
     splashTitle: freedomWallRoomContent?.splashTitle ?? "Freedom Wall",
     splashEnabled: freedomWallRoomContent?.splashEnabled ?? true,
@@ -1112,6 +1129,9 @@ export default async function DigitalMuseumPage({
       wallTexture: stairsContent?.wallTexture ?? null,
       floorTexture: stairsContent?.floorTexture ?? null,
       ceilingTexture: stairsContent?.ceilingTexture ?? null,
+      lightColor: stairsContent?.lightColor ?? null,
+      lightScale: stairsContent?.lightScale ?? 1,
+      lightModelUrl: stairsContent?.lightModelUrl ?? null,
       splashIcon: stairsContent?.splashIcon ?? null,
       splashTitle: stairsContent?.splashTitle ?? "Stairs",
       splashEnabled: stairsContent?.splashEnabled ?? true,
@@ -1158,6 +1178,7 @@ export default async function DigitalMuseumPage({
         achievementsEnabled={museum.achievementsEnabled}
         achievementsHudEnabled={museum.achievementsHudEnabled}
         minimapConfig={parseMinimapHudConfig(museum.minimapConfig)}
+        artworkShimmer={parseArtworkShimmerConfig(museum.artworkShimmerConfig)}
         achievements={achievements}
         splashEnabled={museum.splashEnabled}
         splashStyle={sanitizeSplashStyle(museum.splashStyle)}
@@ -1171,6 +1192,7 @@ export default async function DigitalMuseumPage({
         museumMusicVolume={museum.museumMusicVolume ?? 50}
         brightnessLight={museum.museumBrightnessLight ?? 50}
         brightnessDark={museum.museumBrightnessDark ?? 50}
+        brightnessDim={museum.museumBrightnessDim ?? 25}
         // Resolved here rather than in the client: the config is a JSON blob
         // and the built-in definitions live server-side anyway, so the browser
         // receives a plain ordered list of {id,label,css} and never has to

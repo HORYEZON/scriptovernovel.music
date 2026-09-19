@@ -192,6 +192,25 @@ export async function restoreTrashItem(type: TrashType, id: string): Promise<voi
 }
 
 /** Destroy one row for good, along with whatever it owns in storage. */
+/**
+ * Before a product disappears, write what it was onto every order line that
+ * bought it, so the order still reads right afterwards (lib/orders/
+ * item-display.ts). Only lines with no snapshot yet — a line stamped once
+ * keeps the name it was sold under. Called for a product being purged and
+ * for an artwork being purged (its product cascades away with it).
+ */
+async function snapshotOrderLinesForProduct(productId: string): Promise<void> {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { artwork: { select: { title: true, imageUrl: true } } },
+  });
+  if (!product) return;
+  await prisma.orderItem.updateMany({
+    where: { productId, titleSnapshot: null },
+    data: { titleSnapshot: product.artwork.title, imageSnapshot: product.artwork.imageUrl },
+  });
+}
+
 export async function purgeTrashItem(type: TrashType, id: string): Promise<void> {
   switch (type) {
       case "announcements":
@@ -203,8 +222,11 @@ export async function purgeTrashItem(type: TrashType, id: string): Promise<void>
       case "artworks": {
         const artwork = await prisma.artwork.findUnique({
           where: { id },
-          select: { imageUrl: true },
+          select: { imageUrl: true, product: { select: { id: true } } },
         });
+        // Its product (if any) cascades away with it — stamp the order lines
+        // first, same as purging the product directly.
+        if (artwork?.product) await snapshotOrderLinesForProduct(artwork.product.id);
         await prisma.artwork.delete({ where: { id } });
         if (artwork?.imageUrl) {
           deleteArtworkImage(artwork.imageUrl).catch(() => {});
@@ -262,6 +284,12 @@ export async function purgeTrashItem(type: TrashType, id: string): Promise<void>
         break;
       }
       case "products":
+        // A product that has been ordered can go: the lines that bought it
+        // keep its name and picture (above) and release the reference
+        // (OrderItem.productId is SetNull). This used to throw on the
+        // foreign key, and the bulk purge reported the row as "already
+        // gone" while it sat in Trash for good.
+        await snapshotOrderLinesForProduct(id);
         await prisma.product.delete({ where: { id } });
         break;
       case "sections": {

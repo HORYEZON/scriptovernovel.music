@@ -395,9 +395,25 @@ async function makePreviewUrl(canvas: HTMLCanvasElement): Promise<string> {
 export async function capturePanorama360(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
-  options: RenderPanoramaOptions & { slug: string; quality?: number }
+  options: RenderPanoramaOptions & { slug: string; quality?: number; filterCss?: string | null }
 ): Promise<Panorama360Result> {
-  const canvas = renderEquirectangular(renderer, scene, options);
+  let canvas = renderEquirectangular(renderer, scene, options);
+
+  if (options.filterCss) {
+    const filtered = document.createElement("canvas");
+    filtered.width = canvas.width;
+    filtered.height = canvas.height;
+    const ctx = filtered.getContext("2d");
+    if (ctx) {
+      ctx.filter = options.filterCss;
+      ctx.drawImage(canvas, 0, 0);
+      ctx.filter = "none";
+      canvas.width = 0;
+      canvas.height = 0;
+      canvas = filtered;
+    }
+  }
+
   const { width, height } = canvas;
   const jpeg = await canvasToJpeg(canvas, options.quality ?? 0.95);
   const previewUrl = await makePreviewUrl(canvas);

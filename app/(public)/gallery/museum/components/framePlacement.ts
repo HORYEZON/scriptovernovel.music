@@ -202,11 +202,19 @@ export function getDividerWallDefinitions(
     // of 0 leaves a frame facing +Z, the same convention the north wall uses).
     const along: [number, number] = [cos, -sin];
     const normal: [number, number] = [sin, cos];
-    // Frames can't sit right at a divider's corners for the same reason they
-    // can't at the room's — CORNER_MARGIN — but a short divider would end up
-    // with no usable range at all, so it simply offers less rather than
-    // inverting.
-    const usableHalf = Math.max(0, divider.width / 2 - Math.min(CORNER_MARGIN, divider.width / 4));
+    // How far along the panel a frame's *centre* may sit. This used to keep
+    // CORNER_MARGIN (half the widest possible frame plus a gap) clear of each
+    // end, capped at a quarter of the width — which on a 7.1 m divider left a
+    // usable run of ±1.78 m, room for two frames, and snapToDividerFace below
+    // clamps to this range on every load. An admin who hung three frames
+    // across the panel saw the outer ones dragged back toward the middle in
+    // both the editor and the museum, with the Save toast insisting it had
+    // saved (it had; the clamp undid it on read). The margin is a frame's
+    // worth of overhang guard for an auto-placed *maximum-size* frame — the
+    // wrong yardstick for a placement the admin made by eye. Just enough now
+    // to keep the centre on the slab; whether a wide frame overhangs the end
+    // is the admin's call, and visible to them as they make it.
+    const usableHalf = Math.max(0, divider.width / 2 - DIVIDER_END_MARGIN);
     // Where the anchor has to sit for the frame to end up ON this face.
     //
     // ArtworkFrame.tsx pushes every frame FRAME_WALL_OFFSET out along its
@@ -263,6 +271,10 @@ export function getDividerWallDefinitions(
  * z-fight — everything else about the offset is undone in `surface` above.
  */
 const DIVIDER_FRAME_CLEARANCE = 0.06;
+
+/** How far in from a divider's ends a frame's centre must stay, in metres —
+ *  see usableHalf in getDividerWallDefinitions. */
+const DIVIDER_END_MARGIN = 0.25;
 
 /** How close to a divider's face a frame has to be before it counts as hung
  *  on that panel rather than merely near it. About arm's reach: wide enough to

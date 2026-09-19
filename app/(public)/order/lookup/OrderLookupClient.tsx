@@ -1,6 +1,7 @@
 // app/(public)/order/lookup/OrderLookupClient.tsx
 "use client";
 
+import { orderItemTitle, orderItemImageOrPlaceholder } from "@/lib/orders/item-display";
 import { useState } from "react";
 import Image from "@/components/ui/SafeImage";
 import { Search, MapPin, Phone, StickyNote, PackageSearch } from "lucide-react";
@@ -13,9 +14,12 @@ interface LookupOrderItem {
   quantity: number;
   price: number;
   variantLabel: string | null;
+  /** Null once the product was permanently deleted — see lib/orders/item-display.ts. */
   product: {
     artwork: { title: string; imageUrl: string };
-  };
+  } | null;
+  titleSnapshot?: string | null;
+  imageSnapshot?: string | null;
 }
 
 interface LookupOrder {
@@ -127,15 +131,15 @@ export function OrderLookupClient() {
               <div key={item.id} className="flex gap-4 pb-4 border-b border-white/10">
                 <div className="relative w-16 h-20 bg-white/5 rounded-md overflow-hidden shrink-0">
                   <Image
-                    src={imageVariantUrl(item.product.artwork.imageUrl, "thumb")}
-                    alt={item.product.artwork.title}
+                    src={imageVariantUrl(orderItemImageOrPlaceholder(item), "thumb")}
+                    alt={orderItemTitle(item)}
                     fill
                     className="object-cover"
                   />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-display text-lg font-light italic text-white">
-                    {item.product.artwork.title}
+                    {orderItemTitle(item)}
                   </h3>
                   {item.variantLabel && (
                     <p className="font-body text-xs text-sepia-light/80 mt-0.5">

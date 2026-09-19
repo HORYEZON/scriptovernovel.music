@@ -67,6 +67,8 @@ export async function POST(request: NextRequest) {
             quantity: true,
             price: true,
             variantLabel: true,
+            titleSnapshot: true,
+            imageSnapshot: true,
             product: {
               select: { artwork: { select: { title: true, imageUrl: true } } },
             },

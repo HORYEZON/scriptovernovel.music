@@ -138,6 +138,14 @@ export interface BannerFinish {
 }
 
 export interface RoomBannerStyle extends BannerFinish {
+  /**
+   * Services Room only — how far the price plaque hangs from its frame, in
+   * metres on top of the designed drop (ServicesRoomContents' TAG_DROP).
+   * Negative brings it closer. Carried on the room style because it is a
+   * room-wide setting of the same row the plaques already read their finish
+   * from; every other room's labels ignore it.
+   */
+  priceGap: number;
   // ── Type ────────────────────────────────────────────────────────────
   /** Font *path* from PLAQUE_FONT_OPTIONS (lib/museum/aboutRoomBlocks.ts),
    *  applied to each plaque's title line only. The smaller lines under it
@@ -176,6 +184,7 @@ export const DEFAULT_ROOM_BANNER_STYLE: RoomBannerStyle = {
   shimmerSpeed: 0.5,
   shimmerStrength: 0.5,
   brightness: 1,
+  priceGap: 0,
 };
 
 /**
@@ -257,6 +266,8 @@ export const MAX_BANNER_SHIMMER_STRENGTH = 1;
 // panel blows out to flat white and takes the text's contrast with it.
 export const MIN_BANNER_BRIGHTNESS = 0;
 export const MAX_BANNER_BRIGHTNESS = 2;
+export const MIN_BANNER_PRICE_GAP = -0.6;
+export const MAX_BANNER_PRICE_GAP = 1.2;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -323,6 +334,7 @@ export function coerceRoomBannerStyle(
       MIN_BANNER_BRIGHTNESS,
       MAX_BANNER_BRIGHTNESS
     ),
+    priceGap: numberOr(p.priceGap, defaults.priceGap, MIN_BANNER_PRICE_GAP, MAX_BANNER_PRICE_GAP),
   };
 }
 

@@ -873,7 +873,7 @@ export function AboutRoomContents({
           scale={certsScale}
         >
           {/* Admin-editable heading (text / font / colour / plate) */}
-          <AboutBanner label={certsLabel} position={[0, CERT_LABEL_Y - FRAME_CENTER_Y + 0.12, 0]} />
+          <AboutBanner label={certsLabel} position={[0, CERT_LABEL_Y - FRAME_CENTER_Y + 0.12 + certsLabel.titleGap, 0]} />
           {certs.map((cert, i) => (
             <CertificateThumb
               key={cert.id}
@@ -1306,18 +1306,31 @@ function AboutBanner({
   // estimate + padding, same trick as FreedomWallPlaque.
   const plateW = Math.max(0.8, text.length * label.fontSize * (0.6 + letterSpacing) + 0.6);
   const plateH = label.fontSize * 2.4;
-  // The block's own plate colour and opacity win over the room's — see above.
-  // backgroundOpacity 0 still means "no plate at all" (the Calling Card's
-  // default), which is why the panel is skipped rather than drawn transparent:
-  // an invisible plate would still cost its shimmer and its texture fetch.
+  // The block's own plate colour, opacity, glass switch and shimmer win over
+  // the room's — those are the heading's own controls on its panel, the same
+  // set the Room Label Style card offers everywhere else. backgroundOpacity 0
+  // still means "no plate at all" (the Calling Card's default), which is why
+  // the panel is skipped rather than drawn transparent: an invisible plate
+  // would still cost its shimmer and its texture fetch.
   const panelStyle = useMemo(
     () => ({
       ...roomBanner,
       panelColor: label.backgroundColor,
-      glassEnabled: true,
+      glassEnabled: label.glassEnabled,
       glassOpacity: label.backgroundOpacity,
+      shimmerEnabled: label.shimmerEnabled,
+      shimmerSpeed: label.shimmerSpeed,
+      shimmerStrength: label.shimmerStrength,
     }),
-    [roomBanner, label.backgroundColor, label.backgroundOpacity]
+    [
+      roomBanner,
+      label.backgroundColor,
+      label.backgroundOpacity,
+      label.glassEnabled,
+      label.shimmerEnabled,
+      label.shimmerSpeed,
+      label.shimmerStrength,
+    ]
   );
 
   return (
@@ -1456,7 +1469,7 @@ function GigsBoard({
 
   return (
     <>
-      <AboutBanner label={label} position={[0, GIGS_MAP_H / 2 + 0.34, 0]} />
+      <AboutBanner label={label} position={[0, GIGS_MAP_H / 2 + 0.34 + label.titleGap, 0]} />
 
       {/* Wooden frame */}
       <mesh position={[0, 0, -0.03]}>
@@ -1976,7 +1989,7 @@ function CallingCardDisplay({
       {/* Admin-editable title (text / font / colour / plate) */}
       <AboutBanner
         label={label}
-        position={[0, -(CARD_HEIGHT / 2 + 0.14 + label.fontSize), 0.01]}
+        position={[0, -(CARD_HEIGHT / 2 + 0.14 + label.fontSize + label.titleGap), 0.01]}
         letterSpacing={0.15}
       />
     </group>

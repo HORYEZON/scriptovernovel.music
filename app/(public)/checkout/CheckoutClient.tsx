@@ -11,10 +11,11 @@ import toast from "@/lib/toast";
 import { AnimatedHeading } from "@/components/public/AnimatedHeading";
 import { ImagePreviewModal, type PreviewImage } from "@/components/public/ImagePreviewModal";
 import { imageVariantUrl } from "@/lib/images/variants";
+import { useItemAvailability } from "@/lib/useItemAvailability";
 
 export default function CheckoutClient() {
   const router = useRouter();
-  const { items, totalPrice, clearCart } = useCartStore();
+  const { items, clearCart } = useCartStore();
   const [loading, setLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
   const [form, setForm] = useState({
@@ -25,17 +26,35 @@ export default function CheckoutClient() {
     notes: "",
   });
 
+  // Same live follow-up Cart.tsx runs — a visitor can land here straight
+  // from a bookmark or browser-back without passing back through Cart,
+  // where a removed item would have been flagged. /api/checkout rejects a
+  // removed product regardless, but excluding it here means one stale line
+  // doesn't fail the *entire* order for items that are still perfectly
+  // buyable. `null` (unresolved) counts every item as fine, same as Cart.
+  const availability = useItemAvailability(
+    "/api/products/availability",
+    items.map((item) => item.productId)
+  );
+  const validItems = items.filter((item) => availability?.[item.productId] !== false);
+  const orderTotal = validItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
   useEffect(() => {
-    if (items.length === 0) {
+    // The second condition only ever becomes true once availability has
+    // actually resolved and confirmed every remaining item is gone — see
+    // useItemAvailability's null-until-resolved contract — so this can't
+    // fire as a false-positive flash before the check comes back.
+    if (items.length === 0 || (availability && validItems.length === 0)) {
       router.push("/cart");
     }
-  }, [items.length, router]);
+  }, [items.length, validItems.length, availability, router]);
 
-  if (items.length === 0) {
+  if (items.length === 0 || (availability && validItems.length === 0)) {
     return null;
   }
 
   async function handleCheckout() {
+    if (validItems.length === 0) return;
     if (!form.name || !form.email) {
       toast.error("Please fill in your name and email");
       return;
@@ -56,7 +75,7 @@ export default function CheckoutClient() {
           shippingAddress: form.address,
           shippingPhone: form.phone,
           deliveryNotes: form.notes,
-          items: items.map((item) => ({
+          items: validItems.map((item) => ({
             productId: item.productId,
             variantId: item.variantId,
             variantLabel: item.variantLabel,
@@ -211,7 +230,7 @@ export default function CheckoutClient() {
                     Creating order...
                   </>
                 ) : (
-                  <>Pay {formatPrice(totalPrice())}</>
+                  <>Pay {formatPrice(orderTotal)}</>
                 )}
               </button>
             </div>
@@ -222,7 +241,7 @@ export default function CheckoutClient() {
                 Order Review
               </h2>
               <div className="space-y-4">
-                {items.map((item) => (
+                {validItems.map((item) => (
                   <div
                     key={`${item.productId}:${item.variantId ?? ""}`}
                     className="flex gap-4 pb-4 border-b border-white/10"
@@ -264,7 +283,7 @@ export default function CheckoutClient() {
                   Total
                 </span>
                 <span className="font-jakarta text-2xl font-medium text-sepia-light">
-                  {formatPrice(totalPrice())}
+                  {formatPrice(orderTotal)}
                 </span>
               </div>
             </div>

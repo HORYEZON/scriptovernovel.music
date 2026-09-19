@@ -61,9 +61,8 @@ const OBJECT_ALPHA = 0.45;
 // target the way an artwork does.
 const STICKY_NOTE_NEAR_DISTANCE = 3;
 // Breathing room between the floor label and the canvas edge, and between
-// the label and the room outline when the label's band is taller than the
-// standard PADDING.
-const LABEL_INSET = 5;
+// the label and the room outline, is config.floorLabelSpacing now (admin-
+// set; it used to be a fixed 5 here).
 // Only when the admin's "uppercase" switch is on — the tracking is what
 // makes small capitals read as signage rather than shouting.
 const LABEL_UPPERCASE_TRACKING = "0.12em";
@@ -281,7 +280,7 @@ export function drawMiniMap(
   // The room stays centred in whatever is left, so on the label's side the
   // outline moves in a little rather than the whole map lurching.
   const label = config.floorLabelEnabled ? floorLabelFor(config, { floor: state.roomFloor, roomType: state.roomType }) : "";
-  const labelBand = label ? config.floorLabelSize + LABEL_INSET * 2 : 0;
+  const labelBand = label ? config.floorLabelSize + config.floorLabelSpacing * 2 : 0;
   const labelOnTop = config.floorLabelPosition.startsWith("top");
   const padTop = labelOnTop ? Math.max(PADDING, labelBand) : PADDING;
   const padBottom = labelOnTop ? PADDING : Math.max(PADDING, labelBand);
@@ -300,7 +299,7 @@ export function drawMiniMap(
     ctx.font = labelFont(config);
     ctx.fillStyle = config.floorLabelColor;
     ctx.textBaseline = labelOnTop ? "top" : "bottom";
-    const y = labelOnTop ? LABEL_INSET : h - LABEL_INSET;
+    const y = labelOnTop ? config.floorLabelSpacing : h - config.floorLabelSpacing;
     // Horizontal anchor + alignment fall out of the position's suffix; the
     // side inset matches PADDING so a corner label lines up with the room's
     // own east/west wall rather than floating past it.

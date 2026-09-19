@@ -7,7 +7,7 @@
 // via next/dynamic({ ssr: false }) here so three/@react-three/* never
 // reach the server bundle — same pattern as the public museum's
 // MuseumSceneLoader.tsx.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -17,6 +17,7 @@ import {
   Trash2,
   AlertTriangle,
   RotateCcw,
+  Lightbulb,
   Undo2,
   Redo2,
   Eye,
@@ -32,6 +33,7 @@ import {
   ChevronDown,
   Copy,
   Sun,
+  SunDim,
   Moon,
   Type,
   Columns2,
@@ -48,7 +50,7 @@ import { roomShareUrl, type Panorama360Result } from "@/lib/museum/panorama360";
 import { useLeaveBlocker } from "@/components/admin/AdminLeaveGuard";
 import { AdminSelect } from "@/components/admin/AdminSelect";
 import { toggleStaged } from "@/lib/admin/toggleToast";
-import { cn } from "@/lib/utils";
+import { cn, formatPriceRange } from "@/lib/utils";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import type { FreedomWallNotePublic, MuseumRoomType, MuseumAboutData } from "@/types";
 import {
@@ -89,6 +91,10 @@ import {
   MAX_COLLIDER_HEIGHT,
   MAX_COLLIDER_BASE_Y,
   colliderWorldBaseY,
+  DEFAULT_WALL_COLOR,
+  DEFAULT_FLOOR_COLOR,
+  DEFAULT_CEILING_COLOR,
+  ROOM_LIGHTING_PRESETS,
 } from "@/app/(public)/gallery/museum/components/roomConstants";
 import type { ModelFit } from "@/app/(public)/gallery/museum/components/CustomSceneObject";
 import { uploadModelViaSignedUrl } from "@/lib/storage/browser";
@@ -131,6 +137,8 @@ import {
   isDefaultCertPlacement,
   mergeSceneObjectConfig,
   MAX_WALL_CERTS,
+  ABOUT_TITLE_GAP_MIN,
+  ABOUT_TITLE_GAP_MAX,
   CERT_NUDGE_MIN,
   CERT_NUDGE_MAX,
   CERT_ITEM_SCALE_MIN,
@@ -151,7 +159,8 @@ import {
   PLAQUE_FONT_SIZE_MAX,
   type BannerColors,
 } from "@/lib/museum/freedomWallBanner";
-import { TextureField, Toggle } from "@/app/(admin)/admin/artworks/museum-ui";
+import { ColorField, TextureField, Toggle } from "@/app/(admin)/admin/artworks/museum-ui";
+import { useAccordionState } from "@/components/admin/AdminAccordion";
 import {
   STORY_PODIUM_MODEL_KIND,
   DEFAULT_PODIUM_BOOK_HEIGHT,
@@ -223,6 +232,8 @@ import {
   MAX_BANNER_SHIMMER_STRENGTH,
   MIN_BANNER_BRIGHTNESS,
   MAX_BANNER_BRIGHTNESS,
+  MIN_BANNER_PRICE_GAP,
+  MAX_BANNER_PRICE_GAP,
   type BannerRoomType,
   type RoomBannerStyle,
 } from "@/lib/museum/roomBanner";
@@ -312,7 +323,13 @@ export interface ArtworkEntry {
   positionZ: number | null;
   rotationY: number | null;
   scale: number | null;
-  artwork: { id: string; title: string; imageUrl: string };
+  artwork: {
+    id: string;
+    title: string;
+    imageUrl: string;
+    /** Set on the Services Room's frames only — see page.tsx. */
+    product?: { price: number; deletedAt?: Date | string | null; variants: { price: number }[] } | null;
+  };
 }
 
 /** What the 3D view actually renders for one artwork — custom position
@@ -329,6 +346,9 @@ export interface EditableArtworkItem {
   rotationY: number;
   scale: number;
   hasCustomPosition: boolean;
+  /** The Services Room's price plaque text under this frame, formatted the
+   *  way the public museum formats it; null everywhere else. */
+  priceLabel: string | null;
 }
 
 /** One podium row as it arrives from page.tsx — the Stories Room only. */
@@ -461,6 +481,10 @@ interface RoomShell {
   wallTexture: string | null;
   floorTexture: string | null;
   ceilingTexture: string | null;
+  /** The room's ceiling lights — see prisma/schema.prisma's MuseumRoom.lightColor. */
+  lightColor: string | null;
+  lightScale: number;
+  lightModelUrl: string | null;
   artworks: ArtworkEntry[];
   /** Only ever non-empty on the Stories Room. */
   stories?: StoryEntry[];
@@ -600,11 +624,11 @@ const SLIDER_KEYS = new Set([
 /** What each room actually calls the labels this styles, so the panel names
  *  the thing the admin is looking at rather than "banners" in the abstract. */
 const ROOM_BANNER_BLURB: Record<BannerRoomType, string> = {
-  STORIES: "The plaque under every pedestal — the story's title and its type.",
+  STORIES: "The plaque under every pedestal — the tale's title and its type.",
   ARCADE: "Every cabinet's marquee and every poster's caption strip.",
   SERVICES: "The price tag under every product frame.",
   ABOUT:
-    "The finish on this room's headings. Each heading keeps its own wording, size, font and colour — select the block to change those.",
+    "The finish on this room's hung headings — Calling Card, Timeline & Gigs, Certificates & Awards: edge, texture, brightness and font. Each heading keeps its own wording, size, colours, plate, glass and shimmer — select the block to change those.",
   COSPLAY: "The label at every standee's foot — name, series, event and credits.",
 };
 
@@ -1017,7 +1041,24 @@ export function MuseumEditorClient({
   // Scene dark mode preview — toggles the 3D scene's own dark/light
   // rendering (MuseumRoom + AboutRoomContents) so the admin can see how the
   // room looks in both themes without changing the site-wide CSS theme.
-  const [sceneDarkMode, setSceneDarkMode] = useState(false);
+  // Light → Dim → Dark, the same three the visitor's [L] cycles through
+  // (MuseumClient.tsx's MuseumLightMode). The scene itself still takes
+  // darkMode + one brightness: Dim is light mode's presets at the Dim
+  // brightness, which is all the third mode is.
+  const [sceneLightMode, setSceneLightMode] = useState<"light" | "dim" | "dark">("light");
+  // Every card on the side panel folds — the same accordion the Digital
+  // Museum's Rooms tab and General Settings use (components/admin/
+  // AdminAccordion.tsx's useAccordionState), remembered per browser. All
+  // open by default, so the panel reads exactly as it did before until the
+  // admin folds something. Only the room-level cards and the object lists
+  // are here: a *selected* object's own controls come and go with the
+  // selection and aren't worth a fold.
+  const panels = useAccordionState("scriptovernovel:museum-editor:panels", [
+    "decorative", "fixtures", "text", "dividers", "removed",
+    "artworks", "notes", "surfaces", "lights", "labelStyle",
+    "podiumModel", "standeeModel", "defaultDisplay", "cabinetModel",
+  ] as const);
+  const sceneDarkMode = sceneLightMode === "dark";
   // Share 360° — the same bridge the public museum's button uses
   // (Room360Capture.tsx, mounted inside MuseumEditorScene's Canvas), so an
   // admin can post a room *as it looks right now*, unsaved edits included:
@@ -1046,19 +1087,35 @@ export function MuseumEditorClient({
   // uses, so what you see here is exactly what visitors see.
   const [localBrightnessLight, setLocalBrightnessLight] = useState(50);
   const [localBrightnessDark, setLocalBrightnessDark] = useState(50);
+  const [localBrightnessDim, setLocalBrightnessDim] = useState(25);
+  // The slider and the scene both read the brightness of whichever of the
+  // three modes is being previewed.
+  const activeBrightness =
+    sceneLightMode === "dark" ? localBrightnessDark : sceneLightMode === "dim" ? localBrightnessDim : localBrightnessLight;
+  const setActiveBrightness = (val: number) => {
+    if (sceneLightMode === "dark") setLocalBrightnessDark(val);
+    else if (sceneLightMode === "dim") setLocalBrightnessDim(val);
+    else setLocalBrightnessLight(val);
+  };
+  const saveActiveBrightness = (val: number) => {
+    if (sceneLightMode === "dark") saveBrightness({ brightnessDark: val });
+    else if (sceneLightMode === "dim") saveBrightness({ brightnessDim: val });
+    else saveBrightness({ brightnessLight: val });
+  };
 
   useEffect(() => {
     fetch("/api/digital-museum")
       .then((r) => r.json())
-      .then((data: { museumBrightnessLight?: number; museumBrightnessDark?: number }) => {
+      .then((data: { museumBrightnessLight?: number; museumBrightnessDark?: number; museumBrightnessDim?: number }) => {
         if (typeof data.museumBrightnessLight === "number") setLocalBrightnessLight(Math.min(100, Math.max(0, data.museumBrightnessLight)));
         if (typeof data.museumBrightnessDark  === "number") setLocalBrightnessDark(Math.min(100, Math.max(0, data.museumBrightnessDark)));
+        if (typeof data.museumBrightnessDim   === "number") setLocalBrightnessDim(Math.min(100, Math.max(0, data.museumBrightnessDim)));
       })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function saveBrightness(patch: { brightnessLight?: number; brightnessDark?: number }) {
+  async function saveBrightness(patch: { brightnessLight?: number; brightnessDark?: number; brightnessDim?: number }) {
     try {
       const res = await fetch("/api/digital-museum", {
         method: "PATCH",
@@ -1066,12 +1123,201 @@ export function MuseumEditorClient({
         body: JSON.stringify({
           ...(patch.brightnessLight !== undefined && { museumBrightnessLight: patch.brightnessLight }),
           ...(patch.brightnessDark  !== undefined && { museumBrightnessDark:  patch.brightnessDark  }),
+          ...(patch.brightnessDim   !== undefined && { museumBrightnessDim:   patch.brightnessDim   }),
         }),
       });
       if (!res.ok) throw new Error();
       toast.success("Brightness saved");
     } catch {
       toast.error("Failed to save brightness");
+    }
+  }
+
+  // ── Room Surfaces & Room Lights — room settings edited from this panel ──
+  // Wall/floor/ceiling colour + texture used to live in the Rooms tab's Edit
+  // modal, where a change couldn't be seen until this editor was opened
+  // anyway; they moved here so the surface is set while looking at it. Saved
+  // straight to the API on change, like every other room setting on this
+  // panel (banner style, podium model) — nothing to do with the Save button,
+  // which is for placements. Live in the preview immediately: the scene
+  // renders these values, not the server's, so a colour drag shows as it
+  // goes and a failed save snaps it back.
+  type RoomSurfaces = Pick<RoomShell, "wallColor" | "floorColor" | "ceilingColor" | "wallTexture" | "floorTexture" | "ceilingTexture">;
+  type RoomLights = Pick<RoomShell, "lightColor" | "lightScale" | "lightModelUrl">;
+  const [roomSurfaces, setRoomSurfaces] = useState<RoomSurfaces>({
+    wallColor: room.wallColor,
+    floorColor: room.floorColor,
+    ceilingColor: room.ceilingColor,
+    wallTexture: room.wallTexture,
+    floorTexture: room.floorTexture,
+    ceilingTexture: room.ceilingTexture,
+  });
+  const [roomLights, setRoomLights] = useState<RoomLights>({
+    lightColor: room.lightColor,
+    lightScale: room.lightScale,
+    lightModelUrl: room.lightModelUrl,
+  });
+  // One in-flight save per setting, trailing: a slider fires a change per
+  // drag step and a colour picker one per pixel, and each used to be its own
+  // PATCH — and, on the Arcade Room's cabinet sliders, its own toast and its
+  // own sound. The preview still takes every step as it happens (the local
+  // state is set by the caller before this is reached); only the request
+  // and its confirmation wait for the value to settle, so one drag is one
+  // save and one toast however long it took.
+  const CONFIG_SETTLE_MS = 600;
+  const roomSaveTimers = useRef<Record<string, { timer: ReturnType<typeof setTimeout>; fn: () => Promise<void> }>>({});
+  function scheduleRoomSave(key: string, fn: () => Promise<void>, delayMs = CONFIG_SETTLE_MS) {
+    const timers = roomSaveTimers.current;
+    if (timers[key]) clearTimeout(timers[key].timer);
+    timers[key] = {
+      fn,
+      timer: setTimeout(() => {
+        delete timers[key];
+        void fn();
+      }, delayMs),
+    };
+  }
+  // A save that is still waiting to settle when the tab closes or this
+  // editor unmounts goes out right then rather than being lost — the
+  // requests below are sent with keepalive so a closing page still delivers
+  // them. beforeunload can't wait for the response; it doesn't need to.
+  useEffect(() => {
+    const flushAll = () => {
+      const timers = roomSaveTimers.current;
+      for (const key of Object.keys(timers)) {
+        clearTimeout(timers[key].timer);
+        const { fn } = timers[key];
+        delete timers[key];
+        void fn();
+      }
+    };
+    window.addEventListener("beforeunload", flushAll);
+    return () => {
+      window.removeEventListener("beforeunload", flushAll);
+      flushAll();
+    };
+  }, []);
+  // The four room-wide settings rows (podium model, arcade, standee, room
+  // banner style) all save the same way: a serialised config in the row's
+  // modelUrl, optimistic in the preview, rolled back if the PATCH fails.
+  // The rollback value is the row as it was *before the first change of a
+  // burst*, not before the last step — a failed save after a long drag puts
+  // the slider back where it started, not one notch back.
+  const configRollback = useRef<Record<string, string | null>>({});
+  function saveConfigRow(objectId: string, modelUrl: string, errorMessage: string, successMessage?: string) {
+    setSceneObjects((prev) => {
+      const current = (prev ?? []).find((o) => o.id === objectId);
+      if (current && !(objectId in configRollback.current)) configRollback.current[objectId] = current.modelUrl;
+      return (prev ?? []).map((o) => (o.id === objectId ? { ...o, modelUrl } : o));
+    });
+    scheduleRoomSave(`config:${objectId}`, async () => {
+      const previous = configRollback.current[objectId];
+      delete configRollback.current[objectId];
+      try {
+        const res = await fetch(`/api/digital-museum/scene-objects/${objectId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ modelUrl }),
+          keepalive: true,
+        });
+        if (!res.ok) throw new Error();
+        if (successMessage) toast.success(successMessage);
+      } catch {
+        if (previous !== undefined) {
+          setSceneObjects((prev) =>
+            (prev ?? []).map((o) => (o.id === objectId ? { ...o, modelUrl: previous } : o))
+          );
+        }
+        toast.error(errorMessage);
+      }
+    });
+  }
+  const SURFACE_LABELS: Record<keyof RoomSurfaces, string> = {
+    wallColor: "Wall Color",
+    floorColor: "Floor Color",
+    ceilingColor: "Ceiling Color",
+    wallTexture: "Wall Texture",
+    floorTexture: "Floor Texture",
+    ceilingTexture: "Ceiling Texture",
+  };
+  async function saveRoomSurfaces(patch: Partial<RoomSurfaces>) {
+    const previous = roomSurfaces;
+    setRoomSurfaces((prev) => ({ ...prev, ...patch }));
+    const key = Object.keys(patch)[0] as keyof RoomSurfaces;
+    const label = SURFACE_LABELS[key];
+    const isTexture = key.endsWith("Texture");
+    const cleared = isTexture && patch[key] == null;
+    // The About room's surfaces are the museum-wide DigitalMuseum.about*
+    // fields, not its own row's columns (see page.tsx's editorRoom); every
+    // other room, provisioned ones included, is its own row.
+    const isAbout = room.roomType === "ABOUT";
+    const url = isAbout ? "/api/digital-museum" : `/api/digital-museum/rooms/${room.id}`;
+    const body = isAbout
+      ? Object.fromEntries(
+          Object.entries(patch).map(([k, v]) => [`about${k.charAt(0).toUpperCase()}${k.slice(1)}`, v])
+        )
+      : patch;
+    scheduleRoomSave(key, async () => {
+      try {
+        const res = await fetch(url, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error();
+        toast.success(cleared ? `${label} removed` : `${label} updated`);
+      } catch {
+        setRoomSurfaces(previous);
+        toast.error(`Failed to update ${label}`);
+      }
+    }, isTexture ? 0 : 350);
+  }
+  async function saveRoomLights(patch: Partial<RoomLights>, successMessage?: string) {
+    const previous = roomLights;
+    setRoomLights((prev) => ({ ...prev, ...patch }));
+    const key = Object.keys(patch)[0];
+    scheduleRoomSave(`lights:${key}`, async () => {
+      try {
+        const res = await fetch(`/api/digital-museum/rooms/${room.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        if (!res.ok) throw new Error();
+        if (successMessage) toast.success(successMessage);
+      } catch {
+        setRoomLights(previous);
+        toast.error("Failed to save the room lights");
+      }
+    }, key === "lightModelUrl" ? 0 : 350);
+  }
+  const lightModelInputRef = useRef<HTMLInputElement>(null);
+  /** Uploads a .glb and hangs it at every one of this room's ceiling lights.
+   *  Same signed-upload path as handleUploadPodiumModel below. */
+  async function handleUploadLightModel(file: File) {
+    if (!file.name.toLowerCase().endsWith(".glb")) {
+      toast.error("Only .glb files are supported");
+      return;
+    }
+    if (file.size > MAX_MODEL_SIZE) {
+      toast.error("File too large — 100MB max");
+      return;
+    }
+    setUploading(true);
+    try {
+      const signRes = await fetch("/api/upload/model/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name }),
+      });
+      const signData = await signRes.json().catch(() => ({}));
+      if (!signRes.ok) throw new Error(signData.error || "Failed to prepare upload");
+      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.uploadUrl, signData.publicUrl);
+      await saveRoomLights({ lightModelUrl: modelUrl }, "Light fixture set — every light in this room now uses it");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -1242,9 +1488,18 @@ export function MuseumEditorClient({
           rotationY: hasCustomPosition ? entry.rotationY! : auto?.rotationY ?? 0,
           scale: entry.scale ?? 1,
           hasCustomPosition,
+          // Only the Services Room hangs price plaques (ServicesRoomContents
+          // is mounted for that room alone in the museum). An artwork in any
+          // other room may still be linked to a shop product — the
+          // Compilations room had a ₱10 one — and drawing its price there
+          // showed the admin a plaque no visitor would ever see.
+          priceLabel:
+            room.roomType === "SERVICES" && entry.artwork.product && !entry.artwork.product.deletedAt
+              ? formatPriceRange(entry.artwork.product.price, entry.artwork.product.variants.map((v) => v.price))
+              : null,
         };
       }),
-    [artworks, autoPlacements]
+    [artworks, autoPlacements, room.roomType]
   );
 
   // Podiums — the Stories Room's floor-standing contents. Same
@@ -2600,7 +2855,7 @@ export function MuseumEditorClient({
    *  Saved immediately rather than waiting for the Save button: this isn't a
    *  placement being staged, it's a room setting, and the 3D preview needs
    *  the new pedestal to appear straight away. */
-  async function savePodiumModelConfig(
+  function savePodiumModelConfig(
     next: {
       url?: string | null;
       bookHeight?: number;
@@ -2612,27 +2867,12 @@ export function MuseumEditorClient({
     successMessage?: string
   ) {
     if (!podiumModelObject) return;
-    const merged = { ...podiumModelConfig, ...next };
-    const modelUrl = serializePodiumModelConfig(merged);
-    // Optimistic — a failed PATCH restores the previous value below.
-    const previous = podiumModelObject.modelUrl;
-    setSceneObjects((prev) =>
-      (prev ?? []).map((o) => (o.id === podiumModelObject.id ? { ...o, modelUrl } : o))
+    saveConfigRow(
+      podiumModelObject.id,
+      serializePodiumModelConfig({ ...podiumModelConfig, ...next }),
+      "Failed to save podium model",
+      successMessage
     );
-    try {
-      const res = await fetch(`/api/digital-museum/scene-objects/${podiumModelObject.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ modelUrl }),
-      });
-      if (!res.ok) throw new Error();
-      if (successMessage) toast.success(successMessage);
-    } catch {
-      setSceneObjects((prev) =>
-        (prev ?? []).map((o) => (o.id === podiumModelObject.id ? { ...o, modelUrl: previous } : o))
-      );
-      toast.error("Failed to save podium model");
-    }
   }
 
   /** Patches the Arcade Room's room-wide settings — the default display mode
@@ -2640,27 +2880,14 @@ export function MuseumEditorClient({
    *  singleton config row. Saved immediately, same reasoning as
    *  savePodiumModelConfig above: it's a room setting, and the 3D preview
    *  needs it to take effect straight away. */
-  async function saveArcadeConfig(next: Partial<ArcadeConfig>, successMessage: string) {
+  function saveArcadeConfig(next: Partial<ArcadeConfig>, successMessage: string) {
     if (!arcadeConfigObject) return;
-    const modelUrl = serializeArcadeConfig({ ...arcadeConfig, ...next });
-    const previous = arcadeConfigObject.modelUrl;
-    setSceneObjects((prev) =>
-      (prev ?? []).map((o) => (o.id === arcadeConfigObject.id ? { ...o, modelUrl } : o))
+    saveConfigRow(
+      arcadeConfigObject.id,
+      serializeArcadeConfig({ ...arcadeConfig, ...next }),
+      "Failed to save the Arcade Room settings",
+      successMessage
     );
-    try {
-      const res = await fetch(`/api/digital-museum/scene-objects/${arcadeConfigObject.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ modelUrl }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success(successMessage);
-    } catch {
-      setSceneObjects((prev) =>
-        (prev ?? []).map((o) => (o.id === arcadeConfigObject.id ? { ...o, modelUrl: previous } : o))
-      );
-      toast.error("Failed to save the Arcade Room settings");
-    }
   }
 
   /** Patches the Cosplay Room's room-wide settings — the standee body every
@@ -2668,63 +2895,37 @@ export function MuseumEditorClient({
    *  — on its singleton config row. Saved immediately, same reasoning as
    *  savePodiumModelConfig/saveArcadeConfig above: it's a room setting, and the
    *  3D preview needs it to take effect straight away. */
-  async function saveStandeeConfig(
+  function saveStandeeConfig(
     next: Partial<CosplayStandeeConfig>,
     /** Omitted where a toast would be noise — the size sliders fire a save per
      *  drag step. */
     successMessage?: string
   ) {
     if (!standeeConfigObject) return;
-    const modelUrl = serializeCosplayStandeeConfig({ ...standeeConfig, ...next });
-    const previous = standeeConfigObject.modelUrl;
-    setSceneObjects((prev) =>
-      (prev ?? []).map((o) => (o.id === standeeConfigObject.id ? { ...o, modelUrl } : o))
+    saveConfigRow(
+      standeeConfigObject.id,
+      serializeCosplayStandeeConfig({ ...standeeConfig, ...next }),
+      "Failed to save the Cosplay Room settings",
+      successMessage
     );
-    try {
-      const res = await fetch(`/api/digital-museum/scene-objects/${standeeConfigObject.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ modelUrl }),
-      });
-      if (!res.ok) throw new Error();
-      if (successMessage) toast.success(successMessage);
-    } catch {
-      setSceneObjects((prev) =>
-        (prev ?? []).map((o) => (o.id === standeeConfigObject.id ? { ...o, modelUrl: previous } : o))
-      );
-      toast.error("Failed to save the Cosplay Room settings");
-    }
   }
 
   /** Writes one or more banner-style fields to the room's single Room Banner
    *  row. Saved immediately for the same reason saveStandeeConfig is: it's a
    *  room setting, and the 3D preview needs it to take effect straight away. */
-  async function saveRoomBannerStyle(
+  function saveRoomBannerStyle(
     next: Partial<RoomBannerStyle>,
     /** Omitted where a toast would be noise — the sliders fire a save per
      *  drag step. */
     successMessage?: string
   ) {
     if (!roomBannerObject) return;
-    const modelUrl = serializeRoomBannerStyle({ ...roomBannerStyle, ...next });
-    const previous = roomBannerObject.modelUrl;
-    setSceneObjects((prev) =>
-      (prev ?? []).map((o) => (o.id === roomBannerObject.id ? { ...o, modelUrl } : o))
+    saveConfigRow(
+      roomBannerObject.id,
+      serializeRoomBannerStyle({ ...roomBannerStyle, ...next }),
+      "Failed to save the banner style",
+      successMessage
     );
-    try {
-      const res = await fetch(`/api/digital-museum/scene-objects/${roomBannerObject.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ modelUrl }),
-      });
-      if (!res.ok) throw new Error();
-      if (successMessage) toast.success(successMessage);
-    } catch {
-      setSceneObjects((prev) =>
-        (prev ?? []).map((o) => (o.id === roomBannerObject.id ? { ...o, modelUrl: previous } : o))
-      );
-      toast.error("Failed to save the banner style");
-    }
   }
 
   /** Uploads a .glb and makes it this room's standee body. The Cosplay
@@ -3186,24 +3387,34 @@ export function MuseumEditorClient({
           <Share2 size={12} className="shrink-0" />
           {rendering360 ? "Rendering…" : "Share 360°"}
         </button>
-        {/* Light / Dark mode toggle */}
+        {/* Light / Dim / Dark mode toggle — cycles like the visitor's [L] */}
         <button
           type="button"
-          onClick={() => setSceneDarkMode((v) => !v)}
-          title={sceneDarkMode ? "Preview scene in light mode" : "Preview scene in dark mode"}
+          onClick={() => setSceneLightMode((v) => (v === "light" ? "dim" : v === "dim" ? "dark" : "light"))}
+          title={
+            sceneLightMode === "light"
+              ? "Preview scene in dim mode"
+              : sceneLightMode === "dim"
+                ? "Preview scene in dark mode"
+                : "Preview scene in light mode"
+          }
           className={cn(
             "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full font-jakarta text-xs font-medium transition-all duration-200 border select-none shrink-0",
-            sceneDarkMode
+            sceneLightMode === "dark"
               ? "bg-[#1c1917] text-amber-300 border-amber-400/30 hover:border-amber-400/60 shadow-[0_0_8px_rgba(251,191,36,0.15)]"
-              : "bg-white text-slate-600 border-slate-300 hover:border-slate-400 hover:bg-slate-50 shadow-sm"
+              : sceneLightMode === "dim"
+                ? "bg-stone-200 text-stone-700 border-stone-400 hover:border-stone-500 shadow-sm"
+                : "bg-white text-slate-600 border-slate-300 hover:border-slate-400 hover:bg-slate-50 shadow-sm"
           )}
         >
           {/* Label kept at every width, unlike Undo/Redo above: this button
               reports which mode you are *in*, and a lone sun/moon leaves that
               to be inferred from an icon that also looks like a control. */}
-          {sceneDarkMode
+          {sceneLightMode === "dark"
             ? <><Moon size={12} className="shrink-0" /> Dark</>
-            : <><Sun size={12} className="shrink-0" /> Light</>
+            : sceneLightMode === "dim"
+              ? <><SunDim size={12} className="shrink-0" /> Dim</>
+              : <><Sun size={12} className="shrink-0" /> Light</>
           }
         </button>
 
@@ -3219,36 +3430,29 @@ export function MuseumEditorClient({
             is genuinely better wider — and `order-last` keeps the buttons
             together on the first row above it. */}
         <div className="flex items-center gap-1.5 sm:gap-2 px-0.5 sm:px-1 basis-full order-last sm:basis-auto sm:order-none sm:flex-none">
-          {sceneDarkMode
+          {sceneLightMode === "dark"
             ? <Moon size={11} className="shrink-0 text-indigo-400" />
-            : <Sun  size={11} className="shrink-0 text-amber-500" />
+            : sceneLightMode === "dim"
+              ? <SunDim size={11} className="shrink-0 text-stone-400" />
+              : <Sun  size={11} className="shrink-0 text-amber-500" />
           }
           <input
             type="range"
             min={0}
             max={100}
             step={5}
-            value={sceneDarkMode ? localBrightnessDark : localBrightnessLight}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              if (sceneDarkMode) setLocalBrightnessDark(val);
-              else setLocalBrightnessLight(val);
-            }}
-            onMouseUp={(e) => {
-              const val = Number((e.target as HTMLInputElement).value);
-              if (sceneDarkMode) saveBrightness({ brightnessDark: val });
-              else saveBrightness({ brightnessLight: val });
-            }}
-            onTouchEnd={(e) => {
-              const val = Number((e.target as HTMLInputElement).value);
-              if (sceneDarkMode) saveBrightness({ brightnessDark: val });
-              else saveBrightness({ brightnessLight: val });
-            }}
-            className={cn("flex-1 min-w-0 sm:flex-none sm:w-28 touch-none", sceneDarkMode ? "accent-indigo-400" : "accent-amber-500")}
-            title="Global room brightness — applies to all rooms"
+            value={activeBrightness}
+            onChange={(e) => setActiveBrightness(Number(e.target.value))}
+            onMouseUp={(e) => saveActiveBrightness(Number((e.target as HTMLInputElement).value))}
+            onTouchEnd={(e) => saveActiveBrightness(Number((e.target as HTMLInputElement).value))}
+            className={cn(
+              "flex-1 min-w-0 sm:flex-none sm:w-28 touch-none",
+              sceneLightMode === "dark" ? "accent-indigo-400" : sceneLightMode === "dim" ? "accent-stone-400" : "accent-amber-500"
+            )}
+            title={`${sceneLightMode === "dark" ? "Dark" : sceneLightMode === "dim" ? "Dim" : "Light"} mode brightness — applies to all rooms`}
           />
           <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300 shrink-0">
-            {sceneDarkMode ? localBrightnessDark : localBrightnessLight}%
+            {activeBrightness}%
           </span>
         </div>
 
@@ -3346,7 +3550,7 @@ export function MuseumEditorClient({
           below still fits on screen without excessive scrolling. */}
       <div className="admin-card border rounded-2xl overflow-hidden h-[50vh] sm:h-[65vh]">
         <MuseumEditorScene
-          room={room}
+          room={{ ...room, ...roomSurfaces, ...roomLights }}
           share360Ref={share360Ref}
           hasNorthOpening={hasNorthOpening}
           hasSouthOpening={hasSouthOpening}
@@ -3412,7 +3616,7 @@ export function MuseumEditorClient({
           onChangeNotePosition={updateNotePosition}
           freedomWallEventTitle={freedomWallEventTitle}
           darkMode={sceneDarkMode}
-          brightness={sceneDarkMode ? localBrightnessDark : localBrightnessLight}
+          brightness={activeBrightness}
         />
       </div>
 
@@ -3442,6 +3646,8 @@ export function MuseumEditorClient({
         {customObjects.length > 0 && (
           <SceneObjectSection
             title="Decorative Objects"
+            open={panels.open.decorative}
+            onToggle={() => panels.toggle("decorative")}
             objects={customObjects}
             selection={selection}
             hiddenIds={hiddenIds}
@@ -3457,6 +3663,8 @@ export function MuseumEditorClient({
         {fixtureObjects.length > 0 && (
           <SceneObjectSection
             title="Room Fixtures"
+            open={panels.open.fixtures}
+            onToggle={() => panels.toggle("fixtures")}
             objects={fixtureObjects}
             selection={selection}
             hiddenIds={hiddenIds}
@@ -3472,6 +3680,8 @@ export function MuseumEditorClient({
         {textObjects.length > 0 && (
           <SceneObjectSection
             title="Text Labels"
+            open={panels.open.text}
+            onToggle={() => panels.toggle("text")}
             objects={textObjects}
             selection={selection}
             hiddenIds={hiddenIds}
@@ -3488,6 +3698,8 @@ export function MuseumEditorClient({
         {dividerObjects.length > 0 && (
           <SceneObjectSection
             title="Dividers"
+            open={panels.open.dividers}
+            onToggle={() => panels.toggle("dividers")}
             objects={dividerObjects}
             selection={selection}
             hiddenIds={hiddenIds}
@@ -3501,10 +3713,12 @@ export function MuseumEditorClient({
 
         {/* Recently removed — quick restore, no trip to Trash needed */}
         {recentlyDeleted.length > 0 && (
-          <div className="admin-card border border-dashed border-black/10 dark:border-white/10 rounded-2xl p-4">
-            <h4 className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300 mb-2">
-              Recently Removed
-            </h4>
+          <EditorPanelCard
+            title="Recently Removed"
+            count={recentlyDeleted.length} dashed
+            open={panels.open.removed}
+            onToggle={() => panels.toggle("removed")}
+          >
             <div className="space-y-1.5">
               {recentlyDeleted.map((o) => (
                 <div key={o.id} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-black/5 dark:bg-white/5">
@@ -3519,7 +3733,7 @@ export function MuseumEditorClient({
                 </div>
               ))}
             </div>
-          </div>
+          </EditorPanelCard>
         )}
 
         {/* Scene object controls (a custom decorative object or About-room block) */}
@@ -4038,6 +4252,113 @@ export function MuseumEditorClient({
                         <p className="font-body text-[10px] text-ink-400 dark:text-ink-300 mt-1">
                           0% hides the plate behind the text.
                         </p>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="font-body text-[11px] text-ink-400 dark:text-ink-300 uppercase tracking-widest">
+                            Title Gap
+                          </label>
+                          <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                            {aboutLabelConfig.titleGap.toFixed(2)} m
+                          </span>
+                        </div>
+                        <input
+                          type="range" min={ABOUT_TITLE_GAP_MIN} max={ABOUT_TITLE_GAP_MAX} step={0.01}
+                          value={aboutLabelConfig.titleGap}
+                          onPointerDown={snapshot}
+                          onChange={(e) => updateAboutLabelConfig("titleGap", Number(e.target.value))}
+                          className="w-full touch-none"
+                        />
+                        <p className="font-body text-[10px] text-ink-400 dark:text-ink-300 mt-1">
+                          Room between the title and what it labels — above the certificates and the
+                          map, below the calling cards. 0 is the designed spacing.
+                        </p>
+                      </div>
+
+                      {/* This heading's own glass and shimmer — the same controls
+                          the Room Label Style card offers every other room's labels,
+                          per heading here (see AboutLabelConfig). Edge width,
+                          texture, brightness and font still come from that card. */}
+                      <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 space-y-2">
+                        <label className="flex items-center justify-between gap-2 cursor-pointer">
+                          <span className="font-jakarta text-xs font-medium text-ink dark:text-cream">
+                            Glassmorphism
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={aboutLabelConfig.glassEnabled}
+                            onChange={(e) => { snapshot(); updateAboutLabelConfig("glassEnabled", e.target.checked); }}
+                            className="accent-emerald-500 w-4 h-4"
+                          />
+                        </label>
+                        <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+                          A frosted translucent plate at the Plate Opacity above — the same glass the
+                          big plaque wears. Off paints the plate solid. Edge, texture, brightness and
+                          font come from the room&apos;s Room Label Style card.
+                        </p>
+                        {aboutLabelConfig.glassEnabled && (
+                          <>
+                            <label className="flex items-center justify-between gap-2 cursor-pointer pt-1">
+                              <span className="font-jakarta text-xs font-medium text-ink dark:text-cream">
+                                Shimmer
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={aboutLabelConfig.shimmerEnabled}
+                                onChange={(e) => { snapshot(); updateAboutLabelConfig("shimmerEnabled", e.target.checked); }}
+                                className="accent-emerald-500 w-4 h-4"
+                              />
+                            </label>
+                            <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+                              A band of light travelling across the glass.
+                            </p>
+                            {aboutLabelConfig.shimmerEnabled && (
+                              <>
+                                <div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                                      Shimmer Speed
+                                    </label>
+                                    <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                                      {aboutLabelConfig.shimmerSpeed.toFixed(2)}/s
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={MIN_BANNER_SHIMMER_SPEED}
+                                    max={MAX_BANNER_SHIMMER_SPEED}
+                                    step={0.05}
+                                    value={aboutLabelConfig.shimmerSpeed}
+                                    onPointerDown={snapshot}
+                                    onChange={(e) => updateAboutLabelConfig("shimmerSpeed", Number(e.target.value))}
+                                    className="w-full touch-none"
+                                  />
+                                </div>
+                                <div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                                      Shimmer Strength
+                                    </label>
+                                    <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                                      {Math.round(aboutLabelConfig.shimmerStrength * 100)}%
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={MIN_BANNER_SHIMMER_STRENGTH}
+                                    max={MAX_BANNER_SHIMMER_STRENGTH}
+                                    step={0.05}
+                                    value={aboutLabelConfig.shimmerStrength}
+                                    onPointerDown={snapshot}
+                                    onChange={(e) => updateAboutLabelConfig("shimmerStrength", Number(e.target.value))}
+                                    className="w-full touch-none"
+                                  />
+                                </div>
+                              </>
+                            )}
+                          </>
+                        )}
                       </div>
                       {/* Gigs only — the caption strip under the map. The other
                           two label kinds have no description to size. */}
@@ -5009,7 +5330,7 @@ export function MuseumEditorClient({
                   {/* Only a custom .glb prop persists `solid` / `colliderRadius`
                       (see handleSave's per-kind body). The Contact Desk shares
                       this branch but is always solid in the museum, at its own
-                      known footprint — furniture, like a Stories podium — so
+                      known footprint — furniture, like a Tales podium — so
                       offering it a toggle here would be a control that saves
                       nothing. */}
                   {selectedSceneObject.kind === "custom" && (
@@ -5724,13 +6045,14 @@ export function MuseumEditorClient({
         {/* Artworks section — reorder/remove/pagination, synced live with
             the canvas the same way Rooms Tab's own "Manage Artworks"
             ordered list works. */}
-        <div className="admin-card border rounded-2xl p-4">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h4 className="font-jakarta text-sm font-medium text-ink dark:text-cream">
-              {room.roomType === "SERVICES" ? "Product Frames" : "Artwork Frames"} (
-              {artworkItems.length})
-            </h4>
-            {artworkItems.length > PAGE_SIZE_OPTIONS[0] && (
+        <EditorPanelCard
+          title={room.roomType === "SERVICES" ? "Product Frames" : "Artwork Frames"}
+          count={artworkItems.length}
+          open={panels.open.artworks}
+          onToggle={() => panels.toggle("artworks")}
+        >
+          {artworkItems.length > PAGE_SIZE_OPTIONS[0] && (
+            <div className="flex items-center justify-end gap-3">
               <label className="flex items-center gap-1.5 font-body text-xs text-ink-400 dark:text-ink-300 shrink-0">
                 Show
                 <select
@@ -5748,8 +6070,8 @@ export function MuseumEditorClient({
                   ))}
                 </select>
               </label>
-            )}
-          </div>
+            </div>
+          )}
           {artworkItems.length === 0 ? (
             <p className="font-body text-xs text-ink-400 dark:text-ink-300">No artworks hung in this room yet.</p>
           ) : (
@@ -5858,7 +6180,7 @@ export function MuseumEditorClient({
               )}
             </>
           )}
-        </div>
+        </EditorPanelCard>
 
         {/* Sticky Notes section — same "select from a list, drag/resize in
             the 3D preview" pattern as artwork frames above. Freedom Wall
@@ -5866,10 +6188,12 @@ export function MuseumEditorClient({
             list scrolls instead of paginating (no reorder concept for
             notes, unlike artworks, so a simpler list is enough). */}
         {room.roomType === "FREEDOM_WALL" && freedomWallNotes.length > 0 && (
-          <div className="admin-card border rounded-2xl p-4">
-            <h4 className="font-jakarta text-sm font-medium text-ink dark:text-cream mb-3">
-              Sticky Notes ({freedomWallNotes.length})
-            </h4>
+          <EditorPanelCard
+            title="Sticky Notes"
+            count={freedomWallNotes.length}
+            open={panels.open.notes}
+            onToggle={() => panels.toggle("notes")}
+          >
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
               {freedomWallNotes.map((note) => {
                 const active = selection?.type === "note" && selection.id === note.id;
@@ -5892,7 +6216,7 @@ export function MuseumEditorClient({
                 );
               })}
             </div>
-          </div>
+          </EditorPanelCard>
         )}
 
         {/* Sticky note controls — Wall picker mirrors an artwork frame's own
@@ -6040,6 +6364,155 @@ export function MuseumEditorClient({
           </div>
         )}
 
+        {/* ── Room Surfaces ───────────────────────────────────────────
+            Wall / floor / ceiling colour and texture — moved here from the
+            Rooms tab's Edit modal (which keeps the room's name, type,
+            description and splash), so the surface is chosen while looking
+            at it. Same ColorField/TextureField controls, same API. */}
+        <EditorPanelCard
+          title="Room Surfaces"
+          description="A texture tiles across its surface and overrides the plain colour while it's set. Saves as you change it."
+          open={panels.open.surfaces}
+          onToggle={() => panels.toggle("surfaces")}
+        >
+          <div className="space-y-3">
+            <ColorField
+              label="Floor Color"
+              value={roomSurfaces.floorColor}
+              defaultValue={DEFAULT_FLOOR_COLOR}
+              onChange={(value) => saveRoomSurfaces({ floorColor: value })}
+            />
+            <ColorField
+              label="Wall Color"
+              value={roomSurfaces.wallColor}
+              defaultValue={DEFAULT_WALL_COLOR}
+              onChange={(value) => saveRoomSurfaces({ wallColor: value })}
+            />
+            <ColorField
+              label="Ceiling Color"
+              value={roomSurfaces.ceilingColor}
+              defaultValue={DEFAULT_CEILING_COLOR}
+              onChange={(value) => saveRoomSurfaces({ ceilingColor: value })}
+            />
+            <TextureField
+              label="Floor Texture"
+              value={roomSurfaces.floorTexture}
+              onChange={(url) => saveRoomSurfaces({ floorTexture: url })}
+            />
+            <TextureField
+              label="Wall Texture"
+              value={roomSurfaces.wallTexture}
+              onChange={(url) => saveRoomSurfaces({ wallTexture: url })}
+            />
+            <TextureField
+              label="Ceiling Texture"
+              value={roomSurfaces.ceilingTexture}
+              onChange={(url) => saveRoomSurfaces({ ceilingTexture: url })}
+            />
+          </div>
+        </EditorPanelCard>
+
+        {/* ── Room Lights ─────────────────────────────────────────────
+            The ceiling lights' colour, the size of the fixture drawn at each
+            one, and an optional .glb to hang there instead. The colour used
+            to come only from the room type's lighting preset (a gallery
+            warm-white, the arcade blue) with nothing to change it. The
+            fixtures follow the lights, so a phone that runs the room on two
+            lights instead of four draws two fixtures. */}
+        <EditorPanelCard
+          title="Room Lights"
+          description={roomLights.lightModelUrl ? "Your uploaded fixture hangs at every ceiling light in this room." : "The built-in lamp hangs at every ceiling light. Upload a .glb to replace it."}
+          open={panels.open.lights}
+          onToggle={() => panels.toggle("lights")}
+        >
+
+          <div className="flex items-center justify-between gap-2">
+            <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+              Light Color
+            </label>
+            <div className="flex items-center gap-2">
+              <HexColorField
+                value={roomLights.lightColor ?? ROOM_LIGHTING_PRESETS[room.roomType].pointColor}
+                onChange={(hex) => saveRoomLights({ lightColor: hex })}
+                onBeginEdit={() => {}}
+              />
+              {roomLights.lightColor && (
+                <button
+                  type="button"
+                  onClick={() => saveRoomLights({ lightColor: null }, "Light colour reset to the room's own")}
+                  className="shrink-0 p-2 rounded-lg text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  title="Reset to the room type's own colour"
+                >
+                  <RotateCcw size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+            Tints the light itself and the glowing bulb, in every mode. Leave it to use the
+            room type&apos;s own colour.
+          </p>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                Size
+              </label>
+              <span className="font-body text-[11px] text-ink-400 dark:text-ink-300 tabular-nums">
+                {roomLights.lightScale.toFixed(2)}×
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0.25}
+              max={4}
+              step={0.05}
+              value={roomLights.lightScale}
+              onChange={(e) => saveRoomLights({ lightScale: Number(e.target.value) })}
+              className="w-full touch-none accent-sepia"
+            />
+            <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
+              How big each fixture is drawn — 1× is the built-in lamp&apos;s own size, or your
+              model as exported.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => lightModelInputRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-black/5 dark:bg-white/5 text-ink dark:text-cream font-jakarta text-xs font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+            >
+              {roomLights.lightModelUrl ? <Upload size={13} /> : <Lightbulb size={13} />}
+              {uploading ? "Uploading…" : roomLights.lightModelUrl ? "Replace fixture" : "Upload .glb fixture"}
+            </button>
+            {roomLights.lightModelUrl && (
+              <button
+                type="button"
+                onClick={() => saveRoomLights({ lightModelUrl: null }, "Using the built-in lamp")}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-red-500/80 hover:text-red-500 hover:bg-red-500/10 font-jakarta text-xs font-medium transition-colors"
+              >
+                <RotateCcw size={13} /> Use built-in
+              </button>
+            )}
+          </div>
+          <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+            A fixture model hangs from the ceiling by its top, centred on the light.
+          </p>
+          <input
+            ref={lightModelInputRef}
+            type="file"
+            accept=".glb,model/gltf-binary"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUploadLightModel(file);
+              e.target.value = "";
+            }}
+          />
+        </EditorPanelCard>
+
         {/* ── Room Banner ─────────────────────────────────────────────
             The one plaque style every label in this room reads (see
             lib/museum/roomBanner.ts): podium plaques, arcade marquees and
@@ -6049,30 +6522,26 @@ export function MuseumEditorClient({
             open and never needs an object selected first.
 
             Only the *look* lives here. What each plaque says comes from the
-            thing it labels — a story's title, a product's price, a game's name
+            thing it labels — a tale's title, a product's price, a game's name
             — which is why there is no text field. The About room's headings are
             the exception and keep their own wording, size, face and colour on
             each block. */}
         {roomBannerObject && (
-          <div className="admin-card border rounded-2xl p-4 space-y-3">
-            <div>
-              <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
-                {ROOM_BANNER_LABEL}
+          <EditorPanelCard
+            title={ROOM_BANNER_LABEL}
+            description={ROOM_BANNER_BLURB[room.roomType as BannerRoomType] ?? "How every label in this room is painted."}
+            open={panels.open.labelStyle}
+            onToggle={() => panels.toggle("labelStyle")}
+          >
+            {/* The counterpart to the line on a selected Banner's own panel,
+                and shown for the same reason — but only once the room
+                actually holds one, so a room with no banners in it isn't
+                told about a distinction it doesn't have yet. */}
+            {sceneObjects.some((o) => isSceneBannerKind(o.kind)) && (
+              <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+                Not the {BANNER_LABEL}s you added — select one of those to style it on its own.
               </p>
-              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
-                {ROOM_BANNER_BLURB[room.roomType as BannerRoomType] ??
-                  "How every label in this room is painted."}
-              </p>
-              {/* The counterpart to the line on a selected Banner's own panel,
-                  and shown for the same reason — but only once the room
-                  actually holds one, so a room with no banners in it isn't
-                  told about a distinction it doesn't have yet. */}
-              {sceneObjects.some((o) => isSceneBannerKind(o.kind)) && (
-                <p className="font-body text-[10px] text-ink-400 dark:text-ink-300 mt-1">
-                  Not the {BANNER_LABEL}s you added — select one of those to style it on its own.
-                </p>
-              )}
-            </div>
+            )}
 
             {/* ── Panel ──────────────────────────────────────────────── */}
             {(
@@ -6127,6 +6596,38 @@ export function MuseumEditorClient({
                 A raised border behind the panel. Zero is no edge at all.
               </p>
             </div>
+
+            {/* Services Room only — the price plaques are the one label that
+                hangs off something else (its frame), so they alone have a
+                distance to set. Room-wide, like every other control here. */}
+            {room.roomType === "SERVICES" && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                    Price Gap
+                  </label>
+                  <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                    {roomBannerStyle.priceGap >= 0 ? "+" : ""}
+                    {roomBannerStyle.priceGap.toFixed(2)} m
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={MIN_BANNER_PRICE_GAP}
+                  max={MAX_BANNER_PRICE_GAP}
+                  step={0.01}
+                  value={roomBannerStyle.priceGap}
+                  onPointerDown={snapshot}
+                  onChange={(e) => saveRoomBannerStyle({ priceGap: Number(e.target.value) })}
+                  {...sliderCommit("Price gap updated")}
+                  className="w-full touch-none"
+                />
+                <p className="font-body text-[10px] text-ink-400 dark:text-ink-300 mt-0.5">
+                  How far each price plaque hangs below its frame. 0 is the designed spacing;
+                  negative brings it closer. Applies to every plaque in the room.
+                </p>
+              </div>
+            )}
 
             {/* ── Type ───────────────────────────────────────────────── */}
             <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 space-y-2">
@@ -6219,6 +6720,15 @@ export function MuseumEditorClient({
             </div>
 
             {/* ── Glassmorphism ──────────────────────────────────────── */}
+            {/* Not for the About room: its three headings carry their own glass
+                and shimmer (AboutLabelConfig, on each block's own panel), so the
+                room-level switch would move nothing there. */}
+            {room.roomType === "ABOUT" ? (
+              <p className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 font-body text-[10px] text-ink-400 dark:text-ink-300">
+                Glass and shimmer are set per heading here — select Calling Card, Timeline &amp; Gigs
+                or Certificates &amp; Awards in the preview to find them on its panel.
+              </p>
+            ) : (
             <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 space-y-2">
               <label className="flex items-center justify-between gap-2 cursor-pointer">
                 <span className="font-jakarta text-xs font-medium text-ink dark:text-cream">
@@ -6341,25 +6851,21 @@ export function MuseumEditorClient({
                 </>
               )}
             </div>
-          </div>
+            )}
+          </EditorPanelCard>
         )}
 
         {/* Pedestal model — a room setting, not a selection, so it shows
-            whenever the Stories Room's scene is open. The book and its cover
+            whenever the Tales Room's scene is open. The book and its cover
             are always drawn by code on top of whatever pedestal is in use,
             since those are per-story. */}
         {room.roomType === "STORIES" && podiumModelObject && (
-          <div className="admin-card border rounded-2xl p-4 space-y-3">
-            <div>
-              <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
-                Podium Model
-              </p>
-              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
-                {podiumModelConfig.url
-                  ? "Using your uploaded pedestal. The book and its cover are still drawn on top."
-                  : "Using the built-in pedestal. Upload a .glb to replace it."}
-              </p>
-            </div>
+          <EditorPanelCard
+            title="Podium Model"
+            description={podiumModelConfig.url ? "Using your uploaded pedestal. The book and its cover are still drawn on top." : "Using the built-in pedestal. Upload a .glb to replace it."}
+            open={panels.open.podiumModel}
+            onToggle={() => panels.toggle("podiumModel")}
+          >
 
             <div className="flex flex-wrap gap-2">
               <button
@@ -6439,7 +6945,7 @@ export function MuseumEditorClient({
                 e.target.value = "";
               }}
             />
-          </div>
+          </EditorPanelCard>
         )}
 
         {selectedPodiumItem && (
@@ -6467,8 +6973,8 @@ export function MuseumEditorClient({
                 )}°`}
               </p>
               <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1.5">
-                Which stories stand here is mirrored from the published library —
-                publish or unpublish in the Stories module to add or remove a podium.
+                Which tales stand here is mirrored from the published library —
+                publish or unpublish in the Tales module to add or remove a podium.
               </p>
             </div>
 
@@ -6514,17 +7020,12 @@ export function MuseumEditorClient({
             the Stories pedestal card above). The two photos are always drawn by
             code on top of whatever body is in use, since those are per-cosplay. */}
         {room.roomType === "COSPLAY" && standeeConfigObject && (
-          <div className="admin-card border rounded-2xl p-4 space-y-3">
-            <div>
-              <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
-                Standee Model
-              </p>
-              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
-                {standeeConfig.url
-                  ? "Using your uploaded standee. Each cosplay's photo is still printed on top."
-                  : "Using the built-in standee. Upload a .glb to replace it."}
-              </p>
-            </div>
+          <EditorPanelCard
+            title="Standee Model"
+            description={standeeConfig.url ? "Using your uploaded standee. Each cosplay's photo is still printed on top." : "Using the built-in standee. Upload a .glb to replace it."}
+            open={panels.open.standeeModel}
+            onToggle={() => panels.toggle("standeeModel")}
+          >
 
             <div className="flex flex-wrap gap-2">
               <button
@@ -6719,7 +7220,7 @@ export function MuseumEditorClient({
                   plaque* keys of its own. It now reads the room-wide Room
                   Banner style every other room's labels do (see
                   lib/museum/roomBanner.ts) — its panel above the object list,
-                  where a Stories or Services admin finds the same controls.
+                  where a Tales or Services admin finds the same controls.
                   Whatever was set here has been carried over to that row (see
                   roomBannerProvision.ts's seedStyleFor), so nothing standing in
                   the room changed. */}
@@ -7009,7 +7510,7 @@ export function MuseumEditorClient({
                 e.target.value = "";
               }}
             />
-          </div>
+          </EditorPanelCard>
         )}
 
         {selectedStandeeItem && (
@@ -7112,16 +7613,12 @@ export function MuseumEditorClient({
             setting, not a selection, so it shows whenever the Arcade scene
             is open (same as the Stories pedestal card above). */}
         {room.roomType === "ARCADE" && arcadeConfigObject && (
-          <div className="admin-card border rounded-2xl p-4 space-y-3">
-            <div>
-              <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
-                Default Display
-              </p>
-              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
-                How a game shows when it has no override of its own. Select a
-                cabinet in the preview to switch just that one.
-              </p>
-            </div>
+          <EditorPanelCard
+            title="Default Display"
+            description="How a game shows when it has no override of its own. Select a cabinet in the preview to switch just that one."
+            open={panels.open.defaultDisplay}
+            onToggle={() => panels.toggle("defaultDisplay")}
+          >
             <div className="flex gap-2">
               {(["CABINET", "POSTER"] as const).map((m) => (
                 <button
@@ -7144,7 +7641,7 @@ export function MuseumEditorClient({
                 </button>
               ))}
             </div>
-          </div>
+          </EditorPanelCard>
         )}
 
         {/* Cabinet model — the Arcade counterpart to the Stories pedestal card
@@ -7152,17 +7649,12 @@ export function MuseumEditorClient({
             screen image and the marquee name are always drawn by code on top
             of whatever cabinet is in use, since those are per-game. */}
         {room.roomType === "ARCADE" && arcadeConfigObject && (
-          <div className="admin-card border rounded-2xl p-4 space-y-3">
-            <div>
-              <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
-                Cabinet Model
-              </p>
-              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
-                {arcadeConfig.cabinetModelUrl
-                  ? "Using your uploaded cabinet. The screen and marquee are still drawn on top."
-                  : "Using the built-in cabinet. Upload a .glb to replace it."}
-              </p>
-            </div>
+          <EditorPanelCard
+            title="Cabinet Model"
+            description={arcadeConfig.cabinetModelUrl ? "Using your uploaded cabinet. The screen and marquee are still drawn on top." : "Using the built-in cabinet. Upload a .glb to replace it."}
+            open={panels.open.cabinetModel}
+            onToggle={() => panels.toggle("cabinetModel")}
+          >
 
             <div className="flex flex-wrap gap-2">
               <button
@@ -7277,7 +7769,7 @@ export function MuseumEditorClient({
                 e.target.value = "";
               }}
             />
-          </div>
+          </EditorPanelCard>
         )}
 
         {selectedCabinetItem && selectedCabinetEntry && (
@@ -7682,37 +8174,48 @@ function SaveButton({ dirty, saving, onSave }: { dirty: boolean; saving: boolean
   );
 }
 
-function SceneObjectSection({
+/** One foldable card on the Scene Editor's side panel — the editor's own
+ *  accordion, the Rooms tab's fold (AdminAccordion) restyled to the card
+ *  every section here already was: title (with a count where one means
+ *  something) and a chevron in the header, the description and controls
+ *  underneath while open. Open/closed is the caller's, so the panel can
+ *  remember it (useAccordionState in MuseumEditorClient). Unmounted while
+ *  folded, same as AdminAccordion, so a folded card isn't still paying for
+ *  its colour pickers and texture previews. */
+function EditorPanelCard({
   title,
-  objects,
-  selection,
-  hiddenIds,
-  onSelect,
-  onToggleHidden,
+  count,
+  description,
+  dashed = false,
+  open,
+  onToggle,
+  children,
 }: {
-  title: string;
-  objects: SceneObject[];
-  selection: Selection;
-  hiddenIds: Set<string>;
-  onSelect: (id: string) => void;
-  onToggleHidden: (id: string) => void;
+  title: ReactNode;
+  count?: number;
+  description?: ReactNode;
+  /** The Recently Removed strip's dashed outline. */
+  dashed?: boolean;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
 }) {
-  // Foldable, because these lists are the bulk of the panel's height and an
-  // admin working on one thing rarely needs the other two open. The count
-  // stays on the header so a folded section still says what's in it.
-  // Open by default — nothing is hidden until the admin decides to hide it.
-  const [open, setOpen] = useState(true);
   return (
-    <div className="admin-card border rounded-2xl p-4">
+    <div className={cn("admin-card border rounded-2xl p-4", dashed && "border-dashed border-black/10 dark:border-white/10")}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={onToggle}
         aria-expanded={open}
         className="w-full flex items-center justify-between gap-2 text-left group"
       >
         <h4 className="font-jakarta text-sm font-medium text-ink dark:text-cream">
-          {title}{" "}
-          <span className="text-ink-400 dark:text-ink-300 font-normal">({objects.length})</span>
+          {title}
+          {count !== undefined && (
+            <>
+              {" "}
+              <span className="text-ink-400 dark:text-ink-300 font-normal">({count})</span>
+            </>
+          )}
         </h4>
         <ChevronDown
           size={15}
@@ -7722,10 +8225,47 @@ function SceneObjectSection({
           )}
         />
       </button>
-      {!open ? null : objects.length === 0 ? (
-        <p className="font-body text-xs text-ink-400 dark:text-ink-300 mt-3">Nothing placed yet.</p>
+      {open && (
+        <div className="mt-3 space-y-3">
+          {description && (
+            <p className="font-body text-[11px] text-ink-400 dark:text-ink-300">{description}</p>
+          )}
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SceneObjectSection({
+  title,
+  objects,
+  selection,
+  hiddenIds,
+  onSelect,
+  onToggleHidden,
+  open,
+  onToggle,
+}: {
+  title: string;
+  objects: SceneObject[];
+  selection: Selection;
+  hiddenIds: Set<string>;
+  onSelect: (id: string) => void;
+  onToggleHidden: (id: string) => void;
+  /** Remembered by the parent — see MuseumEditorClient's `panels`. */
+  open: boolean;
+  onToggle: () => void;
+}) {
+  // Foldable, because these lists are the bulk of the panel's height and an
+  // admin working on one thing rarely needs the other two open. The count
+  // stays on the header so a folded section still says what's in it.
+  return (
+    <EditorPanelCard title={title} count={objects.length} open={open} onToggle={onToggle}>
+      {objects.length === 0 ? (
+        <p className="font-body text-xs text-ink-400 dark:text-ink-300">Nothing placed yet.</p>
       ) : (
-        <div className="space-y-1.5 mt-3">
+        <div className="space-y-1.5">
           {objects.map((o) => {
             const hidden = hiddenIds.has(o.id);
             const active = selection?.type === "scene" && selection.id === o.id;
@@ -7770,7 +8310,7 @@ function SceneObjectSection({
           })}
         </div>
       )}
-    </div>
+    </EditorPanelCard>
   );
 }
 

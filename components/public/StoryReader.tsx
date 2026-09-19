@@ -309,7 +309,7 @@ export function StoryReader({
                     <ContinueReadingButton story={story} />
                   ) : (
                     <p className="font-body text-sm text-ink-400 dark:text-ink-300">
-                      This story has no pages yet — check back soon.
+                      This tale has no pages yet — check back soon.
                     </p>
                   )}
                 </div>

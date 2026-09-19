@@ -10,7 +10,7 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Stories",
+  title: "Tales",
   description:
     "Read the books, novels, comics and manga by ScriptOverNovel — page by page.",
 };
@@ -37,7 +37,7 @@ export default async function StoriesPage() {
         data={{
           "@context": "https://schema.org",
           "@type": "CollectionPage",
-          name: "Stories",
+          name: "Tales",
           url: `${SITE_URL}/stories`,
           description:
             "Books, novels, comics and manga by ScriptOverNovel, readable page by page.",

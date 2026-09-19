@@ -6,6 +6,8 @@ import { loadDownscaledTexture } from "@/lib/museum/loadDownscaledTexture";
 import type { MuseumArtwork } from "@/types";
 import type { FramePlacement } from "./framePlacement";
 import { FALLBACK_ASPECT, FRAME_HEIGHT, FRAME_WALL_OFFSET, INTERACT_GLOW_COLOR } from "./roomConstants";
+import { BannerShimmer } from "./BannerPanel";
+import { ARTWORK_SHIMMER_DEFAULTS, type ArtworkShimmerConfig } from "@/lib/museum/artworkShimmer";
 
 // One wall-mounted artwork. Its *position* along the wall is fixed up front
 // (see framePlacement.ts — deterministic, based on index/count only), so
@@ -17,10 +19,17 @@ export function ArtworkFrame({
   active,
   scale = 1,
   shouldLoad = true,
+  shimmer = ARTWORK_SHIMMER_DEFAULTS,
 }: {
   artwork: MuseumArtwork;
   placement: FramePlacement;
   active: boolean;
+  /** The light sweep that plays across the image while this is the frame the
+   *  visitor is standing at (`active`) — museum-wide, set in General Settings
+   *  (lib/museum/artworkShimmer.ts). Off, or while not active, nothing is
+   *  drawn: the sweep is one extra plane and a scrolling texture, and only
+   *  one frame in the museum is ever active. */
+  shimmer?: ArtworkShimmerConfig;
   /** Admin-set resize multiplier (MuseumRoomArtwork.scale — Museum Scene
    * Editor) — applied via a nested group *inside* the outer positioned/
    * rotated group below, not by scaling this component's own render
@@ -107,6 +116,18 @@ export function ArtworkFrame({
             side={THREE.DoubleSide}
           />
         </mesh>
+
+        {active && shimmer.enabled && (
+          <BannerShimmer
+            width={width}
+            height={height}
+            speed={shimmer.speed}
+            strength={shimmer.strength}
+            color={shimmer.color}
+            band={shimmer.bandWidth}
+            active
+          />
+        )}
       </group>
     </group>
   );

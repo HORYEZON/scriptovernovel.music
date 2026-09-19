@@ -4,6 +4,7 @@
 // next/dynamic loads with { ssr: false } from MuseumClient.tsx, keeping
 // three/@react-three/* completely out of the server bundle.
 import type { MutableRefObject } from "react";
+import type { ArtworkShimmerConfig } from "@/lib/museum/artworkShimmer";
 import { MuseumScene } from "./components/MuseumScene";
 import type { RoomTravelRequest } from "./components/roomLayout";
 import type { MiniMapFrameState } from "./components/MiniMapTracker";
@@ -23,6 +24,8 @@ export function MuseumSceneLoader({
   brightnessLight,
   brightnessDark,
   onToggleDarkMode,
+  lightModeLabel,
+  artworkShimmer,
   onToggleMap,
   onToggleHud,
   hudHidden,
@@ -62,6 +65,8 @@ export function MuseumSceneLoader({
   viewportSize?: { w: number; h: number };
   onRoomChange?: (roomId: string) => void;
   darkMode?: boolean;
+  lightModeLabel?: string;
+  artworkShimmer?: ArtworkShimmerConfig;
   brightnessLight?: number;
   brightnessDark?: number;
   onToggleDarkMode?: () => void;
@@ -121,6 +126,8 @@ export function MuseumSceneLoader({
       viewportSize={viewportSize}
       onRoomChange={onRoomChange}
       darkMode={darkMode}
+      lightModeLabel={lightModeLabel}
+      artworkShimmer={artworkShimmer}
       brightnessLight={brightnessLight}
       brightnessDark={brightnessDark}
       onToggleDarkMode={onToggleDarkMode}

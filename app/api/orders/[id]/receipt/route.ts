@@ -4,6 +4,7 @@
 // Admin-only; the Orders module opens it in a new tab, where it prints
 // itself (Save as PDF). See lib/receipt.ts for why this is HTML and not a
 // server-generated PDF.
+import { orderItemTitle } from "@/lib/orders/item-display";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
@@ -38,7 +39,7 @@ export async function GET(
       {
         ...order,
         items: order.items.map((item) => ({
-          title: item.product.artwork.title,
+          title: orderItemTitle(item),
           variantLabel: item.variantLabel,
           quantity: item.quantity,
           price: item.price,

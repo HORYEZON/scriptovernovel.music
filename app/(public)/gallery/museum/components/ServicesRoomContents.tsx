@@ -59,7 +59,10 @@ export interface ServicesPriceTag {
   rotationY: number;
 }
 
-function PriceTag({
+/** Exported for the Museum Scene Editor, which draws each product frame's
+ *  plaque under the frame as it is dragged, so the Room Label Style card's
+ *  finish can be judged on the plaques themselves. */
+export function PriceTag({
   tag,
   banner,
   active,
@@ -78,7 +81,9 @@ function PriceTag({
 
   return (
     <group
-      position={[px + nx * FRAME_WALL_OFFSET, py - TAG_DROP, pz + nz * FRAME_WALL_OFFSET]}
+      // The designed drop, plus the room's Price Gap (Room Label Style card)
+      // — pushed further down, or pulled closer when negative.
+      position={[px + nx * FRAME_WALL_OFFSET, py - TAG_DROP - banner.priceGap, pz + nz * FRAME_WALL_OFFSET]}
       rotation={[0, tag.rotationY, 0]}
     >
       {/* Backing plate — the room's shared plaque style (lib/museum/roomBanner

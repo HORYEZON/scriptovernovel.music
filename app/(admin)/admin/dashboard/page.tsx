@@ -1,4 +1,5 @@
 // app/(admin)/admin/dashboard/page.tsx
+import { orderItemTitle, orderItemImageOrPlaceholder } from "@/lib/orders/item-display";
 import { Fragment, Suspense } from "react";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
@@ -158,8 +159,8 @@ export default async function AdminDashboard() {
                         <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-black/10 dark:border-white/10 bg-black/5 dark:bg-black/50 shrink-0 order-1">
                           {firstItem ? (
                             <Image
-                              src={firstItem.product.artwork.imageUrl}
-                              alt={firstItem.product.artwork.title}
+                              src={orderItemImageOrPlaceholder(firstItem)}
+                              alt={orderItemTitle(firstItem)}
                               fill
                               className="object-cover"
                             />

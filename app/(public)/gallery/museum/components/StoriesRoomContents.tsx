@@ -182,7 +182,7 @@ export function StoriesRoomContents({
           textAlign="center"
           font={FONT_REGULAR}
         >
-          {"No stories published yet.\nCheck back soon."}
+          {"No tales published yet.\nCheck back soon."}
         </Text>
       )}
     </group>

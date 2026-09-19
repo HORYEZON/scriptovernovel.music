@@ -9,9 +9,15 @@
 // browser's localStorage only — there is no login and nothing is written back
 // to the server, so every other visitor still sees the original layout.
 
-import { useLayoutEffect, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import { motion, useMotionValue, type PanInfo } from "framer-motion";
 import { cn } from "@/lib/utils";
+
+/** How far a visitor can pinch a note in either direction. The lower bound
+ *  keeps the text legible; the upper one keeps a single note from covering
+ *  the wall on a phone. */
+export const NOTE_VISITOR_SCALE_MIN = 0.6;
+export const NOTE_VISITOR_SCALE_MAX = 2.2;
 
 export interface NoteData {
   id: string;
@@ -23,25 +29,36 @@ export interface NoteData {
   rotation: number;  // degrees
   /** Uniform size multiplier — same field as the 3D museum room's notes
    *  (FreedomWallNotePublic.scale), admin-adjustable in the Museum Scene
-   *  Editor. 1 = normal card size. */
+   *  Editor. Deliberately NOT applied on this page any more: it sizes the
+   *  note on the 3-D room's wall, where a big note is a layout choice, and
+   *  mirroring it here made the flat wall's cards uneven for no reason a
+   *  visitor could see. Every card here starts at the same size; the visitor
+   *  pinches their own (see `NoteOverride.scale`). Still carried on the type
+   *  so the museum-side consumers of NoteData keep compiling. */
   scale?: number;
   createdAt: string;
 }
 
-/** Per-visitor position override (percentage of the canvas), or undefined when
- *  the visitor has not moved this note.
+/** Per-visitor override — position (percentage of the canvas) and/or size —
+ *  or undefined when the visitor has not touched this note.
  *
  *  `baseX`/`baseY` record the note's *server* position at the moment the
  *  visitor dragged it. FreedomWallClient compares them against the note's
  *  current server position on load and throws the override away when they no
  *  longer match — otherwise a personal layout saved once would outrank every
  *  later admin repositioning (Museum Scene Editor → Save) forever, on this
- *  device, with no sign that anything had changed. */
+ *  device, with no sign that anything had changed.
+ *
+ *  `x`/`y` are optional now: a note the visitor only *pinched* keeps
+ *  following the server position, and only a note they *dragged* is pinned
+ *  to where they dropped it. */
 export interface NoteOverride {
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   baseX?: number;
   baseY?: number;
+  /** Visitor's own size multiplier from pinching, 1 = as served. */
+  scale?: number;
 }
 
 // Tailwind classes for each palette key.
@@ -76,11 +93,13 @@ interface Props {
   override?: NoteOverride;
   /** Report a new position (percentage of the canvas) after a drag. */
   onMove: (id: string, xPct: number, yPct: number) => void;
+  /** Report a new size multiplier after a pinch (already clamped). */
+  onResize: (id: string, scale: number) => void;
 }
 
-export function StickyNote({ note, isNew = false, canvasRef, override, onMove }: Props) {
+export function StickyNote({ note, isNew = false, canvasRef, override, onMove, onResize }: Props) {
   const colorKey = COLOR_CLASSES[note.color] ? note.color : "yellow";
-  const restScale = note.scale ?? 1;
+  const restScale = override?.scale ?? 1;
 
   // Resting position: the visitor's saved override wins over the note's own
   // server-assigned coordinates.
@@ -110,13 +129,80 @@ export function StickyNote({ note, isNew = false, canvasRef, override, onMove }:
     onMove(note.id, nextX, nextY);
   }
 
+  // Pinch to resize. Two fingers on the card: the size follows the ratio of
+  // the current finger gap to the gap when the second finger landed, from
+  // the size the note had at that moment. Tracked by hand rather than through
+  // framer-motion — its drag only ever follows the *primary* pointer (the
+  // first finger), so the card still trails that finger while pinching,
+  // which is what a visitor expects of a card they are holding anyway; it has
+  // no notion of a second pointer at all. `touch-none` on the card is what
+  // lets both fingers reach it as pointer events instead of the page zooming.
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ startGap: number; startScale: number } | null>(null);
+  const scaleRef = useRef(restScale);
+  scaleRef.current = restScale;
+
+  function gap() {
+    const [a, b] = Array.from(pointers.current.values());
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  }
+
+  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      pinch.current = { startGap: gap(), startScale: scaleRef.current };
+    }
+  }
+
+  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = pinch.current;
+    if (!p || pointers.current.size < 2 || p.startGap < 1) return;
+    const next = clamp(p.startScale * (gap() / p.startGap), NOTE_VISITOR_SCALE_MIN, NOTE_VISITOR_SCALE_MAX);
+    if (Math.abs(next - scaleRef.current) > 0.005) onResize(note.id, next);
+  }
+
+  function handlePointerEnd(e: ReactPointerEvent<HTMLDivElement>) {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+  }
+
+  // A trackpad pinch reaches the page as a wheel event with ctrlKey set (every
+  // major browser maps it that way), and ⌘/Ctrl + scroll wheel is the same
+  // gesture by keyboard — so this is "pinch" for a laptop, and a plain scroll
+  // over a card still scrolls the page like anywhere else. A native listener
+  // rather than React's onWheel: React registers wheel as *passive* at the
+  // root, where preventDefault is ignored, and without it a ctrl+wheel over
+  // the card zooms the whole browser page as well as the note.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const onResizeRef = useRef(onResize);
+  onResizeRef.current = onResize;
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const next = clamp(scaleRef.current * Math.exp(-e.deltaY * 0.01), NOTE_VISITOR_SCALE_MIN, NOTE_VISITOR_SCALE_MAX);
+      if (Math.abs(next - scaleRef.current) > 0.005) onResizeRef.current(note.id, next);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [note.id]);
+
   return (
     <motion.div
+      ref={cardRef}
       drag
       dragMomentum={false}
       dragElastic={0.12}
       dragConstraints={canvasRef}
       onDragEnd={handleDragEnd}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
       whileDrag={{ scale: restScale * 1.06, zIndex: 50 }}
       initial={
         isNew

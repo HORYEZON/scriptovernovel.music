@@ -107,10 +107,16 @@ export async function POST(request: NextRequest) {
     const requestedColor = typeof body.color === "string" ? body.color : "";
     const color = NOTE_COLORS.includes(requestedColor) ? requestedColor : randomItem(NOTE_COLORS);
 
-    // Random placement across the wall (leaving a small margin so notes don't
-    // clip the edges). Rotation adds a natural "pinned paper" feel.
-    const positionX = 5 + Math.random() * 85;  // 5–90 %
-    const positionY = 5 + Math.random() * 75;  // 5–80 %
+    // A new note lands near the middle of the wall — a loose cluster around
+    // the centre (±15% either way) rather than anywhere across it, which
+    // used to put a fresh note half off the left edge of the Freedom Wall
+    // page where nobody would look for it, or in a far corner of the 3-D
+    // room's wall. The scatter keeps a burst of notes from stacking on one
+    // spot; visitors drag them out from there (saved per device) and the
+    // admin lays them out for everyone in the Scene Editor. Rotation adds a
+    // natural "pinned paper" feel.
+    const positionX = 35 + Math.random() * 30;  // 35–65 %
+    const positionY = 35 + Math.random() * 30;  // 35–65 %
     const rotation = (Math.random() - 0.5) * 20; // −10 … +10 °
 
     const note = await prisma.freedomWallNote.create({

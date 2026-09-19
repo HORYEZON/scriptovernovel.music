@@ -44,6 +44,7 @@ export function Room360Capture({
   stage,
   prepare,
   lowEnd = false,
+  filterCss,
 }: {
   shareRef: MutableRefObject<Share360Fn | null>;
   getEye: () => CaptureEye | null;
@@ -64,6 +65,9 @@ export function Room360Capture({
   /** The phones MuseumScene.tsx already treats as low-end go straight to
    *  the smallest export — see pickPanoramaWidth for the full ladder. */
   lowEnd?: boolean;
+  /** CSS filter string from the active vision filter — baked into the JPEG
+   *  so the 360 photo matches what the visitor sees on screen. */
+  filterCss?: string | null;
 }) {
   const { gl, scene, camera } = useThree();
 
@@ -85,6 +89,7 @@ export function Room360Capture({
           width: pickPanoramaWidth(lowEnd),
           exclude,
           stage,
+          filterCss: filterCss ?? undefined,
         });
       } finally {
         restore?.();
@@ -93,7 +98,7 @@ export function Room360Capture({
     return () => {
       shareRef.current = null;
     };
-  }, [gl, scene, camera, shareRef, getEye, exclude, stage, prepare, lowEnd]);
+  }, [gl, scene, camera, shareRef, getEye, exclude, stage, prepare, lowEnd, filterCss]);
 
   return null;
 }

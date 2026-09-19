@@ -273,6 +273,12 @@ export interface MuseumRoomPublic {
   wallTexture: string | null;
   floorTexture: string | null;
   ceilingTexture: string | null;
+  // The room's ceiling lights — see prisma/schema.prisma's
+  // MuseumRoom.lightColor. Null colour = the roomType preset's own;
+  // null model = the built-in fixture; scale 1 = as designed.
+  lightColor: string | null;
+  lightScale: number;
+  lightModelUrl: string | null;
   // Room-entry splash overrides — see RoomSplashContent.tsx. Null icon
   // falls back to the glowing squid mark; null title falls back to `name`.
   splashIcon: string | null;

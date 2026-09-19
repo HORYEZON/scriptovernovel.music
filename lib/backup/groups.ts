@@ -59,8 +59,8 @@ export const BACKUP_GROUPS: BackupGroup[] = [
   },
   {
     id: "stories",
-    label: "Stories",
-    description: "The stories library and every page of each one.",
+    label: "Tales",
+    description: "The tales library and every page of each one.",
     defaultOn: true,
     models: ["story", "storyPage"],
   },

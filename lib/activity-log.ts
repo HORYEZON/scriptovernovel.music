@@ -29,7 +29,7 @@ export const ACTIVITY_CATEGORY_META: Record<
 > = {
   CONTENT: {
     label: "Content",
-    description: "Artworks, products, stories, museum rooms and settings an admin changed.",
+    description: "Artworks, products, tales, museum rooms and settings an admin changed.",
     chipClass: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
   },
   AUTH: {

@@ -57,7 +57,7 @@ export async function ensureStoriesRoom() {
 
   return prisma.museumRoom.create({
     data: {
-      name: "Stories Room",
+      name: "Tales Room",
       slug: STORIES_ROOM_SLUG,
       roomType: "STORIES",
       description: "Books, novels, comics and manga — step up to a podium to read.",

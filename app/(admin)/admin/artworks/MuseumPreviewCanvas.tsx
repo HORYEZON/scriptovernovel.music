@@ -33,6 +33,12 @@ export interface PreviewRoomShell {
   wallTexture: string | null;
   floorTexture: string | null;
   ceilingTexture: string | null;
+  /** The room's ceiling lights — see MuseumRoom.tsx. Optional: the
+   *  provisioned rooms' preview shells don't carry them and draw the
+   *  room type's own colour and the built-in lamp. */
+  lightColor?: string | null;
+  lightScale?: number;
+  lightModelUrl?: string | null;
 }
 
 export interface PreviewArtworkEntry {
@@ -127,6 +133,9 @@ export function MuseumPreviewCanvas({
         wallTexture={room.wallTexture}
         floorTexture={room.floorTexture}
         ceilingTexture={room.ceilingTexture}
+        lightColor={room.lightColor ?? null}
+        lightScale={room.lightScale ?? 1}
+        lightModelUrl={room.lightModelUrl ?? null}
         darkMode={darkMode}
         brightness={brightness}
         lightsEnabled

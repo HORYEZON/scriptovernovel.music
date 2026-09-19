@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import type { MuseumRoomType } from "@/types";
 import { loadDownscaledTexture } from "@/lib/museum/loadDownscaledTexture";
+import { CustomSceneObject } from "./CustomSceneObject";
 import {
   ROOM_WIDTH,
   ROOM_HEIGHT,
@@ -99,9 +100,13 @@ export function MuseumRoom({
   wallTexture = null,
   floorTexture = null,
   ceilingTexture = null,
+  lightColor = null,
+  lightScale = 1,
+  lightModelUrl = null,
   darkMode = false,
   brightness = 50,
   lightsEnabled = true,
+  ambientEnabled = true,
   quality = "full",
   shouldLoad = true,
 }: {
@@ -127,6 +132,17 @@ export function MuseumRoom({
   wallTexture?: string | null;
   floorTexture?: string | null;
   ceilingTexture?: string | null;
+  /** The room's ceiling lights, from the Scene Editor's "Room Lights" card
+   * (see prisma/schema.prisma's MuseumRoom.lightColor). `lightColor`
+   * replaces the roomType preset's point-light colour in every mode;
+   * `lightScale` sizes the fixture drawn at each light; `lightModelUrl`
+   * swaps the built-in fixture for an uploaded .glb, hung from the ceiling
+   * at the same spot. The fixtures are drawn from the same position list as
+   * the lights, so a "low" quality device that halves the lights halves the
+   * fixtures with them — a lamp is never drawn where no light is. */
+  lightColor?: string | null;
+  lightScale?: number;
+  lightModelUrl?: string | null;
   /** Visitor-toggled ambiance ([L] / the HUD toggle) — dims this room's own lights, see roomConstants.ts. */
   darkMode?: boolean;
   /** Admin-set brightness (0–100, 50 = baseline). Scales all light intensities
@@ -137,6 +153,17 @@ export function MuseumRoom({
    * Ambient/hemisphere stay on regardless so a distant room never goes
    * pitch black when glimpsed through a doorway. */
   lightsEnabled?: boolean;
+  /** Whether this room contributes its ambient + hemisphere light. Those two
+   * are *scene-global* in three.js — they light every mesh in the scene, not
+   * just this room's — so with every room in the corridor rendering its own
+   * pair the whole museum was lit by the SUM of them: a twelve-room museum
+   * ran at roughly twelve times the ambient a single room is designed for,
+   * which is why the public museum looked fine at a 10% brightness that
+   * left the Scene Editor's lone room in the dark, and why the two could
+   * never be made to match by any slider. MuseumScene.tsx now turns this on
+   * for the room the visitor is standing in only, so the museum is lit by
+   * exactly one preset at a time — the same thing the editor renders. */
+  ambientEnabled?: boolean;
   /** Perf: halves the point-light count in the room actually being stood
    * in when PerformanceMonitor detects the device is struggling — see
    * MuseumScene.tsx's lowPower state. */
@@ -146,8 +173,22 @@ export function MuseumRoom({
    * only fetches once this room is nearby. */
   shouldLoad?: boolean;
 }) {
-  const lighting = getRoomLighting(roomType, darkMode, brightness);
+  const preset = getRoomLighting(roomType, darkMode, brightness);
+  const lighting = lightColor ? { ...preset, pointColor: lightColor } : preset;
   const width = ROOM_WIDTH;
+  // Every point light's room-local (x, z) — one list so the fixtures below
+  // can only ever be drawn where a light actually is. "low" quality centers
+  // one light per Z-row instead of the usual 2x2 grid — halves the
+  // point-light count in whichever room a struggling device is standing in.
+  const lightSpots = [-depth / 4, depth / 4].flatMap((z) =>
+    (quality === "low" ? [0] : [-width / 4, width / 4]).map((x) => ({ x, z }))
+  );
+  const fixtureScale = Number.isFinite(lightScale) && lightScale > 0 ? lightScale : 1;
+  // The ceiling's height at a given Z — flat for every ordinary room, and
+  // following the ramp in the STAIRS room (see the ceiling mesh below), so a
+  // light and its fixture hang from the ceiling that is actually there
+  // rather than from where a flat one would be.
+  const ceilingYAt = (z: number) => ROOM_HEIGHT + rise * (depth / 2 - z) / depth;
   // Only ever non-zero for the STAIRS room (see roomLayout.ts) — every
   // formula below reduces to the original flat-room math when rise is 0,
   // so this doesn't need to branch the whole component into two versions.
@@ -201,6 +242,19 @@ export function MuseumRoom({
   // finished, and only a remount (walking to another room and back) restored
   // it. That is why an uploaded floor showed in the live corridor but never
   // in the Scene Editor, where all three load at once behind `shouldLoad`.
+  // Every surface material below is keyed on its texture clone's identity —
+  // remounted, not updated, when the texture arrives or changes. R3F just
+  // assigns `material.map`; it never sets `material.needsUpdate`, and three
+  // only recompiles a material's shader when its version changes (or the
+  // lights/fog/env do — a map appearing later is not on that list). So a
+  // wall that got its first frame before its texture landed kept a shader
+  // with no texture sampling at all, and since `color` flips to white the
+  // moment a texture exists, it rendered as a plain white wall — for good.
+  // Which surfaces won that race varied per load (the wall one time, the
+  // floor the next), which is why the Scene Editor showed "some textured,
+  // some white" while the public museum — whose EntryLoadGate has every
+  // texture cached before the scene mounts — showed them all. The fixture
+  // components (StoryPodium, ArcadeCabinet, ...) already key theirs.
   useDisposeClone(wallTexFull);
   useDisposeClone(wallTexSidePost);
   useDisposeClone(wallTexLintel);
@@ -237,6 +291,7 @@ export function MuseumRoom({
         <mesh position={[0, baseY + ROOM_HEIGHT / 2, insetZ]} receiveShadow>
           <boxGeometry args={[width, ROOM_HEIGHT, WALL_THICKNESS]} />
           <meshStandardMaterial
+            key={wallTexFull ? wallTexFull.uuid : "plain"}
             color={wallTex ? "#ffffff" : wallColor}
             map={wallTexFull}
             roughness={0.9}
@@ -250,6 +305,7 @@ export function MuseumRoom({
         <mesh position={[-sidePostOffsetX, baseY + ROOM_HEIGHT / 2, insetZ]} receiveShadow>
           <boxGeometry args={[sidePostWidth, ROOM_HEIGHT, WALL_THICKNESS]} />
           <meshStandardMaterial
+            key={wallTexSidePost ? wallTexSidePost.uuid : "plain"}
             color={wallTex ? "#ffffff" : wallColor}
             map={wallTexSidePost}
             roughness={0.9}
@@ -258,6 +314,7 @@ export function MuseumRoom({
         <mesh position={[sidePostOffsetX, baseY + ROOM_HEIGHT / 2, insetZ]} receiveShadow>
           <boxGeometry args={[sidePostWidth, ROOM_HEIGHT, WALL_THICKNESS]} />
           <meshStandardMaterial
+            key={wallTexSidePost ? wallTexSidePost.uuid : "plain"}
             color={wallTex ? "#ffffff" : wallColor}
             map={wallTexSidePost}
             roughness={0.9}
@@ -266,6 +323,7 @@ export function MuseumRoom({
         <mesh position={[0, lintelCenterY, insetZ]} receiveShadow>
           <boxGeometry args={[DOORWAY_WIDTH, lintelHeight, WALL_THICKNESS]} />
           <meshStandardMaterial
+            key={wallTexLintel ? wallTexLintel.uuid : "plain"}
             color={wallTex ? "#ffffff" : wallColor}
             map={wallTexLintel}
             roughness={0.9}
@@ -295,6 +353,7 @@ export function MuseumRoom({
             <mesh key={i} position={[0, stepTopY / 2, stepZ]} receiveShadow>
               <boxGeometry args={[width, stepTopY, stepDepth]} />
               <meshStandardMaterial
+                key={floorTexClone ? floorTexClone.uuid : "plain"}
                 color={floorTex ? "#ffffff" : floorColor}
                 map={floorTexClone}
                 roughness={0.85}
@@ -307,6 +366,7 @@ export function MuseumRoom({
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
           <planeGeometry args={[width, depth]} />
           <meshStandardMaterial
+            key={floorTexClone ? floorTexClone.uuid : "plain"}
             color={floorTex ? "#ffffff" : floorColor}
             map={floorTexClone}
             roughness={0.85}
@@ -328,6 +388,7 @@ export function MuseumRoom({
       <mesh rotation={[Math.PI / 2 + slopeAngle, 0, 0]} position={[0, rise / 2 + ROOM_HEIGHT, 0]}>
         <planeGeometry args={[width, slopeLength]} />
         <meshStandardMaterial
+          key={ceilingTexClone ? ceilingTexClone.uuid : "plain"}
           color={ceilingTex ? "#ffffff" : ceilingColor}
           map={ceilingTexClone}
           roughness={1}
@@ -358,6 +419,7 @@ export function MuseumRoom({
       <mesh position={[width / 2 - WALL_THICKNESS / 2, wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[WALL_THICKNESS, wallHeight, depth]} />
         <meshStandardMaterial
+          key={wallTexSide ? wallTexSide.uuid : "plain"}
           color={wallTex ? "#ffffff" : wallColor}
           map={wallTexSide}
           roughness={0.9}
@@ -368,6 +430,7 @@ export function MuseumRoom({
       <mesh position={[-width / 2 + WALL_THICKNESS / 2, wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[WALL_THICKNESS, wallHeight, depth]} />
         <meshStandardMaterial
+          key={wallTexSide ? wallTexSide.uuid : "plain"}
           color={wallTex ? "#ffffff" : wallColor}
           map={wallTexSide}
           roughness={0.9}
@@ -380,24 +443,72 @@ export function MuseumRoom({
           the middle. Ambient/hemisphere are uniform (cheap, one calc for
           the whole room) so they always render; the point lights are the
           real per-fragment cost — see lightsEnabled/quality above. */}
-      <ambientLight intensity={lighting.ambientIntensity} />
-      <hemisphereLight args={[lighting.hemiSky, lighting.hemiGround, lighting.hemiIntensity]} />
+      {ambientEnabled && (
+        <>
+          <ambientLight intensity={lighting.ambientIntensity} />
+          <hemisphereLight args={[lighting.hemiSky, lighting.hemiGround, lighting.hemiIntensity]} />
+        </>
+      )}
       {lightsEnabled &&
-        // "low" quality centers one light per Z-row instead of the usual
-        // 2x2 grid — halves the point-light count in whichever room a
-        // struggling device is actually standing in.
-        [-depth / 4, depth / 4].flatMap((z) =>
-          (quality === "low" ? [0] : [-width / 4, width / 4]).map((x) => (
-            <pointLight
-              key={`${x}-${z}`}
-              position={[x, ROOM_HEIGHT - 0.4, z]}
-              intensity={lighting.pointIntensity}
-              distance={14}
-              decay={2}
-              color={lighting.pointColor}
-            />
-          ))
-        )}
+        lightSpots.map(({ x, z }) => (
+          <pointLight
+            key={`${x}-${z}`}
+            position={[x, ceilingYAt(z) - 0.4, z]}
+            intensity={lighting.pointIntensity}
+            distance={14}
+            decay={2}
+            color={lighting.pointColor}
+          />
+        ))}
+      {/* The fixtures — one under each light spot above, hung from the
+          ceiling. Drawn whether or not this room's point lights are
+          currently on (lightsEnabled only trims the expensive per-fragment
+          lights for far rooms); the emissive bulb dims with them so a far
+          room's lamps read as switched down rather than missing. Not
+          raycast targets: in the Scene Editor a click through a lamp should
+          land on whatever is behind it. */}
+      {lightSpots.map(({ x, z }) => (
+        // Tilted to the ceiling's own slope: a rotation about X by
+        // slopeAngle turns the group's up vector (0,1,0) into
+        // (0, cos, sin) — the sloped ceiling's upward normal — so the
+        // plate sits flush and the lamp hangs perpendicular to the ceiling,
+        // as a mounted fixture does. Zero for every flat room; only the
+        // STAIRS room has a rise, and there an upright fixture on the
+        // slanted ceiling left a wedge of daylight between the two.
+        <group key={`fixture-${x}-${z}`} position={[x, ceilingYAt(z), z]} rotation={[slopeAngle, 0, 0]}>
+          {lightModelUrl ? (
+            <CustomSceneObject url={lightModelUrl} scale={fixtureScale} recenter="top" />
+          ) : (
+            <group scale={fixtureScale}>
+              {/* Ceiling plate */}
+              <mesh position={[0, -0.02, 0]} raycast={() => null}>
+                <cylinderGeometry args={[0.32, 0.32, 0.04, 32]} />
+                <meshStandardMaterial color="#2b2926" roughness={0.6} metalness={0.4} />
+              </mesh>
+              {/* Stem */}
+              <mesh position={[0, -0.16, 0]} raycast={() => null}>
+                <cylinderGeometry args={[0.03, 0.03, 0.28, 12]} />
+                <meshStandardMaterial color="#2b2926" roughness={0.6} metalness={0.4} />
+              </mesh>
+              {/* Shade — open downward */}
+              <mesh position={[0, -0.38, 0]} raycast={() => null}>
+                <cylinderGeometry args={[0.14, 0.34, 0.2, 32, 1, true]} />
+                <meshStandardMaterial color="#2b2926" roughness={0.7} metalness={0.3} side={THREE.DoubleSide} />
+              </mesh>
+              {/* Bulb — glows in the light's own colour */}
+              <mesh position={[0, -0.42, 0]} raycast={() => null}>
+                <sphereGeometry args={[0.11, 20, 16]} />
+                <meshStandardMaterial
+                  color={lighting.pointColor}
+                  emissive={lighting.pointColor}
+                  emissiveIntensity={lightsEnabled ? 2.2 : 0.5}
+                  roughness={0.3}
+                />
+              </mesh>
+            </group>
+          )}
+        </group>
+      ))}
     </group>
   );
 }

@@ -27,7 +27,7 @@ const ROOM_TYPE_LABEL: Record<string, string> = {
   FREEDOM_WALL: "Freedom Wall",
   STAIRS: "Stairs",
   SERVICES: "Services",
-  STORIES: "Stories",
+  STORIES: "Tales",
   ARCADE: "Arcade",
   COSPLAY: "Cosplay",
 };
@@ -157,7 +157,7 @@ export function MuseumMap({
                                 // its contents stand on podiums, so counting
                                 // `artworks` would always read "0 artworks".
                                 room.roomType === "STORIES"
-                              ? `Stories · ${room.stories.length} book${room.stories.length === 1 ? "" : "s"}`
+                              ? `Tales · ${room.stories.length} book${room.stories.length === 1 ? "" : "s"}`
                               : // Same reasoning for the Freedom Wall — its
                                 // content is visitor-submitted sticky notes,
                                 // not `artworks`, which would otherwise always

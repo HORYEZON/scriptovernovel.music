@@ -35,9 +35,21 @@ export async function POST(request: NextRequest) {
     // from the request body — so a tampered `item.price` in the request
     // can't change what the customer is actually charged or what gets
     // recorded on the order.
+    // available/deletedAt/artwork.deletedAt — the exact filter the Shop
+    // listing itself uses (app/(public)/shop/page.tsx's getProducts) — so a
+    // product an admin has deleted or paused can't be bought just because a
+    // visitor's cart is a localStorage snapshot from before that happened.
+    // Without this, the query below found the row regardless (Prisma has no
+    // implicit soft-delete filtering), stock still passed, and a deleted
+    // artwork could be paid for.
     const productIds = items.map((i: { productId: string }) => i.productId);
     const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
+      where: {
+        id: { in: productIds },
+        available: true,
+        deletedAt: null,
+        artwork: { deletedAt: null },
+      },
       include: { artwork: true, variants: true },
     });
 
@@ -59,8 +71,11 @@ export async function POST(request: NextRequest) {
 
       const product = products.find((p) => p.id === item.productId);
       if (!product) {
+        // Covers a genuinely unknown id and a deleted/paused one alike —
+        // the filtered query above can't tell them apart, and a visitor
+        // doesn't need it to; either way, this item can't be bought.
         return NextResponse.json(
-          { error: `Product ${item.productId} not found` },
+          { error: "One of the items in your cart is no longer available. Please remove it and try again." },
           { status: 400 }
         );
       }

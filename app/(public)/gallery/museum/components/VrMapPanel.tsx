@@ -27,7 +27,7 @@ const ROOM_TYPE_LABEL: Record<string, string> = {
   FREEDOM_WALL: "Freedom Wall",
   STAIRS: "Stairs",
   SERVICES: "Services",
-  STORIES: "Stories",
+  STORIES: "Tales",
   ARCADE: "Arcade",
   COSPLAY: "Cosplay",
 };
@@ -39,7 +39,7 @@ function roomSubtitle(room: MuseumRoomPublic, freedomWallNoteCount: number): str
     case "STAIRS":
       return "Connects to the Second Floor";
     case "STORIES":
-      return `Stories · ${room.stories.length} book${room.stories.length === 1 ? "" : "s"}`;
+      return `Tales · ${room.stories.length} book${room.stories.length === 1 ? "" : "s"}`;
     case "FREEDOM_WALL":
       return `Freedom Wall · ${freedomWallNoteCount} sticky note${freedomWallNoteCount === 1 ? "" : "s"}`;
     case "ARCADE":

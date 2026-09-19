@@ -1,4 +1,5 @@
 // app/api/webhooks/paymongo/route.ts
+import { orderItemTitle } from "@/lib/orders/item-display";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyWebhookSignature } from "@/lib/paymongo";
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
                   `⚠️ Oversold: variant ${item.variantId} had insufficient stock for paid order ${order.id}`
                 );
               }
-            } else {
+            } else if (item.productId) {
               const result = await prisma.product.updateMany({
                 where: { id: item.productId, stock: { gte: item.quantity } },
                 data: { stock: { decrement: item.quantity } },
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
             shippingPhone: order.shippingPhone,
             deliveryNotes: order.deliveryNotes,
             items: order.items.map((item) => ({
-              title: item.product.artwork.title,
+              title: orderItemTitle(item),
               variantLabel: item.variantLabel,
               quantity: item.quantity,
               price: item.price,

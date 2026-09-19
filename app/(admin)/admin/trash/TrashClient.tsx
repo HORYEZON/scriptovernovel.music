@@ -743,6 +743,27 @@ function ViewModalFields({
         </>
       );
     }
+    case "release-notes": {
+      // The note as it was written — headline, where it was filed, its
+      // version, whether visitors had seen it, and the body in full. This
+      // case was missing, so View showed only the id and the deleted date.
+      const n = item as TrashedReleaseNote;
+      return (
+        <>
+          <FieldRow label="Title" value={<span className="font-semibold">{n.title}</span>} />
+          <FieldRow label="Category" value={n.category} />
+          {n.version && <FieldRow label="Version" value={n.version} />}
+          <FieldRow label="Status" value={n.isPublished ? "Published" : "Draft"} />
+          <FieldRow label="Created" value={formatDate(n.createdAt)} />
+          <div className="pt-2">
+            <p className="text-ink-400 mb-1">Body:</p>
+            <p className="font-medium text-ink dark:text-cream whitespace-pre-wrap break-words leading-relaxed">
+              {n.body}
+            </p>
+          </div>
+        </>
+      );
+    }
   }
 }
 
@@ -1079,7 +1100,7 @@ export function TrashClient({
   const CATEGORY_LABEL: Record<Category, string> = {
     notifications: "Notifications",
     artworks: "Artworks",
-    stories: "Stories",
+    stories: "Tales",
     cosplays: "Cosplays",
     rooms: "Rooms",
     sections: "Sections",
@@ -1097,7 +1118,7 @@ export function TrashClient({
   const CATEGORY_SINGULAR: Record<Category, string> = {
     notifications: "notification",
     artworks: "artwork",
-    stories: "story",
+    stories: "tale",
     cosplays: "cosplay",
     rooms: "room",
     sections: "section",
@@ -1919,7 +1940,7 @@ export function TrashClient({
                   <li>All artworks belonging to this section</li>
                 )}
                 {activeCategory === "stories" && (
-                  <li>Every page of this story</li>
+                  <li>Every page of this tale</li>
                 )}
                 {activeCategory === "cosplays" && (
                   <li>Its standee photo and the photo hung behind it</li>

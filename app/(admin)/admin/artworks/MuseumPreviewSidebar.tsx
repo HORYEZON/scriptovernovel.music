@@ -122,6 +122,9 @@ export function MuseumPreviewSidebar({
         wallTexture: r.wallTexture,
         floorTexture: r.floorTexture,
         ceilingTexture: r.ceilingTexture,
+        lightColor: r.lightColor,
+        lightScale: r.lightScale,
+        lightModelUrl: r.lightModelUrl,
       } satisfies PreviewRoomShell,
       artworks: r.artworks
         .filter((e) => e.artwork.published)

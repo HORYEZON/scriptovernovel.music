@@ -468,16 +468,16 @@ export function StoriesClient({
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Failed to save story");
+      if (!res.ok) throw new Error("Failed to save tale");
       const data = await res.json();
 
       if (editing) {
         setStories(stories.map((s) => (s.id === editing.id ? data : s)));
-        toast.success("Story updated");
+        toast.success("Tale updated");
       } else {
         setStories([data, ...stories]);
         setCurrentPage(1);
-        toast.success("Story created");
+        toast.success("Tale created");
       }
       setShowModal(false);
       router.refresh();
@@ -497,7 +497,7 @@ export function StoriesClient({
       const newTotal = Math.ceil(next.length / pageSize);
       if (currentPage > newTotal && newTotal > 0) setCurrentPage(newTotal);
       setDeleteConfirm(null);
-      toast.success("Story deleted");
+      toast.success("Tale deleted");
       router.refresh();
     } catch {
       toast.error("Failed to delete");
@@ -557,7 +557,7 @@ export function StoriesClient({
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sepia text-white font-jakarta text-sm font-medium hover:bg-sepia-dark transition-all duration-200 shadow-md self-start sm:self-auto"
         >
           <Plus size={18} />
-          New Story
+          New Tale
         </button>
 
         <div className="font-body text-xs text-ink-400 dark:text-ink-300">
@@ -618,7 +618,7 @@ export function StoriesClient({
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search stories..."
+              placeholder="Search tales..."
               className="w-full pl-8 pr-8 py-1.5 font-body text-xs rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors"
             />
             {searchTerm && (
@@ -757,7 +757,7 @@ export function StoriesClient({
           <div className="p-12 text-center">
             <BookOpen className="w-12 h-12 text-ink-400 dark:text-ink-300 mx-auto mb-4 opacity-50" />
             <h3 className="text-lg font-jakarta font-medium text-ink dark:text-cream mb-1">
-              {stories.length === 0 ? "No stories yet" : "No matching stories"}
+              {stories.length === 0 ? "No tales yet" : "No matching tales"}
             </h3>
             <p className="text-sm font-body text-ink-400 dark:text-ink-300 mb-6 max-w-md mx-auto">
               {stories.length === 0
@@ -770,7 +770,7 @@ export function StoriesClient({
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sepia text-white text-sm font-jakarta font-medium hover:bg-sepia-dark transition-all"
               >
                 <Plus size={16} />
-                Add First Story
+                Add First Tale
               </button>
             ) : (
               <button
@@ -1229,7 +1229,7 @@ export function StoriesClient({
             <div className="flex items-center justify-between p-5 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
               <div>
                 <h3 className="font-jakarta text-lg font-semibold text-ink dark:text-cream">
-                  Story Details
+                  Tale Details
                 </h3>
                 <p className="font-body text-xs text-ink-400 dark:text-ink-300 mt-0.5">
                   ID: {viewingItem.id}
@@ -1378,7 +1378,7 @@ export function StoriesClient({
             {/* Header - stays fixed */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 shrink-0">
               <h2 className="text-xl font-jakarta font-semibold text-ink dark:text-cream">
-                {editing ? "Edit Story" : "New Story"}
+                {editing ? "Edit Tale" : "New Tale"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
@@ -1557,7 +1557,7 @@ export function StoriesClient({
                     </span>
                     <span className="block text-xs text-ink-400 dark:text-ink-300 mt-1">
                       For a teaser — upload only the opening pages, then send
-                      readers to the full story. The button appears after the
+                      readers to the full tale. The button appears after the
                       last page and nowhere else.
                     </span>
                   </span>
@@ -1601,7 +1601,7 @@ export function StoriesClient({
                       <p className="flex items-start gap-1.5 text-xs text-ink-400 dark:text-ink-300">
                         <AlertTriangle size={12} className="mt-0.5 shrink-0" />
                         No pages uploaded — readers will see only this button
-                        when they open the story.
+                        when they open the tale.
                       </p>
                     )}
                   </div>
@@ -1688,7 +1688,7 @@ export function StoriesClient({
                     className="w-5 h-5 rounded bg-black/10 dark:bg-white/10 border-black/20 dark:border-white/20 text-sepia focus:ring-0 focus:ring-offset-0 cursor-pointer"
                   />
                   <span className="text-sm font-medium text-ink dark:text-cream">
-                    Featured Story
+                    Featured Tale
                   </span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
@@ -1720,7 +1720,7 @@ export function StoriesClient({
                 disabled={loading || uploading}
                 className="px-5 py-2.5 rounded-xl bg-sepia text-white text-sm font-medium hover:bg-sepia-dark transition-all disabled:opacity-50"
               >
-                {loading ? "Saving..." : editing ? "Save Changes" : "Create Story"}
+                {loading ? "Saving..." : editing ? "Save Changes" : "Create Tale"}
               </button>
             </div>
           </div>
@@ -1746,10 +1746,10 @@ export function StoriesClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-white dark:bg-[#121212] border border-black/10 dark:border-white/15 rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <h3 className="text-lg font-semibold text-ink dark:text-cream mb-2">
-              Delete Story
+              Delete Tale
             </h3>
             <p className="text-sm text-ink-400 dark:text-ink-300 mb-6">
-              Are you sure you want to delete this story? It will be moved to
+              Are you sure you want to delete this tale? It will be moved to
               Trash, where you can restore it or delete it for good.
             </p>
             <div className="flex items-center justify-end gap-3">

@@ -118,6 +118,12 @@ export interface MinimapHudConfig {
   floorLabelSize: number;
   floorLabelColor: string;
   floorLabelPosition: MinimapLabelPosition;
+  /** Breathing room around the label, in CSS pixels — between it and the
+   *  card's edge on one side and the room outline on the other. The band
+   *  the label sits in is its font size plus twice this, so a bigger value
+   *  pushes the room outline away from the label rather than the label off
+   *  the card. 5 is what the card drew before this was a setting. */
+  floorLabelSpacing: number;
   /** Draw the label in capitals with a little tracking — the "signage" look
    *  the [M] map's own "Second Floor" divider uses. Off draws it as typed. */
   floorLabelUppercase: boolean;
@@ -152,6 +158,7 @@ export const MINIMAP_HUD_DEFAULTS: MinimapHudConfig = {
   floorLabelSize: 10,
   floorLabelColor: "#ffffff",
   floorLabelPosition: "top-center",
+  floorLabelSpacing: 5,
   floorLabelUppercase: true,
 };
 
@@ -163,6 +170,8 @@ export const MINIMAP_MIN_COUNTER_SCALE = 70;
 export const MINIMAP_MAX_COUNTER_SCALE = 180;
 export const MINIMAP_MIN_LABEL_SIZE = 8;
 export const MINIMAP_MAX_LABEL_SIZE = 24;
+export const MINIMAP_MIN_LABEL_SPACING = 0;
+export const MINIMAP_MAX_LABEL_SPACING = 40;
 /** Long enough for "Mezzanine Level" in any language; short enough that it
  *  can't run off a 160px-wide map at the smallest size. */
 export const MINIMAP_MAX_LABEL_LENGTH = 32;
@@ -248,6 +257,12 @@ export function sanitizeMinimapHudConfig(value: unknown): MinimapHudConfig {
       raw.floorLabelPosition,
       MINIMAP_LABEL_POSITIONS,
       d.floorLabelPosition
+    ),
+    floorLabelSpacing: clampNumber(
+      raw.floorLabelSpacing,
+      MINIMAP_MIN_LABEL_SPACING,
+      MINIMAP_MAX_LABEL_SPACING,
+      d.floorLabelSpacing
     ),
     floorLabelUppercase:
       typeof raw.floorLabelUppercase === "boolean" ? raw.floorLabelUppercase : d.floorLabelUppercase,

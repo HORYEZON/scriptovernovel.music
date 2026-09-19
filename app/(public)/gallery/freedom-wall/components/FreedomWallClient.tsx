@@ -69,7 +69,14 @@ export function FreedomWallClient({ initialNotes, eventTitle, eventId }: Props) 
       for (const [id, override] of Object.entries(parsed)) {
         const note = serverPos.get(id);
         if (!note || !override) continue; // note deleted server-side
-        if (override.baseX !== note.positionX || override.baseY !== note.positionY) continue;
+        const moved = override.x !== undefined || override.y !== undefined;
+        if (moved && (override.baseX !== note.positionX || override.baseY !== note.positionY)) {
+          // The admin moved this note since it was dragged: the drag is
+          // retired, but a pinch is a size, not a place, so that survives.
+          if (override.scale === undefined) continue;
+          kept[id] = { scale: override.scale };
+          continue;
+        }
         kept[id] = override;
       }
       setOverrides(kept);
@@ -89,13 +96,26 @@ export function FreedomWallClient({ initialNotes, eventTitle, eventId }: Props) 
       setOverrides((prev) => {
         const next = {
           ...prev,
-          [id]: { x, y, baseX: base?.positionX, baseY: base?.positionY },
+          [id]: { ...prev[id], x, y, baseX: base?.positionX, baseY: base?.positionY },
         };
         persist(next);
         return next;
       });
     },
     [persist, notes]
+  );
+
+  // A pinch is stored beside the position, on the same device-only terms —
+  // the server never learns a visitor's sizes any more than their layout.
+  const handleResize = useCallback(
+    (id: string, scale: number) => {
+      setOverrides((prev) => {
+        const next = { ...prev, [id]: { ...prev[id], scale } };
+        persist(next);
+        return next;
+      });
+    },
+    [persist]
   );
 
   const resetLayout = useCallback(() => {
@@ -174,6 +194,7 @@ export function FreedomWallClient({ initialNotes, eventTitle, eventId }: Props) 
             canvasRef={canvasRef}
             override={overrides[note.id]}
             onMove={handleMove}
+            onResize={handleResize}
           />
         ))}
 
@@ -181,7 +202,7 @@ export function FreedomWallClient({ initialNotes, eventTitle, eventId }: Props) 
         {notes.length > 0 && (
           <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2">
             <span className="px-2.5 py-1 rounded-full bg-black/10 dark:bg-white/10 text-[0.65rem] font-medium text-zinc-500 dark:text-zinc-400 backdrop-blur-sm">
-              ✋ Drag notes to rearrange — saved on this device only
+              ✋ Drag to rearrange · pinch to resize — saved on this device only
             </span>
             {hasCustomLayout && (
               <button

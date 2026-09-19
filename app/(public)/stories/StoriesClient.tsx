@@ -73,7 +73,7 @@ function StoryCard({
         {story.coverImageUrl ? (
           <Image
             src={imageVariantUrl(story.coverImageUrl, "thumb")}
-            alt={story.title || "Story cover"}
+            alt={story.title || "Tale cover"}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-105"
             sizes="(max-width: 640px) 80vw, (max-width: 1024px) 33vw, 25vw"
@@ -195,8 +195,8 @@ export function StoriesClient({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search stories…"
-              aria-label="Search stories"
+              placeholder="Search tales…"
+              aria-label="Search tales"
               className="w-full pl-8 pr-8 py-1.5 font-body text-xs rounded-lg border border-white/15 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-azure transition-colors"
             />
             {searchTerm && (
@@ -235,7 +235,7 @@ export function StoriesClient({
         <div className="text-center py-24">
           <BookOpen size={48} strokeWidth={1} className="mx-auto mb-4 text-white/20" />
           <p className="font-display text-3xl font-light italic text-white/40">
-            No stories yet
+            No tales yet
           </p>
           <p className="font-body text-sm text-white/30 mt-2">
             Check back soon for new books, comics and manga.
@@ -245,7 +245,7 @@ export function StoriesClient({
         <div className="text-center py-24">
           <Search size={40} strokeWidth={1} className="mx-auto mb-4 text-white/20" />
           <p className="font-display text-2xl font-light italic text-white/40">
-            No matching stories
+            No matching tales
           </p>
           <button
             onClick={() => {

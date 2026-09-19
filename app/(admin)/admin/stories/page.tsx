@@ -11,7 +11,7 @@ import {
 } from "@/lib/museum/roomStatus";
 import { StoriesClient } from "./StoriesClient";
 
-export const metadata: Metadata = { title: "Stories" };
+export const metadata: Metadata = { title: "Tales" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminStoriesPage() {
@@ -42,21 +42,21 @@ export default async function AdminStoriesPage() {
   return (
     <div>
       <AdminPageHeader
-        title="Stories"
+        title="Tales"
         description={
           <>
             <span className="font-bold tabular-nums">{stories.length}</span>{" "}
             publication{stories.length !== 1 ? "s" : ""} — books, novels, comics
-            &amp; manga, also read in the Digital Museum&rsquo;s Stories Room
+            &amp; manga, also read in the Digital Museum&rsquo;s Tales Room
           </>
         }
         action={
           <AdminGoToMenu
             icon={<BookOpen size={16} />}
             links={[
-              { label: "Stories Page", href: "/stories" },
-              museumRoomLink(museumRooms, "stories", "Digital Museum / Stories Room"),
-              museumEditorLink(museumRooms, "stories", "Scene Editor / Stories Room"),
+              { label: "Tales Page", href: "/stories" },
+              museumRoomLink(museumRooms, "stories", "Digital Museum / Tales Room"),
+              museumEditorLink(museumRooms, "stories", "Scene Editor / Tales Room"),
             ]}
           />
         }

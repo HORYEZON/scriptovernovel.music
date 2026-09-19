@@ -13,27 +13,27 @@ A minimalist art gallery and portfolio site for showcasing original artwork. Fea
 
 ## Tech Stack
 
-| Layer                | Technology                                                                                                                             |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework            | Next.js 15 (App Router)                                                                                                                |
-| Language             | TypeScript                                                                                                                             |
-| Styling              | Tailwind CSS 3                                                                                                                         |
-| ORM                  | Prisma 7 (`@prisma/adapter-pg` driver adapter over `pg`)                                                                               |
-| Database             | PostgreSQL (Supabase-hosted, pooled via Supavisor)                                                                                     |
-| Auth                 | NextAuth v5 beta (Credentials provider, JWT sessions, Prisma adapter)                                                                  |
-| Media Storage        | Cloudflare R2 (`scriptovernovel-music-website` bucket, zero-egress) — see [`Docs/Media_Storage_R2.md`](Docs/Media_Storage_R2.md)             |
-| State                | Zustand (cart, V2; wishlist)                                                                                                           |
-| Animation            | Framer Motion                                                                                                                          |
-| Masonry Layout       | `react-masonry-css` (gallery section modal — see [`app/(public)/gallery/GalleryClient.tsx`](<app/(public)/gallery/GalleryClient.tsx>)) |
+| Layer                | Technology                                                                                                                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework            | Next.js 15 (App Router)                                                                                                                                                                      |
+| Language             | TypeScript                                                                                                                                                                                   |
+| Styling              | Tailwind CSS 3                                                                                                                                                                               |
+| ORM                  | Prisma 7 (`@prisma/adapter-pg` driver adapter over `pg`)                                                                                                                                     |
+| Database             | PostgreSQL (Supabase-hosted, pooled via Supavisor)                                                                                                                                           |
+| Auth                 | NextAuth v5 beta (Credentials provider, JWT sessions, Prisma adapter)                                                                                                                        |
+| Media Storage        | Cloudflare R2 (`scriptovernovel-music-website` bucket, zero-egress) — see [`Docs/Media_Storage_R2.md`](Docs/Media_Storage_R2.md)                                                                     |
+| State                | Zustand (cart, V2; wishlist)                                                                                                                                                                 |
+| Animation            | Framer Motion                                                                                                                                                                                |
+| Masonry Layout       | `react-masonry-css` (gallery section modal — see [`app/(public)/gallery/GalleryClient.tsx`](<app/(public)/gallery/GalleryClient.tsx>))                                                       |
 | 3D Rendering         | Three.js via React Three Fiber (`@react-three/fiber`, `@react-three/drei`, `@react-three/xr`) — powers the [Digital Museum](#digital-museum) and its opt-in [VR Mode](#vr-mode), client-only |
-| Forms/Bot protection | Google reCAPTCHA v3                                                                                                                    |
-| Email                | Nodemailer (Gmail SMTP) + Resend, branded HTML templates via `react-email` (see [`emails/`](emails/))                                  |
-| Payments             | PayMongo (V2, not yet wired up for production)                                                                                         |
-| Validation           | Zod                                                                                                                                    |
-| API Documentation    | OpenAPI 3.0 spec in `lib/openapi.ts`, served via `swagger-ui-react` at `/admin/api-docs`                                              |
-| Maps                 | OpenStreetMap tiles via Leaflet/`react-leaflet` — powers the Timeline/Events pins on `/about`, no API key or billing account needed   |
-| Fonts                | Cormorant Garamond, DM Sans, DM Mono, Space Grotesk, Plus Jakarta Sans                                                                 |
-| Analytics            | Vercel Web Analytics (`@vercel/analytics`) — public storefront only, see [Website Analytics](#website-analytics-vercel-web-analytics)  |
+| Forms/Bot protection | Google reCAPTCHA v3                                                                                                                                                                          |
+| Email                | Nodemailer (Gmail SMTP) + Resend, branded HTML templates via `react-email` (see [`emails/`](emails/))                                                                                        |
+| Payments             | PayMongo (V2, not yet wired up for production)                                                                                                                                               |
+| Validation           | Zod                                                                                                                                                                                          |
+| API Documentation    | OpenAPI 3.0 spec in `lib/openapi.ts`, served via `swagger-ui-react` at `/admin/api-docs`                                                                                                     |
+| Maps                 | OpenStreetMap tiles via Leaflet/`react-leaflet` — powers the Timeline/Events pins on `/about`, no API key or billing account needed                                                          |
+| Fonts                | Cormorant Garamond, DM Sans, DM Mono, Space Grotesk, Plus Jakarta Sans                                                                                                                       |
+| Analytics            | Vercel Web Analytics (`@vercel/analytics`) — public storefront only, see [Website Analytics](#website-analytics-vercel-web-analytics)                                                        |
 
 ---
 
@@ -49,7 +49,7 @@ A minimalist art gallery and portfolio site for showcasing original artwork. Fea
 - Artwork detail modal (Framer Motion) with image preview (extra angle shots plus an optional 60-second "making of" timelapse video, auto-trimmed client-side on upload — see [`lib/artwork-video.ts`](lib/artwork-video.ts)/[`lib/video-trim.ts`](lib/video-trim.ts)), sold badge, tags
 - **Digital Museum** — a free-roaming, first-person 3D gallery at `/gallery/museum`, reached via a **Go To Museum** button in the gallery header ([`GoToMuseumButton.tsx`](components/public/GoToMuseumButton.tsx)). See [Digital Museum](#digital-museum) below for the full walkthrough
 - **Mini games** — five puzzles built from the gallery's own artwork (Art Puzzle, Rotate & Solve, Sliding Puzzle, Memory Cards, Find the Difference), reached from a Mini Games button in the gallery header. Desktop gets a popover selector, touch screens a bottom sheet built on a native `<select>`; both open a preview (artwork, rules, difficulty, your best, current top scores) before anything starts. Play is entirely in the browser — the server is contacted twice per round, once to issue the puzzle and once to score it. Anonymous leaderboards per game, plus an optional reward a high score can unlock. See [Mini-game scoring & anti-cheat](#mini-game-scoring--anti-cheat) below
-- **Wishlist** — heart-toggle any artwork (no login required, persisted in `localStorage` via Zustand, same pattern as the cart) from the detail modal or `/artwork/[slug]`; `/wishlist` lists everything saved, with a live count badge in the navbar
+- **Wishlist** — heart-toggle any artwork (no login required, persisted in `localStorage` via Zustand, same pattern as the cart) from the detail modal or `/artwork/[slug]`; `/wishlist` lists everything saved, with a live count badge in the navbar. Both it and the Cart are point-in-time snapshots, so on load each checks its saved ids against [`GET /api/artworks/availability`](<app/api/artworks/availability/route.ts>) / [`GET /api/products/availability`](<app/api/products/availability/route.ts>) — an artwork or product an admin has since deleted or unpublished shows as removed (dimmed, labeled, link/purchase disabled) rather than silently going stale or dead-imaging with no explanation. `POST /api/checkout` re-runs the same check server-side regardless of what the client believes, so a removed product can never actually be paid for
 - **Share** — native OS share sheet on mobile (`navigator.share`), a Facebook/X/Threads/Copy-Link popover on desktop; each completed share increments a per-artwork `shareCount`
 - Cursor glow — a soft, colour-cycling glow that trails the mouse on desktop (admin-configurable, see Theme Customization below); auto-skipped on touch devices and for `prefers-reduced-motion`
 - Background music — an optional looping track with a floating toggle button on every public page; never autoplays, visitor opts in (admin-configurable, see below)
@@ -71,15 +71,15 @@ A minimalist art gallery and portfolio site for showcasing original artwork. Fea
 
 - **Dashboard home** — stat cards, recent orders, quick actions, and a sidebar clock ([`LiveClock.tsx`](components/admin/LiveClock.tsx)) that opens a small calendar popover on click plus a live Manila weather readout ([`WeatherWidget.tsx`](components/admin/WeatherWidget.tsx), via the free Open-Meteo API — no key required)
 - **Artworks** — CRUD, drag-and-drop image upload plus an optional 60-second timelapse video, sold/available status, featured/new-release/published toggles, assign to section, quick-filter toggles (Featured/New Release/Draft) alongside the status tabs. Sits on its own tab next to **Digital Museum** (below) — both are part of the same admin page
-- **Digital Museum** — a second tab on the Artworks page: **General Settings** (enable/disable, optional title/description, room-entry splash effect/speed/colors), **Rooms** (create/reorder/enable rooms, wall/floor/ceiling colors + optional texture uploads, per-room splash icon/title, mark one the visitor's spawn point, a **1F/2F** toggle to send any room to the Second Floor, assign existing artwork — same wall/floor/ceiling + splash editing also available for the provisioned About ScriptOverNovel, Freedom Wall, Services, Stories, Arcade, Cosplay and Stairs rooms). Every room also opens in its own **Museum Scene Editor**, a 3D editor for hanging artwork, placing uploaded `.glb` props and text, and configuring room fixtures. See [Digital Museum](#digital-museum) below
+- **Digital Museum** — a second tab on the Artworks page: **General Settings** (enable/disable, optional title/description, room-entry splash effect/speed/colors), **Rooms** (create/reorder/enable rooms, per-room splash icon/title, mark one the visitor's spawn point, a **1F/2F** toggle to send any room to the Second Floor, assign existing artwork — same wall/floor/ceiling + splash editing also available for the provisioned About ScriptOverNovel, Freedom Wall, Services, Tales, Arcade, Cosplay and Stairs rooms). Every room also opens in its own **Museum Scene Editor**, a 3D editor for hanging artwork, placing uploaded `.glb` props and text, and configuring room fixtures. See [Digital Museum](#digital-museum) below
 - **Sections** — create/reorder gallery sections, cover image, publish toggle
 - **Products** — price/stock/availability per artwork (V2 shop), with the same Featured/New Release/Draft quick-filter toggles as Artworks
-- **Sales Dashboard** — first entry in the sidebar's **Sales** group (above Products and Orders): a revenue-trend area chart with a 7d/30d/90d/12-month range picker, four stat tiles (revenue, orders, items sold, average order value) each showing the change against the immediately preceding window, and Top-Selling Artworks / Top-Selling Sections lists. Revenue counts `PAID`, `SHIPPED` and `DELIVERED` orders — a single `status` column means a fulfilled order stops reading "PAID", so counting only `PAID` made revenue *shrink* as orders shipped (see [`lib/sales.ts`](lib/sales.ts) `REVENUE_STATUSES`). The server ships one flattened line-item array for the full 365-day window and the client recomputes on range change, so switching ranges is instant. Chart is hand-rolled inline SVG, same as [`VisitsAreaChart.tsx`](components/admin/VisitsAreaChart.tsx) — no chart library
-- **Orders** — order + order-item tracking, PayMongo reference/status (V2), plus **CSV export** (exports every row matching the current archive scope, status filter, search and sort — not just the visible page; [`lib/csv.ts`](lib/csv.ts) handles RFC-4180 quoting, an Excel BOM and CSV-injection defusing), **Download Receipt** (a printable receipt served as self-contained HTML by `GET /api/orders/[id]/receipt`, saved as PDF from the browser's own print dialog — see [`lib/receipt.ts`](lib/receipt.ts)) and **Archive Order**. Archiving is deliberately *not* the `deletedAt` soft-delete every other module uses: an order is a financial record, so `Order.archivedAt` only clears it out of the working list — it still counts towards revenue, the Sales Dashboard and every export, and Orders is not wired into Trash at all
+- **Sales Dashboard** — first entry in the sidebar's **Sales** group (above Products and Orders): a revenue-trend area chart with a 7d/30d/90d/12-month range picker, four stat tiles (revenue, orders, items sold, average order value) each showing the change against the immediately preceding window, and Top-Selling Artworks / Top-Selling Sections lists. Revenue counts `PAID`, `SHIPPED` and `DELIVERED` orders — a single `status` column means a fulfilled order stops reading "PAID", so counting only `PAID` made revenue _shrink_ as orders shipped (see [`lib/sales.ts`](lib/sales.ts) `REVENUE_STATUSES`). The server ships one flattened line-item array for the full 365-day window and the client recomputes on range change, so switching ranges is instant. Chart is hand-rolled inline SVG, same as [`VisitsAreaChart.tsx`](components/admin/VisitsAreaChart.tsx) — no chart library
+- **Orders** — order + order-item tracking, PayMongo reference/status (V2), plus **CSV export** (exports every row matching the current archive scope, status filter, search and sort — not just the visible page; [`lib/csv.ts`](lib/csv.ts) handles RFC-4180 quoting, an Excel BOM and CSV-injection defusing), **Download Receipt** (a printable receipt served as self-contained HTML by `GET /api/orders/[id]/receipt`, saved as PDF from the browser's own print dialog — see [`lib/receipt.ts`](lib/receipt.ts)) and **Archive Order**. Archiving is deliberately _not_ the `deletedAt` soft-delete every other module uses: an order is a financial record, so `Order.archivedAt` only clears it out of the working list — it still counts towards revenue, the Sales Dashboard and every export, and Orders is not wired into Trash at all
 - **Announcements** — two tabs on one page: **Popups** (scheduled modal CRUD) and **Marquee Banners** (scrolling ticker CRUD, grouped into category tabs, with colour pickers, a speed slider, typography controls and a live preview that reuses the same CSS the public bar does)
 - **Settings → FAQs** — reorderable FAQ CRUD, active/inactive toggle
 - **Settings → Preferences** — two tabs:
-  - **Branding** — logo, site background, Admin Sidebar icon + hover-color cycle, FAQ chatbox icon (picked from a searchable Lucide/Tabler icon gallery, `IconPicker.tsx`), the **Mobile Gallery Carousel** (mode: Auto-scroll/Swipe Only/Grid, plus a speed slider with a live preview — see [`lib/gallery-carousel.ts`](lib/gallery-carousel.ts)), the **Hover Shimmer** (the light sweep across a hovered Gallery / Tales / Shop card — per-grid colour, speed and brightness with a live preview; stored as one `Profile.hoverShimmer` Json column, validated in [`lib/hover-shimmer.ts`](lib/hover-shimmer.ts), rendered by [`HoverShimmer.tsx`](components/public/HoverShimmer.tsx)), and the **Entrance Splash** (enable toggle, transition effect picker, speed slider, two taglines — one above the logo and one below, each with its own font family, font-size slider and text color — an adjustable glow behind the lockup with optional shimmer and horizontal/vertical position offsets, a **Logo Letter Colors** mode picking whether the lockup's four coloured syllables only colour on hover or wear their colours throughout — hover is an effect a touch visitor can never trigger, which is why the second mode exists — and a live replayable preview — see [`IntroSplashSection.tsx`](<app/(admin)/admin/settings/Preferences/IntroSplashSection.tsx>) and [`lib/intro-splash.ts`](lib/intro-splash.ts); everything here stages until **Save Branding** *except* the enable toggle and the shimmer switch, which write themselves — a switch is a decision already finished the moment it is flipped, unlike a colour or a tagline still being composed); collapsible sidebar (desktop) falls back to a default squid mark when no custom icon is set
+  - **Branding** — logo, site background, Admin Sidebar icon + hover-color cycle, FAQ chatbox icon (picked from a searchable Lucide/Tabler icon gallery, `IconPicker.tsx`), the **Mobile Gallery Carousel** (mode: Auto-scroll/Swipe Only/Grid, plus a speed slider with a live preview — see [`lib/gallery-carousel.ts`](lib/gallery-carousel.ts)), the **Hover Shimmer** (the light sweep across a hovered Gallery / Tales / Shop card — per-grid colour, speed and brightness with a live preview; stored as one `Profile.hoverShimmer` Json column, validated in [`lib/hover-shimmer.ts`](lib/hover-shimmer.ts), rendered by [`HoverShimmer.tsx`](components/public/HoverShimmer.tsx)), and the **Entrance Splash** (enable toggle, transition effect picker, speed slider, two taglines — one above the logo and one below, each with its own font family, font-size slider and text color — an adjustable glow behind the lockup with optional shimmer and horizontal/vertical position offsets, a **Logo Letter Colors** mode picking whether the lockup's four coloured syllables only colour on hover or wear their colours throughout — hover is an effect a touch visitor can never trigger, which is why the second mode exists — and a live replayable preview — see [`IntroSplashSection.tsx`](<app/(admin)/admin/settings/Preferences/IntroSplashSection.tsx>) and [`lib/intro-splash.ts`](lib/intro-splash.ts); everything here stages until **Save Branding** _except_ the enable toggle and the shimmer switch, which write themselves — a switch is a decision already finished the moment it is flipped, unlike a colour or a tagline still being composed); collapsible sidebar (desktop) falls back to a default squid mark when no custom icon is set
   - **Theme Customization** — buttons, scrollbar, typography, **Cursor Effects** (on/off toggle + 4 cycle colours for the public-site cursor glow), and independent frosted-glass blur sliders for the public site's and the admin dashboard's own background photo (`bgBlur`/`adminBgBlur`, 0–24px, see [`lib/theme.ts`](lib/theme.ts))
 - **Settings → Mini Games** — three tabs on one page:
   - **Games** — the five game types, each with an on/off switch, artwork picked from the existing Artworks collection (no second upload system), difficulty, time limit, score multiplier (with a live "best possible score" readout), leaderboard size, and reward threshold/description. Find the Difference additionally gets a second artwork and a click-to-place hotspot editor. An enabled game whose artwork has since been unpublished is flagged rather than silently vanishing
@@ -93,7 +93,7 @@ A minimalist art gallery and portfolio site for showcasing original artwork. Fea
 - **Website Analytics** (dashboard's own tab, next to Overview) — visitor stats for the public storefront only (never admin sessions), powered by the Vercel Web Analytics API: visitors/pageviews/pages-per-visit, a two-line (page views + visitors) area chart with a hover tooltip, top pages, top traffic sources, and a device breakdown. A 7D/14D/30D/90D date-range filter drives every widget at once, switched client-side via `/api/analytics` (admin-only) without reloading the page — the selection survives navigating to the Overview tab and back. The initial 30-day load is server-rendered inside its own `<Suspense>` boundary so a slow analytics API never blocks the rest of the dashboard, and it degrades to a "Connect Vercel Analytics" prompt if unconfigured — see [Website Analytics setup](#website-analytics-vercel-web-analytics) below
 - **About** — bio, headline, profile images/slideshow, background/logo, social links, artist skills, certificates & awards, contact/commission copy
 - **Timeline / Events** (`/admin/events`) — full CRUD for the public Timeline/Gigs map: title, venue, description, date, click-to-drop-pin location picker (falls back to manual lat/lng inputs without a Maps key), enable toggle, reorder, and a **Next Event** star toggle (server-enforced single flag, same transactional pattern as the Digital Museum's entry-room). Photo/video upload straight to R2. Wired into **Global Search** and the sidebar
-- **Cosplays** (`/admin/cosplays`) — costume photography kept out of Artworks on purpose: character, series, cosplayer, photographer, year and event, with two images per entry (the shot printed on its life-size standee, and an optional photo hung on the panel behind it). The list has the same **Grid / List** view toggle as the other admin modules, defaulting to the card grid. Publishing one gives it a standee in the Digital Museum's **Cosplay Room**, where every field but the description reads on the standee's own plaque (character, series, event · year, credits) — the description stays behind the **[E]** info panel. Membership *and order* are mirrored from this module, so the reorder arrows move standees around the room's walls. There is no separate public page. See [`Docs/Museum_CosplayRoom.md`](Docs/Museum_CosplayRoom.md)
+- **Cosplays** (`/admin/cosplays`) — costume photography kept out of Artworks on purpose: character, series, cosplayer, photographer, year and event, with two images per entry (the shot printed on its life-size standee, and an optional photo hung on the panel behind it). The list has the same **Grid / List** view toggle as the other admin modules, defaulting to the card grid. Publishing one gives it a standee in the Digital Museum's **Cosplay Room**, where every field but the description reads on the standee's own plaque (character, series, event · year, credits) — the description stays behind the **[E]** info panel. Membership _and order_ are mirrored from this module, so the reorder arrows move standees around the room's walls. There is no separate public page. See [`Docs/Museum_CosplayRoom.md`](Docs/Museum_CosplayRoom.md)
 - **Trash** — soft-delete recovery for artworks, sections, products, cosplays, announcements, marquees, notifications, Digital Museum rooms, and Timeline events (`deletedAt`)
 - **Global Search** (⌘K / Ctrl+K, `components/admin/GlobalSearch.tsx`) — command-palette search across Artworks, Products, Orders, Sections, Rooms, Announcements, FAQs, and Timeline Events, plus a quick-nav shortcut to every admin page
 - **API Documentation** — interactive OpenAPI 3.0 reference at `/admin/api-docs` (Swagger UI), covering all ~130 endpoints. Accepts the `x-api-key` header (set `API_SECRET_KEY` in env) alongside the session cookie — useful for scripts, CI, and the Swagger UI's "Try it out" (see [API Documentation](#api-documentation) below)
@@ -202,7 +202,7 @@ In the Cloudflare Dashboard → **R2**:
 1. **Create bucket** — name it (the app reads the name from `R2_BUCKET`); location hint APAC to sit near the `sin1` Vercel region
 2. **Settings → Public access** — connect a custom domain, or enable the **Public Development URL**. Whichever you use is `R2_PUBLIC_URL`
 3. **Settings → CORS Policy** — required, or the museum's WebGL textures and the browser's direct `.glb`/audio uploads fail. Paste the policy from [`Docs/Media_Storage_R2.md`](Docs/Media_Storage_R2.md#cors)
-4. **Manage R2 API Tokens → Create** — *Object Read & Write*, scoped to this bucket only. That pair is `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`
+4. **Manage R2 API Tokens → Create** — _Object Read & Write_, scoped to this bucket only. That pair is `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`
 
 ### 4. Database setup
 
@@ -327,11 +327,11 @@ The gold **"… VISITORS"** pill in the public footer ([`FooterVisitorCount.tsx`
 
 One row (`SiteVisitCounter`, id `singleton`) holding a single `count`, incremented through [`app/api/visitor-count/route.ts`](app/api/visitor-count/route.ts):
 
-| Method | Who | Does |
-| --- | --- | --- |
-| `POST` | Public | Registers this browser, returns the running total plus achieved milestones. **Idempotent** — a browser already known is a read, not an increment |
-| `GET` | Public | Read-only; count + achieved milestones, no cookie writes |
-| `PATCH` | Admin | Recalibrates the count outright (Settings → Visitor Milestones), e.g. to seed from existing Vercel Analytics history rather than restarting at zero |
+| Method  | Who    | Does                                                                                                                                                |
+| ------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST`  | Public | Registers this browser, returns the running total plus achieved milestones. **Idempotent** — a browser already known is a read, not an increment    |
+| `GET`   | Public | Read-only; count + achieved milestones, no cookie writes                                                                                            |
+| `PATCH` | Admin  | Recalibrates the count outright (Settings → Visitor Milestones), e.g. to seed from existing Vercel Analytics history rather than restarting at zero |
 
 Both `FooterVisitorCount` and [`VisitorCounterWidget`](components/public/VisitorCounterWidget.tsx) `POST` on mount; whichever lands first counts the visit and the other reads the same total back. The widget renders nothing visible unless there's an unclaimed milestone — the visible number lives in the footer.
 
@@ -346,12 +346,12 @@ readPlayerId() returns null   →  ensurePlayerId() mints one, count + 1
 
 Two properties of that cookie matter here, and both are the reason it isn't `localStorage`:
 
-- **`httpOnly`** — unreadable and unwritable from page JavaScript, devtools included. A visitor can't clear a key and refresh to inflate the count. They *can* delete cookies entirely, which also costs them their Mini Games history — an accepted trade.
-- **HMAC-signed** with `AUTH_SECRET`/`NEXTAUTH_SECRET`. The id is public; forging a *valid* one for a different player is not possible without the secret. This is load-bearing for Mini Games (scores are attributed to this id), and the counter inherits it for free.
+- **`httpOnly`** — unreadable and unwritable from page JavaScript, devtools included. A visitor can't clear a key and refresh to inflate the count. They _can_ delete cookies entirely, which also costs them their Mini Games history — an accepted trade.
+- **HMAC-signed** with `AUTH_SECRET`/`NEXTAUTH_SECRET`. The id is public; forging a _valid_ one for a different player is not possible without the secret. This is load-bearing for Mini Games (scores are attributed to this id), and the counter inherits it for free.
 
 `sessionStorage` would have been worse still: it dies with the tab, so every new tab would read as a new visitor.
 
-> ⚠️ **The cookie is not renewed on later visits.** `ensurePlayerId()` returns early when the cookie verifies, so `maxAge` (1 year) runs from the visitor's *first* visit. Someone visiting continuously for over a year is eventually counted a second time. Renewing would mean re-setting the cookie on every verified read.
+> ⚠️ **The cookie is not renewed on later visits.** `ensurePlayerId()` returns early when the cookie verifies, so `maxAge` (1 year) runs from the visitor's _first_ visit. Someone visiting continuously for over a year is eventually counted a second time. Renewing would mean re-setting the cookie on every verified read.
 
 Known, documented imprecision: two tabs opened simultaneously by a brand-new browser can both increment before either cookie is set — at most one extra, accepted for a fun counter. `POST` is additionally rate-limited per IP (20/60s, [`lib/minigames/rate-limit.ts`](lib/minigames/rate-limit.ts)) to blunt a script hammering it with cookies stripped each time. The worst case here is an inflated fun-fact, not a vulnerability.
 
@@ -359,14 +359,14 @@ Known, documented imprecision: two tabs opened simultaneously by a brand-new bro
 
 The footer badge reads consistently **higher** than the dashboard's Website Analytics tab, and that's structural rather than a bug in either:
 
-| | Footer badge | Website Analytics |
-| --- | --- | --- |
-| Source | This app's own Postgres | Vercel Web Analytics API |
-| Collection | Server-side, as the request is served | `@vercel/analytics` script in the browser |
-| Blockable | **No** | **Yes** — `/_vercel/insights/script.js` is on uBlock Origin, Brave, AdGuard and Firefox strict blocklists |
-| Identity | Signed cookie, permanent | Cookieless, rotating daily hash |
-| Window | All time, never resets | Only the selected range (7/14/30/90D) |
-| Bots | Counted if they run JS and keep cookies | Filtered |
+|            | Footer badge                            | Website Analytics                                                                                         |
+| ---------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Source     | This app's own Postgres                 | Vercel Web Analytics API                                                                                  |
+| Collection | Server-side, as the request is served   | `@vercel/analytics` script in the browser                                                                 |
+| Blockable  | **No**                                  | **Yes** — `/_vercel/insights/script.js` is on uBlock Origin, Brave, AdGuard and Firefox strict blocklists |
+| Identity   | Signed cookie, permanent                | Cookieless, rotating daily hash                                                                           |
+| Window     | All time, never resets                  | Only the selected range (7/14/30/90D)                                                                     |
+| Bots       | Counted if they run JS and keep cookies | Filtered                                                                                                  |
 
 Ad-blocking is the dominant term; a 15–20% gap is normal. Use Website Analytics for real traffic questions (trends, top pages, referrers) and the badge for what it is — a lifetime "how many people have been here" figure.
 
@@ -382,23 +382,23 @@ A reached milestone surfaces a claim popup in `VisitorCounterWidget`, and a visi
 
 The ✨ icon beside `ThemeToggle` in the public navbar ([`ReleaseNotes.tsx`](components/public/ReleaseNotes.tsx)) opens a short "what's new on the site" list; clicking an entry opens it in full. Written by hand from **Settings → Release Notes**, not generated from `Docs/Progress_Timeline.md` — the timeline is the engineering record and covers admin-only work, this is the visitor-facing subset in plain words.
 
-Kept apart from `Announcement` (a popup that interrupts) and `MarqueeAnnouncement` (a ticker): those are for something happening *now*, this is a running record of what shipped.
+Kept apart from `Announcement` (a popup that interrupts) and `MarqueeAnnouncement` (a ticker): those are for something happening _now_, this is a running record of what shipped.
 
 **Only the newest N are ever shown.** `Profile.releaseNotesLimit` (default 3, clamped 1–10 by [`lib/release-notes.ts`](lib/release-notes.ts)) is applied as a `take` in the query, not on the client — publishing an N+1th note pushes the oldest out rather than lengthening the list, and the response can't be widened by editing a fetch. `Profile.releaseNotesEnabled` removes the icon entirely rather than leaving one that opens onto an empty box.
 
-| Route | Who | Does |
-| ----- | --- | ---- |
-| `GET /api/release-notes` | Admin | Every note, drafts included |
-| `POST /api/release-notes` | Admin | Create — `publishedAt` defaults to now |
-| `PATCH /api/release-notes/[id]` | Admin | Edit, or flip published ↔ draft |
-| `DELETE /api/release-notes/[id]` | Admin | Hard delete — does **not** go to Trash |
-| `GET /api/release-notes/active` | Public | Newest N published only |
+| Route                            | Who    | Does                                   |
+| -------------------------------- | ------ | -------------------------------------- |
+| `GET /api/release-notes`         | Admin  | Every note, drafts included            |
+| `POST /api/release-notes`        | Admin  | Create — `publishedAt` defaults to now |
+| `PATCH /api/release-notes/[id]`  | Admin  | Edit, or flip published ↔ draft        |
+| `DELETE /api/release-notes/[id]` | Admin  | Hard delete — does **not** go to Trash |
+| `GET /api/release-notes/active`  | Public | Newest N published only                |
 
 The split between the admin list route and `/active` is the same one `/api/marquees` already uses: an anonymous fetch can't enumerate drafts.
 
 `publishedAt` is admin-editable and is what the list orders by — a note is usually written days after its change shipped, and dating it to the change keeps the order honest. Hard-deleted rather than soft-deleted into Trash, like `VisitorMilestone`: a release note holds no upload and nothing references it, so there is nothing to orphan.
 
-The panel is server-rendered in [`app/(public)/layout.tsx`](app/(public)/layout.tsx) so the icon is in the first paint, then refreshes itself once on mount from `/active` — most public routes prerender, so a note published afterwards would otherwise stay invisible until something revalidated. The unread dot is one `localStorage` key holding the newest note id the browser has opened, held back until after mount so it can't cause a hydration mismatch.
+The panel is server-rendered in [`app/(public)/layout.tsx`](<app/(public)/layout.tsx>) so the icon is in the first paint, then refreshes itself once on mount from `/active` — most public routes prerender, so a note published afterwards would otherwise stay invisible until something revalidated. The unread dot is one `localStorage` key holding the newest note id the browser has opened, held back until after mount so it can't cause a hydration mismatch.
 
 ---
 
@@ -474,7 +474,7 @@ Admin CRUD for all of the above lives on the **Artworks** page's **Digital Museu
 
 Rooms don't teleport-select like V1 — they chain into **one continuous walkable corridor** in `displayOrder`, each connected to the next by a real doorway opening (see [`roomLayout.ts`](<app/(public)/gallery/museum/components/roomLayout.ts>)). Every room shares the same width so doorways always line up; only depth (and a lighting preset) varies by `roomType`. The corridor always ends in an **automatic "About ScriptOverNovel" room**, whose displayed content is built straight from the same Profile/CertificateAward/ArtistSkill/SocialLink rows the public `/about` page reads — never a second content source to keep in sync.
 
-**Provisioned rooms.** About ScriptOverNovel, Freedom Wall, Stairs, Services, Stories, Arcade and Cosplay are *lazily provisioned* — each is a real `MuseumRoom` row created on demand by its own `lib/museum/*Room.ts` helper rather than added by an admin. A real row is what lets them carry Museum Scene Editor placements, colours and textures like any other room. They can't be created, retyped or deleted; most can still be reordered, restyled and enabled/disabled. The last four don't have hand-picked contents either — they mirror another module, so publishing a Story, a game or a Cosplay is what puts it in the room.
+**Provisioned rooms.** About ScriptOverNovel, Freedom Wall, Stairs, Services, Tales (the Stories module — `STORIES` in code), Arcade and Cosplay are _lazily provisioned_ — each is a real `MuseumRoom` row created on demand by its own `lib/museum/*Room.ts` helper rather than added by an admin. A real row is what lets them carry Museum Scene Editor placements, colours and textures like any other room. They can't be created, retyped or deleted; most can still be reordered, restyled and enabled/disabled. The last four don't have hand-picked contents either — they mirror another module, so publishing a Story, a game or a Cosplay is what puts it in the room.
 
 ### Second Floor + Stairs
 
@@ -484,47 +484,48 @@ Like About/Freedom Wall, the Stairs room is lazily provisioned ([`lib/museum/sta
 
 **Controls** ([`PlayerControls.tsx`](<app/(public)/gallery/museum/components/PlayerControls.tsx>)):
 
-| Input                 | Desktop                                                                          | Touch                                                                                                               |
-| --------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Move                  | WASD / arrow keys                                                                | On-screen joystick, bottom-left ([`TouchControls.tsx`](<app/(public)/gallery/museum/components/TouchControls.tsx>)) |
-| Look                  | Mouse, via Pointer Lock (click to engage)                                        | Drag anywhere else on screen                                                                                        |
-| Interact with a frame | **E**, once close enough (a hysteresis gap avoids flicker right at the boundary) | Tap the on-screen prompt                                                                                            |
-| Open the map          | **M**                                                                            | Map button in the HUD                                                                                               |
-| Toggle day/night      | **L**                                                                            | Sun/Moon button in the HUD                                                                                          |
-| Hide/show the HUD     | **H**                                                                            | —                                                                                                                   |
-| Screenshot            | **R**, or the **Save Photo** (Camera) button in the HUD                          | Camera icon in the HUD                                                                                              |
-| Save the last photo   | Download button in the HUD                                                       | Download button in the HUD                                                                                          |
-| Share the room in 360°| **Share 360°** button in the HUD                                                 | **Share 360°** button in the HUD                                                                                    |
-| Enter/exit VR         | **V**, or the VR button in the HUD (only shown if the device supports it)        | VR Mode switch in the **View** dropdown, below Gyroscope (same device check)                                       |
+| Input                  | Desktop                                                                          | Touch                                                                                                               |
+| ---------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Move                   | WASD / arrow keys                                                                | On-screen joystick, bottom-left ([`TouchControls.tsx`](<app/(public)/gallery/museum/components/TouchControls.tsx>)) |
+| Look                   | Mouse, via Pointer Lock (click to engage)                                        | Drag anywhere else on screen                                                                                        |
+| Interact with a frame  | **E**, once close enough (a hysteresis gap avoids flicker right at the boundary) | Tap the on-screen prompt                                                                                            |
+| Open the map           | **M**                                                                            | Map button in the HUD                                                                                               |
+| Toggle day/night       | **L**                                                                            | Sun/Moon button in the HUD                                                                                          |
+| Hide/show the HUD      | **H**                                                                            | —                                                                                                                   |
+| Screenshot             | **R**, or the **Save Photo** (Camera) button in the HUD                          | Camera icon in the HUD                                                                                              |
+| Save the last photo    | Download button in the HUD                                                       | Download button in the HUD                                                                                          |
+| Share the room in 360° | **Share 360°** button in the HUD                                                 | **Share 360°** button in the HUD                                                                                    |
+| Enter/exit VR          | **V**, or the VR button in the HUD (only shown if the device supports it)        | VR Mode switch in the **View** dropdown, below Gyroscope (same device check)                                        |
 
 The day/night toggle only dims the museum's own lights/fog (stored in its own `localStorage` key, `museum_dark_mode_v2`) — it's deliberately independent of the site-wide light/dark theme. Visitors arrive in **light mode**; the key is versioned because the old dark-first default auto-seeded a stored preference on a visitor's first load, so flipping the default alone would have left every returning visitor in dark on a setting they never chose. Devices with no WebGL at all fall back to [`MuseumGridFallback.tsx`](<app/(public)/gallery/museum/MuseumGridFallback.tsx>), a browsable 2D grid of the same rooms/artworks — detected client-side via a throwaway canvas, never assumed from user-agent. Three.js is loaded through a `next/dynamic(..., { ssr: false })` import ([`MuseumSceneLoader.tsx`](<app/(public)/gallery/museum/MuseumSceneLoader.tsx>)) so it never reaches the server bundle or a device that doesn't need it.
 
 ### VR Mode
 
-An opt-in **VR** button appears in the desktop HUD only on a device that can actually use it (`navigator.xr.isSessionSupported('immersive-vr')`, feature-detected once on mount) — most visitors, on a phone or a headset-less desktop, never see it at all. The phone's **View** dropdown draws its **VR Mode** row *always*, dimmed with the reason when unsupported ("Open in Chrome or Safari to use" inside Facebook/Messenger/Instagram's in-app browser, which has no WebXR; "Not available in this browser" otherwise) — an absent row read as a regression the first time a visitor who'd used VR in Chrome opened the museum from a Facebook post. [`lib/museum/inAppBrowser.ts`](lib/museum/inAppBrowser.ts) is the UA check. It's the same continuous corridor, not a separate route: the camera is a child of a player rig ([`PlayerRig.tsx`](<app/(public)/gallery/museum/components/PlayerRig.tsx>), swapped for [`@react-three/xr`](https://github.com/pmndrs/xr)'s `<XROrigin>` while presenting) that [`PlayerControls.tsx`](<app/(public)/gallery/museum/components/PlayerControls.tsx>) already drives outside VR too — full design/rationale in [`Docs/Museum_VRMode.md`](Docs/Museum_VRMode.md). In VR: thumbstick movement (left stick) + 45° snap-turn (right stick — deliberately not smooth, for comfort), a comfort vignette while translating, and the head itself for looking around. The `[E]` prompt has an in-world twin ([`VrInteractionPrompt.tsx`](<app/(public)/gallery/museum/components/VrInteractionPrompt.tsx>), "TRIGGER · PINCH — View Artwork"), and a controller trigger or hand pinch opens the **same panel state** the desktop/mobile modals use — rendered as mirrored in-world panels built from [`VrUi.tsx`](<app/(public)/gallery/museum/components/VrUi.tsx>) (`VrArtworkPanel`, `VrCertificatePanel`, `VrStoryPanel`, `VrCosplayPanel`, `VrGamePanel`, `VrGigsPanel`, `VrContactPanel`), each with a clickable × and its own buttons (Wishlist, Next page, photo toggle). Whatever can't physically follow into a headset — new-tab links, the timelapse video, the Gigs map, the contact form, playing a mini-game — degrades to a muted "remove headset" line inside the panel rather than a missing feature. The HUD is in the headset too ([`VrHud.tsx`](<app/(public)/gallery/museum/components/VrHud.tsx>)): room name + progress dots, Music / Dark-Light / Map / Hide HUD / Exit VR, the bottom-left radar (the very same `drawMiniMap()` routine the DOM card uses, drawn to a texture) with the stat counters, the room splash and the achievement banner — all driving the same state as the DOM HUD; the [M] map is mirrored as [`VrMapPanel.tsx`](<app/(public)/gallery/museum/components/VrMapPanel.tsx>). Save Photo, Filter Vision and Back to Gallery deliberately don't carry over (each depends on the 2D canvas or DOM the XR compositor never shows). Jump is disabled while presenting. `@react-three/xr` stays behind the same `{ ssr: false }` boundary as the rest of three.js. Full design and the 09/13/26 scope change in [`Docs/Museum_VRMode.md`](Docs/Museum_VRMode.md) §9.
+An opt-in **VR** button appears in the desktop HUD only on a device that can actually use it (`navigator.xr.isSessionSupported('immersive-vr')`, feature-detected once on mount) — most visitors, on a phone or a headset-less desktop, never see it at all. The phone's **View** dropdown draws its **VR Mode** row _always_, dimmed with the reason when unsupported ("Open in Chrome or Safari to use" inside Facebook/Messenger/Instagram's in-app browser, which has no WebXR; "Not available in this browser" otherwise) — an absent row read as a regression the first time a visitor who'd used VR in Chrome opened the museum from a Facebook post. [`lib/museum/inAppBrowser.ts`](lib/museum/inAppBrowser.ts) is the UA check. It's the same continuous corridor, not a separate route: the camera is a child of a player rig ([`PlayerRig.tsx`](<app/(public)/gallery/museum/components/PlayerRig.tsx>), swapped for [`@react-three/xr`](https://github.com/pmndrs/xr)'s `<XROrigin>` while presenting) that [`PlayerControls.tsx`](<app/(public)/gallery/museum/components/PlayerControls.tsx>) already drives outside VR too — full design/rationale in [`Docs/Museum_VRMode.md`](Docs/Museum_VRMode.md). In VR: thumbstick movement (left stick) + 45° snap-turn (right stick — deliberately not smooth, for comfort), a comfort vignette while translating, and the head itself for looking around. The `[E]` prompt has an in-world twin ([`VrInteractionPrompt.tsx`](<app/(public)/gallery/museum/components/VrInteractionPrompt.tsx>), "TRIGGER · PINCH — View Artwork"), and a controller trigger or hand pinch opens the **same panel state** the desktop/mobile modals use — rendered as mirrored in-world panels built from [`VrUi.tsx`](<app/(public)/gallery/museum/components/VrUi.tsx>) (`VrArtworkPanel`, `VrCertificatePanel`, `VrStoryPanel`, `VrCosplayPanel`, `VrGamePanel`, `VrGigsPanel`, `VrContactPanel`), each with a clickable × and its own buttons (Wishlist, Next page, photo toggle). Whatever can't physically follow into a headset — new-tab links, the timelapse video, the Gigs map, the contact form, playing a mini-game — degrades to a muted "remove headset" line inside the panel rather than a missing feature. The HUD is in the headset too ([`VrHud.tsx`](<app/(public)/gallery/museum/components/VrHud.tsx>)): room name + progress dots, Music / Dark-Light / Map / Hide HUD / Exit VR, the bottom-left radar (the very same `drawMiniMap()` routine the DOM card uses, drawn to a texture) with the stat counters, the room splash and the achievement banner — all driving the same state as the DOM HUD; the [M] map is mirrored as [`VrMapPanel.tsx`](<app/(public)/gallery/museum/components/VrMapPanel.tsx>). Save Photo, Filter Vision and Back to Gallery deliberately don't carry over (each depends on the 2D canvas or DOM the XR compositor never shows). A phone in Cardboard-style goggles that shows the museum upside down (the OS's auto-rotate and Chrome's eye layout picking different landscapes) has a persisted **Flip VR view** switch in the phone's View dropdown — [`VrFlipView.tsx`](<app/(public)/gallery/museum/components/VrFlipView.tsx>) rolls both eye cameras 180° and swaps their viewports each frame, which the OS's rotation then undoes. Jump is disabled while presenting. `@react-three/xr` stays behind the same `{ ssr: false }` boundary as the rest of three.js. Full design and the 09/13/26 scope change in [`Docs/Museum_VRMode.md`](Docs/Museum_VRMode.md) §9.
 
 ### Hide HUD & Screenshot
 
 Pressing an OS-level screenshot shortcut (Cmd+Shift+4, Win+Shift+S, etc.) blurs the browser tab, which auto-releases Pointer Lock and always caught the "Click to look around" legend mid-frame — there's no way to prevent that at the JS level, it's a browser security behavior. Two in-app features route around it instead:
 
+- **[L] Lighting** — cycles **Light → Dim → Dark** (`MuseumLightMode` in [`MuseumClient.tsx`](<app/(public)/gallery/museum/MuseumClient.tsx>); the HUD button on a phone and the VR HUD's button do the same). Everything downstream still speaks `darkMode` + one brightness: Dim is light mode's colour presets at `DigitalMuseum.museumBrightnessDim`, so adding the third mode touched no scene code. Persisted under the existing `museum_dark_mode_v2` key ("0" light / "1" dark / "2" dim, so an older saved choice still means what it did). Each mode's brightness is set from the Scene Editor toolbar's Light/Dim/Dark preview button + slider
 - **[H] Hide HUD** — toggles every on-screen overlay (legend, interaction prompts, the About room corner card) off, so a visitor can take a clean OS-level screenshot themselves. Pressing **H** again restores the HUD; the room-entry splash system stays mounted underneath so it doesn't replay just because the HUD was briefly hidden ([`RoomSplash.tsx`](<app/(public)/gallery/museum/components/RoomSplash.tsx>)'s `hidden` prop only suppresses the visible render, not the component tracking which room's splash has already played). On mobile, where the `[H]` key doesn't exist, the same switch is a **Hide HUD** entry in the touch-only **View** dropdown (alongside Landscape and Gyroscope) — since flipping it hides that dropdown along with the rest of the HUD, a small always-mounted eye icon appears top-right whenever `hudHidden && isCoarsePointer`, as the one way back.
-- **[R] Screenshot** — captures the WebGL canvas directly via `gl.domElement.toDataURL()` ([`ScreenshotCapture.tsx`](<app/(public)/gallery/museum/components/ScreenshotCapture.tsx>), mounted inside the `<Canvas>`, with `preserveDrawingBuffer: true`) and immediately downloads it — the canvas is its own compositing layer, so this never includes DOM overlays in the first place, no HUD-hiding needed. The HUD's **Save Photo** (Camera) button triggers the same capture at every width. The desktop **Hide HUD** button beside it (EyeOff icon) is the `[H]` switch above, *not* a capture — it was once a Camera icon labelled "Screenshot", which visitors pressed expecting a download and got a blank screen instead.
+- **[R] Screenshot** — captures the WebGL canvas directly via `gl.domElement.toDataURL()` ([`ScreenshotCapture.tsx`](<app/(public)/gallery/museum/components/ScreenshotCapture.tsx>), mounted inside the `<Canvas>`, with `preserveDrawingBuffer: true`) and immediately downloads it — the canvas is its own compositing layer, so this never includes DOM overlays in the first place, no HUD-hiding needed. The HUD's **Save Photo** (Camera) button triggers the same capture at every width. The desktop **Hide HUD** button beside it (EyeOff icon) is the `[H]` switch above, _not_ a capture — it was once a Camera icon labelled "Screenshot", which visitors pressed expecting a download and got a blank screen instead.
 
 ### Share 360°
 
-A **Share 360°** pill beside Save Photo renders the room the visitor is standing in as a Facebook-ready 360° photo — from where they stand, centred on where they're looking. The whole pipeline is client-side in [`lib/museum/panorama360.ts`](lib/museum/panorama360.ts): a `THREE.CubeCamera` at the eye draws the live scene graph into six 2048² faces (so lighting, dark mode, textures and admin-placed objects all come along untouched), a full-screen `ShaderMaterial` maps each output pixel's longitude/latitude to a cube-map direction, and the 4096×2048 result is read back, JPEG-encoded (q 0.95), and tagged. The export is sized per device by `pickPanoramaWidth` — desktop 4096, phones 3072 (2048 where Chrome reports under 6 GB RAM), the museum's low-end tier 2048 — because everything below scales with its square and a 4096 capture peaked at ~250 MB, enough to lose a mid-range phone's tab; the cube is also released before the readback, the full canvas zeroed once the JPEG exists, and the modal previews a 1024-wide copy. The faces are deliberately *half* the output width — 2× supersampling with mipmaps — because a quarter-width face is only sampled 1:1 at its centre and reads soft everywhere else; and they're 8-bit **sRGB** (`colorSpace: SRGBColorSpace` on the target makes three allocate `SRGB8_ALPHA8`, so WebGL2 encodes on write / decodes on sample) rather than half-float, which gives the same shadow precision at half the memory (100 MB vs 200 MB for the six faces). Inside Facebook/Messenger/Instagram's in-app browser ([`isInAppBrowser()`](lib/museum/inAppBrowser.ts)) the modal shows an amber "open this in Chrome or Safari" note above the buttons and Download's toast stops claiming a save: that WebView swallows `<a download>` on a `blob:` URL silently and usually lacks the Web Share API too, so there is no way to hand the file over from inside it — the visitor's own *Open in browser* menu is the whole fix. Two more details worth knowing before touching it:
+A **Share 360°** pill beside Save Photo renders the room the visitor is standing in as a Facebook-ready 360° photo — from where they stand, centred on where they're looking. The whole pipeline is client-side in [`lib/museum/panorama360.ts`](lib/museum/panorama360.ts): a `THREE.CubeCamera` at the eye draws the live scene graph into six 2048² faces (so lighting, dark mode, textures and admin-placed objects all come along untouched), a full-screen `ShaderMaterial` maps each output pixel's longitude/latitude to a cube-map direction, and the 4096×2048 result is read back, JPEG-encoded (q 0.95), and tagged. The export is sized per device by `pickPanoramaWidth` — desktop 4096, phones 3072 (2048 where Chrome reports under 6 GB RAM), the museum's low-end tier 2048 — because everything below scales with its square and a 4096 capture peaked at ~250 MB, enough to lose a mid-range phone's tab; the cube is also released before the readback, the full canvas zeroed once the JPEG exists, and the modal previews a 1024-wide copy. The faces are deliberately _half_ the output width — 2× supersampling with mipmaps — because a quarter-width face is only sampled 1:1 at its centre and reads soft everywhere else; and they're 8-bit **sRGB** (`colorSpace: SRGBColorSpace` on the target makes three allocate `SRGB8_ALPHA8`, so WebGL2 encodes on write / decodes on sample) rather than half-float, which gives the same shadow precision at half the memory (100 MB vs 200 MB for the six faces). Inside Facebook/Messenger/Instagram's in-app browser ([`isInAppBrowser()`](lib/museum/inAppBrowser.ts)) the modal shows an amber "open this in Chrome or Safari" note above the buttons and Download's toast stops claiming a save: that WebView swallows `<a download>` on a `blob:` URL silently and usually lacks the Web Share API too, so there is no way to hand the file over from inside it — the visitor's own _Open in browser_ menu is the whole fix. Two more details worth knowing before touching it:
 
-- **Tone mapping is re-applied by hand.** three.js only tone-maps and sRGB-encodes the default framebuffer (`WebGLPrograms.js`); anything drawn into a render target is raw linear light. The shader therefore `#include`s `tonemapping_pars_fragment` and calls the same function the renderer is configured with (ACESFilmic, R3F's default) before `sRGBTransferOETF` — and deliberately does *not* include `colorspace_pars_fragment`, which three already prepends to every fragment shader (doing so is a redefinition error and a black photo). Verified in headless Chrome against the live canvas.
+- **Tone mapping is re-applied by hand.** three.js only tone-maps and sRGB-encodes the default framebuffer (`WebGLPrograms.js`); anything drawn into a render target is raw linear light. The shader therefore `#include`s `tonemapping_pars_fragment` and calls the same function the renderer is configured with (ACESFilmic, R3F's default) before `sRGBTransferOETF` — and deliberately does _not_ include `colorspace_pars_fragment`, which three already prepends to every fragment shader (doing so is a redefinition error and a black photo). Verified in headless Chrome against the live canvas.
 - **Transmission is off for the shot.** three r169's `renderTransmissionPass` restores the render target without the active cube face (`WebGLRenderer.js:1571`), so a `MeshPhysicalMaterial` with `transmission > 0` in any face's view — the glass of a GLB prop — blanks that face and paints its content onto face 0. `renderEquirectangular` zeroes `transmission` (with `needsUpdate`) on every such material for the one frame and restores it after.
 - **The tag is what makes it a 360°.** [`injectGPanoXmp()`](lib/museum/panorama360.ts) splices a Photo Sphere XMP `APP1` segment (`GPano:ProjectionType="equirectangular"`, the full/cropped pano dimensions, `PoseHeadingDegrees`) straight after the JFIF `APP0`. That block — not anything about the page — is what Facebook, Google Photos and Flickr look for; a link post is always a flat OG image.
 
-[`Room360Capture.tsx`](<app/(public)/gallery/museum/components/Room360Capture.tsx>) is the R3F bridge (the same ref pattern as `ScreenshotCapture`), mounted by both [`MuseumScene.tsx`](<app/(public)/gallery/museum/components/MuseumScene.tsx>) (eye = the player rig; low-end devices export 2048 wide) and the admin [`MuseumEditorScene.tsx`](<app/(admin)/admin/artworks/museum-editor/[roomId]/MuseumEditorScene.tsx>) (eye = just inside the south doorway, facing in; gizmo and guide lines hidden for the shot — and it captures unsaved edits, since it reads the scene, not the DB). The editor also uses the `stage` hook to fill its doorways for the duration of the render: it previews one room with no corridor behind it, so an open doorway is otherwise a hole straight through to the void-black scene background, dead centre of the photo. The public scene additionally uses the async `prepare` hook to *light* every room for the shot (`lightsEnabled`, not `nearbyRoomIds` — widening the latter also starts every artwork load in the building, which crashed phones): point lights are normally gated to the current room ± 1, which is right for walking but leaves a room two doorways away lit by ambient alone. [`Share360Modal.tsx`](<app/(public)/gallery/museum/components/Share360Modal.tsx>) shows the flat strip with **Share…** (Web Share API with the file, offered only where `navigator.canShare({ files })` says so — the Facebook app keeps the XMP), **Download**, and **Copy link** (`/gallery/museum?room=<slug>`); it is sized for the museum's forced-landscape phone viewport (~390px tall), so the buttons never stack.
+[`Room360Capture.tsx`](<app/(public)/gallery/museum/components/Room360Capture.tsx>) is the R3F bridge (the same ref pattern as `ScreenshotCapture`), mounted by both [`MuseumScene.tsx`](<app/(public)/gallery/museum/components/MuseumScene.tsx>) (eye = the player rig; low-end devices export 2048 wide) and the admin [`MuseumEditorScene.tsx`](<app/(admin)/admin/artworks/museum-editor/[roomId]/MuseumEditorScene.tsx>) (eye = just inside the south doorway, facing in; gizmo and guide lines hidden for the shot — and it captures unsaved edits, since it reads the scene, not the DB). The editor also uses the `stage` hook to fill its doorways for the duration of the render: it previews one room with no corridor behind it, so an open doorway is otherwise a hole straight through to the void-black scene background, dead centre of the photo. The public scene additionally uses the async `prepare` hook to _light_ every room for the shot (`lightsEnabled`, not `nearbyRoomIds` — widening the latter also starts every artwork load in the building, which crashed phones): point lights are normally gated to the current room ± 1, which is right for walking but leaves a room two doorways away lit by ambient alone. [`Share360Modal.tsx`](<app/(public)/gallery/museum/components/Share360Modal.tsx>) shows the flat strip with **Share…** (Web Share API with the file, offered only where `navigator.canShare({ files })` says so — the Facebook app keeps the XMP), **Download**, and **Copy link** (`/gallery/museum?room=<slug>`); it is sized for the museum's forced-landscape phone viewport (~390px tall), so the buttons never stack.
 
 ### Minimap HUD
 
 The bottom-left radar card — a live plan of just the room the visitor is standing in ([`MiniMapHud.tsx`](<app/(public)/gallery/museum/components/MiniMapHud.tsx>)), with the steps/views/time/wishlisted counters stacked underneath it ([`AchievementHud.tsx`](<app/(public)/gallery/museum/components/AchievementHud.tsx>)) inside one shared card. It draws onto a plain 2D `<canvas>` from its own `requestAnimationFrame` loop, reading a ref that [`MiniMapTracker.tsx`](<app/(public)/gallery/museum/components/MiniMapTracker.tsx>) writes every frame from inside the R3F loop — a radar has to feel alive at frame rate, and React state would repaint the whole HUD tree 60×/sec for it. Desktop keeps it always on; touch reaches the same component through [`StatsMinimapPanel.tsx`](<app/(public)/gallery/museum/components/StatsMinimapPanel.tsx>), where the counter card doubles as a tap-to-expand toggle at a phone-appropriate size.
 
-Its look is admin-configurable museum-wide (Artworks ▸ Digital Museum ▸ General Settings ▸ **Minimap HUD**): the map's width/height (the width is the map's own size, not a floor under whatever the counter row needs — as a minimum it was overruled by that row, so the slider read as dead until dragged past it), the counter row's size as a percentage, an icon per counter from a fixed set, and a colour each for the player pointer, artwork dots, object dots, the nearby glow, companion dots, the room outline and its doorways. Stored as one JSON blob in `DigitalMuseum.minimapConfig` with defaults in [`lib/museum/minimapHud.ts`](lib/museum/minimapHud.ts) that are the literal values the components shipped with — a museum that never configures it renders identically, and **Reset to defaults** restores that rather than someone's idea of a nice one. Per-mark *opacity* stays in the drawing code: those alphas are what make a prop dot recede behind an artwork dot, so an admin picks the hue and the relationship between the marks holds. The admin preview is the real two components fed a sample room and a walking player, not a mock of them.
+Its look is admin-configurable museum-wide (Artworks ▸ Digital Museum ▸ General Settings ▸ **Minimap HUD**): the map's width/height (the width is the map's own size, not a floor under whatever the counter row needs — as a minimum it was overruled by that row, so the slider read as dead until dragged past it), the counter row's size as a percentage, an icon per counter from a fixed set, and a colour each for the player pointer, artwork dots, object dots, the nearby glow, companion dots, the room outline and its doorways. Stored as one JSON blob in `DigitalMuseum.minimapConfig` with defaults in [`lib/museum/minimapHud.ts`](lib/museum/minimapHud.ts) that are the literal values the components shipped with — a museum that never configures it renders identically, and **Reset to defaults** restores that rather than someone's idea of a nice one. Per-mark _opacity_ stays in the drawing code: those alphas are what make a prop dot recede behind an artwork dot, so an admin picks the hue and the relationship between the marks holds. The admin preview is the real two components fed a sample room and a walking player, not a mock of them.
 
 The map also carries a **floor label** in the padding band above (or below) the room — "Ground Floor" / "Second Floor", or "Stairs" while on the connector (which is stored as floor 0 but is neither floor to whoever is climbing it; `floorLabelFor()` checks the room type first). It's painted onto the same canvas as the room, so the VR radar and the phone's expandable map carry it for free, and a label sized past the padding band grows the band on its side rather than drawing across the wall. The same admin section's **Floor label** group sets the three texts, font (the site theme's six, via [`lib/theme.ts`](lib/theme.ts)'s `THEME_FONT_OPTIONS`), style, size, colour, position and a tracked-capitals switch, with a **Preview as** toggle to see each text. One wrinkle: four of those fonts are `var(--font-…)` references that next/font loads under generated names, which `ctx.font` silently rejects — `resolveCanvasFontFamily()` in `MiniMapHud.tsx` reads each custom property's computed value off `<html>` once and caches it.
 
@@ -544,10 +545,12 @@ Each room has its own 3D editor at `/admin/artworks/museum-editor/[roomId]` ([`M
 
 - **Go to ▾** — a room picker in the header's top-right ([`AdminGoToMenu`](components/admin/AdminGoToMenu.tsx), links from [`museumEditorRoomLinks`](lib/museum/roomStatus.ts)). First entry is **the room being edited, in the public museum**, deep-linked by `?roomId=` — addressed by id rather than by one of the six `?room=` slugs, since a curated room has no slug — so checking what you just laid out doesn't mean walking the corridor from the entrance. Then every room in the museum in corridor order, each opening its own Scene Editor in a new tab, plus the public museum. The room being edited is listed but greyed ("You're editing this room") rather than hidden, so the menu reads as the whole museum; a room a visitor can't currently reach is greyed with the reason, and the Stairs room counts as unreachable whenever nothing is upstairs, however its own toggle is set
 - **Artwork frames** — hang position per wall (North / South / East / West, and either side of a doorway), horizontal and vertical (Y) placement, and a reorder/pagination list mirroring the Rooms tab's controls. Alignment guides appear beside neighbouring pieces while dragging
-- **Decorative objects** — upload a `.glb` (100MB max) or tile a texture: carpets, pots, lights, furniture. Drag, rotate and resize with gizmos. A model that isn't authored in metres — common for anything routed through FBX — is measured on arrival and scaled once to about door height, so it lands where you can see it instead of vanishing as a 3km-wide object
+- **Decorative objects** — upload a `.glb` (100MB max) or tile a texture: carpets, pots, lights, furniture. Drag, rotate and resize with gizmos. A model that isn't authored in metres — common for anything routed through FBX — is measured on arrival and scaled once to about door height, so it lands where you can see it instead of vanishing as a 3km-wide object. Props are also **recentred on load** ([`CustomSceneObject`](<app/(public)/gallery/museum/components/CustomSceneObject.tsx>)'s `recenter`, in the editor and the public museum alike): the geometry's horizontal centre goes on the model's pivot and its lowest point on the floor, whatever the exporter left the pivot at — so the gizmo sits on the model, rotation turns it on the spot, and the collision ring's base is the model's base. Fixture models (podium, cabinet, standee, companion, desk) render as exported
 - **Text labels** — free text placed on a wall, with its own colours
-- **Dividers** — **+ Add Divider** drops a freestanding partition wall into the room. Drag and turn it like any other object, size it with **Width / Height / Thickness** in metres, and finish it in a plain colour or an uploaded texture tiled the same way a room's own walls are (with an optional **Mirror Texture** so the tile joins read as a reflection instead of a seam). Solid by default — visitors are stopped by it, using a rectangular barrier rather than the circular footprint props use, so a panel blocks along its whole face at any angle. Once a divider is in a room, **both of its faces appear in every artwork's Wall picker** (`Divider Wall 1 · Front` / `· Back`) alongside North/South/East/West, so art can hang on it — flush against the face, and following the panel if it is later moved, turned or resized (the association is recovered by facing and distance to the face *segment* in `snapToDividerFace` — ends included, so two panels standing in a line stay distinct (v6.41.3) — and nothing has to be stored against a panel that can be deleted). Deleting a divider returns its art to the room's own walls rather than leaving it floating. New panels spawn staggered rather than at the room's centre, since two identical slabs at the origin look like one. Uploading or clearing the texture, and toggling **Mirror Texture**, each raise a toast confirming the change is staged until **Save**
+- **Dividers** — **+ Add Divider** drops a freestanding partition wall into the room. Drag and turn it like any other object, size it with **Width / Height / Thickness** in metres, and finish it in a plain colour or an uploaded texture tiled the same way a room's own walls are (with an optional **Mirror Texture** so the tile joins read as a reflection instead of a seam). Solid by default — visitors are stopped by it, using a rectangular barrier rather than the circular footprint props use, so a panel blocks along its whole face at any angle. Once a divider is in a room, **both of its faces appear in every artwork's Wall picker** (`Divider Wall 1 · Front` / `· Back`) alongside North/South/East/West, so art can hang on it — flush against the face, and following the panel if it is later moved, turned or resized (the association is recovered by facing and distance to the face _segment_ in `snapToDividerFace` — ends included, so two panels standing in a line stay distinct (v6.41.3) — and nothing has to be stored against a panel that can be deleted). Deleting a divider returns its art to the room's own walls rather than leaving it floating. New panels spawn staggered rather than at the room's centre, since two identical slabs at the origin look like one. Uploading or clearing the texture, and toggling **Mirror Texture**, each raise a toast confirming the change is staged until **Save**
 - **Room fixtures** — provisioned by the room rather than added by hand, and listed separately for that reason: the About room's five content blocks, the **Contact Desk** (walk up, press **[E]**, and the museum's own Send an Email form opens), the **Digital Wall Clock** (drawn in code so it keeps real time, with 12/24-hour, seconds, date line, caption, time zone and colours), and the Freedom Wall plaque. Each has a **Visible in museum / Hidden from museum** switch — an artist with no certificates can have no Certificates Strip. Hiding keeps the upload, wording, placement and size
+- **Room Surfaces** — the room's wall/floor/ceiling colour and optional tiled texture, moved here from the Rooms tab's Edit modal so the surface is chosen while looking at it (the modal keeps name, type, description, splash and spawn). Same [`ColorField` / `TextureField`](<app/(admin)/admin/artworks/museum-ui.tsx>) controls, same `PATCH /api/digital-museum/rooms/[id]` (the About room's go to `DigitalMuseum.about*` via `/api/digital-museum`, as before); saved on change, debounced per field, not part of the Save button
+- **Room Lights** — `MuseumRoom.lightColor` / `lightScale` / `lightModelUrl`. The colour overrides the roomType preset's point-light colour in every mode; the size scales the fixture [`MuseumRoom.tsx`](<app/(public)/gallery/museum/components/MuseumRoom.tsx>) now hangs at every point light (a built-in plate/stem/shade/glowing bulb, or an uploaded `.glb` hung from its top via `CustomSceneObject`'s `recenter="top"`). Fixtures come from the same position list as the lights, so `quality="low"`'s two-light layout draws two fixtures
 - **Solid** — a per-object collision footprint with a **Collision Size** slider in metres, **Collision Position** sliders that move the circle off the prop's origin (a .glb exported away from its own origin otherwise gets a ring beside it, not under it), **Fit to model** to wrap the geometry where it actually stands, and an orange ring in the preview showing exactly what's blocked. Stored in model units and in the prop's own frame, so the footprint resizes and turns with it. **Collision Height** (off by default) gives that circle a top, measured up from the prop's own base: without it the footprint is a floor-to-ceiling column and a prop is solid at every height or not at all, so a hanging lamp blocked the floor beneath it and an archway couldn't be walked through. With a height set, visitors are only stopped while their own body overlaps it — the preview draws the blocked volume as a translucent cylinder
 - Undo/redo, a light/dark toggle so a room can be judged in both, and a leave-confirmation guard on unsaved changes. Undo/redo is local like everything else here, with one synced exception: Add, Duplicate and Remove write a row the moment they're clicked, so stepping the history diffs the object list and soft-deletes / restores the matching rows (`reconcileSceneObjects`) — an undone Add used to leave a divider live in the museum that the editor no longer showed (v6.41.2)
 
@@ -594,15 +597,15 @@ Admin-facing walkthrough for all of the above (screenshots-free but click-by-cli
 
 The fix is to compress **once, at upload**, and store three sizes:
 
-| Rendition | Longest side | Stored as | Used by |
-|---|---|---|---|
-| `full` | 2400 px | `img/<id>.webp` — **the URL saved in the DB** | lightbox, artwork page, museum info panel |
-| `medium` | 1280 px | `img/<id>.m.webp` | museum wall textures (`loadDownscaledTexture`), hero carousel, story pages |
-| `thumb` | 640 px | `img/<id>.t.webp` | gallery / shop / certificate / story grids; cart, wishlist, checkout, order-lookup rows |
+| Rendition | Longest side | Stored as                                     | Used by                                                                                 |
+| --------- | ------------ | --------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `full`    | 2400 px      | `img/<id>.webp` — **the URL saved in the DB** | lightbox, artwork page, museum info panel                                               |
+| `medium`  | 1280 px      | `img/<id>.m.webp`                             | museum wall textures (`loadDownscaledTexture`), hero carousel, story pages              |
+| `thumb`   | 640 px       | `img/<id>.t.webp`                             | gallery / shop / certificate / story grids; cart, wishlist, checkout, order-lookup rows |
 
 - **[`lib/images/compress.ts`](lib/images/compress.ts)** — sharp, WebP quality 82, EXIF-rotated, metadata stripped, alpha preserved. Node-only. GIFs pass through untouched. Roughly 9× / 25× / 95× smaller than a typical phone-camera original.
 - **[`lib/images/variants.ts`](lib/images/variants.ts)** — pure string helpers. `imageVariantUrl(url, "thumb")` derives a sibling URL from the stored full-size one, and returns the input **unchanged** for anything not under `img/` (pre-compression uploads, Unsplash seeds, GIFs), so there is no schema change and no migration.
-- **[`lib/images/corsUrl.ts`](lib/images/corsUrl.ts)** — `corsImageUrl(url)` appends `?cors=1` to any image the museum will *read back as pixels* (WebGL texture, canvas `drawImage`). R2 only sends `Access-Control-Allow-Origin` when the request carried an `Origin` header, and a plain `<img>` doesn't, so the navbar's cached, CORS-less copy of the logo used to be handed to the About Room plaque and the `[R]` watermark and fail both (v6.41.1). A distinct query string is a distinct cache key. Fetch-time only; stored URLs are untouched. Every `crossOrigin` load must go through it — details under CORS in [`Docs/Media_Storage_R2.md`](Docs/Media_Storage_R2.md).
+- **[`lib/images/corsUrl.ts`](lib/images/corsUrl.ts)** — `corsImageUrl(url)` appends `?cors=1` to any image the museum will _read back as pixels_ (WebGL texture, canvas `drawImage`). R2 only sends `Access-Control-Allow-Origin` when the request carried an `Origin` header, and a plain `<img>` doesn't, so the navbar's cached, CORS-less copy of the logo used to be handed to the About Room plaque and the `[R]` watermark and fail both (v6.41.1). A distinct query string is a distinct cache key. Fetch-time only; stored URLs are untouched. Every `crossOrigin` load must go through it — details under CORS in [`Docs/Media_Storage_R2.md`](Docs/Media_Storage_R2.md).
 - **`uploadCompressedImage()`** in [`lib/storage/server.ts`](lib/storage/server.ts) is the path every admin image route takes (`/api/upload`, `/api/upload/event-image`, `/api/backup/media`). All three files land or none do; `deleteArtworkImage()` removes the siblings with the original.
 
 Rendering rule of thumb: a grid card asks for `thumb`, anything full-bleed or 3D asks for `medium`, and only a lightbox or detail view should receive the stored URL as-is.
@@ -619,12 +622,12 @@ Rendering rule of thumb: a grid card asks for `thumb`, anything full-bleed or 3D
 
 Supabase is **Postgres only** as of the R2 migration (2026-09-15). There are still two independent ways into it, secured by completely different mechanisms:
 
-| Connection | Used by | Credentials | What secures it |
-| --- | --- | --- | --- |
-| Postgres (`DATABASE_URL` / `DIRECT_URL`) | Prisma (`lib/prisma.ts`), every `app/api/**` route | Role `postgres` | **Not RLS.** This role has `BYPASSRLS`, so every policy is invisible to it. What actually authorizes these calls is `requireAdmin()` in the route handler. |
-| PostgREST (`/rest/v1`) | Reachable by anyone holding the public anon key | anon key (no longer shipped in the JS bundle — nothing in the browser uses Supabase any more) | **Grants and RLS.** No application code is involved, so this is the door that fails silently. |
+| Connection                               | Used by                                            | Credentials                                                                                   | What secures it                                                                                                                                            |
+| ---------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres (`DATABASE_URL` / `DIRECT_URL`) | Prisma (`lib/prisma.ts`), every `app/api/**` route | Role `postgres`                                                                               | **Not RLS.** This role has `BYPASSRLS`, so every policy is invisible to it. What actually authorizes these calls is `requireAdmin()` in the route handler. |
+| PostgREST (`/rest/v1`)                   | Reachable by anyone holding the public anon key    | anon key (no longer shipped in the JS bundle — nothing in the browser uses Supabase any more) | **Grants and RLS.** No application code is involved, so this is the door that fails silently.                                                              |
 
-This distinction matters more than it looks. RLS is not this app's access control — it is the lock on the *other* door, the one the browser can knock on directly.
+This distinction matters more than it looks. RLS is not this app's access control — it is the lock on the _other_ door, the one the browser can knock on directly.
 
 ### The posture: deny-all, plus no grant to deny
 
@@ -645,7 +648,7 @@ An event trigger, **`ensure_rls`**, enables RLS on every newly created table in 
 Media no longer lives in Supabase. The R2 bucket is public-read behind `R2_PUBLIC_URL`; every write path is one of:
 
 - **Server writes** from `lib/storage/server.ts` using the R2 API token (`Object Read & Write`, scoped to this one bucket, never in the browser).
-- **Browser uploads** (the Museum Scene Editor's `.glb` and audio files, too large for Vercel's ~4.5MB body cap) use a **presigned PUT** minted server-side — `createModelUploadUrl` / `createAudioUploadUrl`. The URL is scoped to one object, one content type and ten minutes; it *is* the authorization. `lib/storage/browser.ts` holds no key of any kind.
+- **Browser uploads** (the Museum Scene Editor's `.glb` and audio files, too large for Vercel's ~4.5MB body cap) use a **presigned PUT** minted server-side — `createModelUploadUrl` / `createAudioUploadUrl`. The URL is scoped to one object, one content type and ten minutes; it _is_ the authorization. `lib/storage/browser.ts` holds no key of any kind.
 
 The bucket's CORS policy allows `GET`/`HEAD` from anywhere (the objects are public anyway, and WebGL needs the header) and `PUT` only from the site's own origins. The old Supabase bucket's history — including the `anon INSERT` policy the security audit found and dropped — is in [`Docs/System_Security.md`](Docs/System_Security.md).
 
@@ -705,6 +708,8 @@ scriptovernovel.music/
 │   │   │                            #   AboutRoomContents + AboutRoomCorner, CertificateInfoPanel,
 │   │   │                            #   KeyGuide, LoadingScreen, roomConstants.ts, roomLayout.ts,
 │   │   │                            #   framePlacement.ts — see "Digital Museum" above)
+│   │   │   └── freedom-wall/        # Freedom Wall page — sticky notes visitors drag/pinch (device-only layout)
+│   │   ├── stories/                 # Tales — the book shelf + StoryReader (URL kept as /stories)
 │   │   ├── artwork/[slug]/          # Dedicated indexable artwork page (SEO + Share target)
 │   │   ├── wishlist/                # Saved-artworks list (localStorage, no login)
 │   │   ├── about/                   # Artist bio, profile, skills, certificates
@@ -753,11 +758,16 @@ scriptovernovel.music/
 │   │       │                        #   the reverse side of a Gmail notification's
 │   │       │                        #   "Block Sender" action
 │   │       ├── api-docs/            # Swagger UI (swagger-ui-react, ssr:false) — reads
-│       │                        #   /api/openapi.json; accepts session cookie or
-│       │                        #   x-api-key via the "Authorize" button
-│       ├── settings/minigames/  # Mini games: per-game config (MiniGamesClient +
+│   │       │                        #   /api/openapi.json; accepts session cookie or
+│   │       │                        #   x-api-key via the "Authorize" button
+│   │       ├── settings/minigames/  # Mini games: per-game config (MiniGamesClient +
 │   │       │                        #   GameConfigPanel + ArtworkPicker + DifferenceEditor),
 │   │       │                        #   LeaderboardManager, RewardClaims
+│   │       ├── settings/release-notes/ # Release Notes CRUD (draft → publish) — the visitor-facing
+│   │       │                        #   "what's new" panel, see "Release Notes" above
+│   │       ├── stories/             # Tales module (StoriesClient.tsx + StoryPagesManager) — feeds
+│   │       │                        #   the Tales Room; "Stories" in code, "Tales" in every label
+│   │       ├── museum/              # Digital Museum admin (General Settings / Rooms / Freedom Wall tabs)
 │   │       └── trash/               # Soft-delete recovery
 │   └── api/
 │       ├── auth/[...nextauth]/      # NextAuth handlers (Credentials + Google + Facebook)
@@ -818,144 +828,169 @@ scriptovernovel.music/
 │       │                            #   Admin-only: config/, entries/, claims/
 │       ├── sound-effects/           # Public: GET / (every key's playback config).
 │       │                            #   Admin-only: config/ (GET list + PUT one key)
-│       ├── openapi.json/        # GET /api/openapi.json — serves the OpenAPI spec
-│       │                        #   (admin-only, no CDN cache); consumed by /admin/api-docs
+│       ├── stories/                 # Tales CRUD API — [id]/, [id]/pages/, [id]/pages/[pageId]/
+│       ├── freedom-wall/            # Freedom Wall: notes/ (public create + list), room-status/
+│       ├── release-notes/           # Release Notes API — public GET of published notes + admin CRUD
+│       ├── openapi.json/            # GET /api/openapi.json — serves the OpenAPI spec
+│       │                            #   (admin-only, no CDN cache); consumed by /admin/api-docs
+│       ├── upload/model/sign/       # Presigned PUT for browser .glb uploads (see "Image uploads & egress")
 │       └── upload/, upload/audio/   # Image + background-music/sound-effect audio upload to R2
 ├── components/
 │   ├── AnimatedFavicon.tsx          # Animated browser-tab favicon (Chrome glow fix)
 │   ├── public/                      # Navbar, Footer, CartProvider, ArtworkDetailModal,
-│   │                                 # FeaturedCarousel, FaqChatbox, AnnouncementPopup,
-│   │                                 # MarqueeBanner, ProfileSlideshow, CertificatesGallery,
-│   │                                 # WishlistButton, ShareButton, CursorGlow,
-│   │                                 # BackgroundMusicPlayer, MaintenancePage, JsonLd,
-│   │                                 # EventsMap (Timeline/Gigs Google Map, /about — red pins,
-│   │                                 # pulsing yellow "Next Event" pin, click-to-open modal),
-│   │                                 # IntroSplash + IntroSplashContent (entrance splash),
-│   │                                 # PlaySoundEffect (fires a sound-effect key on mount,
-│   │                                 # for server-component pages), GoToMuseumButton,
-│   │                                 # ArtworkBadge, VideoIndicator, etc.
+│   │                                # FeaturedCarousel, FaqChatbox, AnnouncementPopup,
+│   │                                # MarqueeBanner, ProfileSlideshow, CertificatesGallery,
+│   │                                # WishlistButton, ShareButton, CursorGlow,
+│   │                                # BackgroundMusicPlayer, MaintenancePage, JsonLd,
+│   │                                # EventsMap (Timeline/Gigs Google Map, /about — red pins,
+│   │                                # pulsing yellow "Next Event" pin, click-to-open modal),
+│   │                                # IntroSplash + IntroSplashContent (entrance splash),
+│   │                                # PlaySoundEffect (fires a sound-effect key on mount,
+│   │                                # for server-component pages), GoToMuseumButton,
+│   │                                # ArtworkBadge, VideoIndicator, etc.
 │   │   └── minigames/               # MiniGamesLauncher (desktop popover + mobile sheet),
-│   │                                 # GamePreviewModal, GameSession (owns the mute toggle),
-│   │                                 # GameResult, GameIcon, ExitConfirmModal (exit-mid-game
-│   │                                 # warning), Leaderboard, and games/ (one component per game)
+│   │                                # GamePreviewModal, GameSession (owns the mute toggle),
+│   │                                # GameResult, GameIcon, ExitConfirmModal (exit-mid-game
+│   │                                # warning), Leaderboard, and games/ (one component per game)
 │   ├── admin/                       # AdminSidebar (collapsible, custom icon), LiveClock
-│   │                                 # (+ DashboardCalendar popover, WeatherWidget),
-│   │                                 # AdminBackToTop, ArtworkVideoUploader,
-│   │                                 # AdminQueryProvider (TanStack Query client),
-│   │                                 # NotificationBell (fixed top-right on every admin
-│   │                                 # page, mounted in app/(admin)/layout.tsx — order/
-│   │                                 # highscore alerts, unread badge, mark-read, portaled),
-│   │                                 # GlobalSearch (⌘K/Ctrl+K command palette, also mounted
-│   │                                 # once in app/(admin)/layout.tsx — searches Artworks,
-│   │                                 # Products, Orders, Sections, Rooms, Announcements, FAQs,
-│   │                                 # Timeline Events, plus quick-nav to every admin page),
-│   │                                 # WebsiteAnalytics (server shell) + WebsiteAnalyticsPanel
-│   │                                 # (client: date-range filter, stat tiles, lists, devices)
-│   │                                 # + VisitsAreaChart (hover-tooltip area chart)
+│   │                                # (+ DashboardCalendar popover, WeatherWidget),
+│   │                                # AdminBackToTop, ArtworkVideoUploader,
+│   │                                # AdminQueryProvider (TanStack Query client),
+│   │                                # NotificationBell (fixed top-right on every admin
+│   │                                # page, mounted in app/(admin)/layout.tsx — order/
+│   │                                # highscore alerts, unread badge, mark-read, portaled),
+│   │                                # GlobalSearch (⌘K/Ctrl+K command palette, also mounted
+│   │                                # once in app/(admin)/layout.tsx — searches Artworks,
+│   │                                # Products, Orders, Sections, Rooms, Announcements, FAQs,
+│   │                                # Timeline Events, plus quick-nav to every admin page),
+│   │                                # WebsiteAnalytics (server shell) + WebsiteAnalyticsPanel
+│   │                                # (client: date-range filter, stat tiles, lists, devices)
+│   │                                # + VisitsAreaChart (hover-tooltip area chart)
 │   └── ui/                          # ThemeToggle, SkeletonCard, OwlIcon, SquidIcon, DynamicIcon (Lucide/Tabler icon gallery)
 ├── hooks/
 │   └── useLockBodyScroll.tsx
 ├── lib/
 │   ├── prisma.ts                    # Prisma client singleton (driver adapter over pg)
 │   ├── public-data.ts               # React cache()-wrapped Profile/SocialLink fetchers, shared
-│   │                                 # by (public) layout + pages so the same request never
-│   │                                 # re-queries rows a parent Server Component already fetched
+│   │                                # by (public) layout + pages so the same request never
+│   │                                # re-queries rows a parent Server Component already fetched
 │   ├── auth.ts                      # NextAuth config (Credentials + Google + Facebook + JWT +
-│   │                                 #   Prisma adapter) — TOTP/recovery-code check + new-device
-│   │                                 #   detection live in the Credentials authorize(); the
-│   │                                 #   signIn callback gates OAuth to existing admin emails
+│   │                                #   Prisma adapter) — TOTP/recovery-code check + new-device
+│   │                                #   detection live in the Credentials authorize(); the
+│   │                                #   signIn callback gates OAuth to existing admin emails
 │   ├── totp.ts                      # TOTP secret/QR/verify + recovery-code generation (otplib
-│   │                                 #   + qrcode) — backs Settings → Security and login authorize()
+│   │                                #   + qrcode) — backs Settings → Security and login authorize()
 │   ├── notifications/               # order.ts, highscore.ts (admin Notification row + email),
-│   │                                 #   security.ts (email-only account-security alerts) — see
-│   │                                 #   "Admin Notifications & Login Security" below
+│   │                                #   security.ts (email-only account-security alerts) — see
+│   │                                #   "Admin Notifications & Login Security" below
 │   ├── openapi.ts                   # Full OpenAPI 3.0 spec — all ~130 endpoints, request/response
-│   │                                 # schemas, two security schemes (sessionAuth cookie + apiKey header)
+│   │                                # schemas, two security schemes (sessionAuth cookie + apiKey header)
 │   ├── api-auth.ts                  # requireAdmin() guard — session cookie OR x-api-key header (API_SECRET_KEY)
 │   ├── marquee.ts                   # Marquee option lists + request sanitiser
 │   ├── gallery-carousel.ts          # Mobile gallery carousel modes/speed + sanitisers
 │   ├── intro-splash.ts              # Entrance splash effect/speed/text option lists + sanitisers
 │   ├── museum-splash.ts             # Digital Museum's per-room entry splash — defaults/sanitisers
-│   │                                 #   only; reuses lib/intro-splash.ts's transition engine
+│   │                                #   only; reuses lib/intro-splash.ts's transition engine
 │   ├── images/corsUrl.ts             # corsImageUrl() — ?cors=1 on every pixel-reading image load so a
-│   │                                 #   CORS request never hits the browser's CORS-less <img> cache entry
-│   │                                 #   (R2 omits Access-Control-Allow-Origin without an Origin header)
+│   │                                #   CORS request never hits the browser's CORS-less <img> cache entry
+│   │                                #   (R2 omits Access-Control-Allow-Origin without an Origin header)
 │   ├── museum/loadDownscaledTexture.ts # Downscales artwork images (and wall/floor/ceiling texture
-│   │                                 #   uploads) client-side before they become Three.js textures,
-│   │                                 #   so the museum never uploads a full-res image straight to the GPU
+│   │                                #   uploads) client-side before they become Three.js textures,
+│   │                                #   so the museum never uploads a full-res image straight to the GPU
 │   ├── museum/useWallFocus.ts       # About room's proximity-hover state (certificate wall) — shared
-│   │                                 #   hysteresis logic behind AboutRoomContents.tsx's [E] interactions
+│   │                                #   hysteresis logic behind AboutRoomContents.tsx's [E] interactions
 │   ├── museum/wallClock.ts          # Provisions the Digital Wall Clock scene object — for the About
-│   │                                 #   room and for whichever room is the visitor's respawn point
+│   │                                #   room and for whichever room is the visitor's respawn point
+│   ├── museum/*Room.ts              # Lazy provisioning + mirror reconciliation for each fixed room:
+│   │                                #   aboutRoom, freedomWallRoom, stairsRoom, servicesRoom,
+│   │                                #   storiesRoom (the Tales Room), arcadeRoom, cosplayRoom
+│   ├── museum/roomBanner.ts         # Room Label Style — the one plaque finish every label in a room reads
+│   ├── museum/minimapHud.ts         # Minimap HUD config (size, colours, icons, floor label + spacing)
+│   ├── release-notes.ts             # Release Notes categories, limits + sanitisers
+│   ├── stories.ts                   # Tales types/labels + continue-reading link validation
 │   ├── artwork-video.ts             # Artwork timelapse constants (max duration/file size, allowed
-│   │                                 #   MIME types) shared by the uploader, trimmer, and upload API
+│   │                                #   MIME types) shared by the uploader, trimmer, and upload API
 │   ├── artwork-video-upload.ts      # Client-side trim-then-upload flow for artwork video
 │   ├── video-trim.ts                # Client-side video trimming (crops anything over 60s before upload)
 │   ├── theme.ts                     # Site theme settings (buttons, scrollbar, fonts, cursor glow,
-│   │                                 #   public/admin background blur-glass intensity) + sanitisers
+│   │                                #   public/admin background blur-glass intensity) + sanitisers
 │   ├── wishlist-store.ts            # Zustand wishlist (persisted, same pattern as cart)
 │   ├── share.ts                     # Share-intent URL builders (Facebook/X/Threads)
 │   ├── maintenance.ts               # Maintenance-mode defaults + message sanitiser
 │   ├── minigames/                   # registry.ts (the one place a game is declared),
-│   │                                 # types.ts, config.ts (sanitisers), challenge.ts
-│   │                                 # (server-side puzzle generation), verify.ts (move
-│   │                                 # replay), scoring.ts, server.ts (Prisma access),
-│   │                                 # player.ts (signed anonymous cookie), images.ts
-│   │                                 # (tile slicing via the Next image optimizer),
-│   │                                 # rate-limit.ts, notify.ts (reward-claim admin email —
-│   │                                 # separate from lib/notifications/highscore.ts, which
-│   │                                 # covers rank-1 leaderboard alerts, not reward claims)
+│   │                                # types.ts, config.ts (sanitisers), challenge.ts
+│   │                                # (server-side puzzle generation), verify.ts (move
+│   │                                # replay), scoring.ts, server.ts (Prisma access),
+│   │                                # player.ts (signed anonymous cookie), images.ts
+│   │                                # (tile slicing via the Next image optimizer),
+│   │                                # rate-limit.ts, notify.ts (reward-claim admin email —
+│   │                                # separate from lib/notifications/highscore.ts, which
+│   │                                # covers rank-1 leaderboard alerts, not reward claims)
 │   ├── background-music.ts          # Background music constants + volume/file-type validation
 │   ├── sound/                       # registry.ts (every sound-effect key, category + defaults),
-│   │                                 # types.ts (config shape, presets, sanitisers), engine.ts
-│   │                                 # (client: AudioContext/upload playback, mute flag, config
-│   │                                 # cache, playSoundEffect()), server.ts (Prisma access —
-│   │                                 # merges SoundEffect rows over registry defaults)
+│   │                                # types.ts (config shape, presets, sanitisers), engine.ts
+│   │                                # (client: AudioContext/upload playback, mute flag, config
+│   │                                # cache, playSoundEffect()), server.ts (Prisma access —
+│   │                                # merges SoundEffect rows over registry defaults)
 │   ├── toast.ts                     # react-hot-toast wrapper — plays a sound on success/error
-│   │                                 # (and detects deletes) before every existing toast.success()/
-│   │                                 # toast.error() call site, without editing those call sites
+│   │                                # (and detects deletes) before every existing toast.success()/
+│   │                                # toast.error() call site, without editing those call sites
 │   ├── site-url.ts                  # Canonical SITE_URL used by metadata/sitemap/JSON-LD
 │   ├── vercel-analytics.ts          # Server-only Vercel Web Analytics API client (visits/
-│   │                                 # count + visits/aggregate), safe-empty on missing
-│   │                                 # config or API failure — feeds WebsiteAnalytics.tsx
+│   │                                # count + visits/aggregate), safe-empty on missing
+│   │                                # config or API failure — feeds WebsiteAnalytics.tsx
 │   ├── storage/                     # Cloudflare R2: r2.ts (S3 adapter), server.ts (uploads), browser.ts (presigned PUT)
 │   ├── mail.ts                      # Nodemailer (Gmail SMTP) — password reset, order
-│   │                                 #   confirmation/alert, and generic sendMail() used by
-│   │                                 #   lib/notifications/*
+│   │                                #   confirmation/alert, and generic sendMail() used by
+│   │                                #   lib/notifications/*
 │   ├── social-icons.tsx             # Social platform icon map
 │   ├── toast-config.ts              # Shared react-hot-toast style/position config
 │   ├── tabler-icon-imports.generated.ts # Generated Tabler icon map (see scripts/ below) — do not hand-edit
 │   ├── utils.ts                     # Formatting helpers
 │   ├── cart-store.ts                # Zustand cart (V2)
 │   └── paymongo.ts                  # PayMongo client (V2) — configurable payment_method_types
-│                                     #   via PAYMONGO_PAYMENT_METHODS (see .env.example)
+│                                    #   via PAYMONGO_PAYMENT_METHODS (see .env.example)
 ├── emails/                          # React-email templates rendered by lib/mail.ts —
-│   │                                 #   PasswordReset, OrderConfirmation, NewOrderAlert,
-│   │                                 #   HighscoreAlert, RewardAlert, RewardClaimed, all sharing
-│   │                                 #   components/EmailLayout.tsx (+ DetailsTable,
-│   │                                 #   OrderItemsTable) for one consistent brand look.
-│   │                                 #   preview-data.ts feeds `npm run email` (react-email's
-│   │                                 #   local preview server, port 3010) with sample props
+│   │                                #   PasswordReset, OrderConfirmation, NewOrderAlert,
+│   │                                #   HighscoreAlert, RewardAlert, RewardClaimed, all sharing
+│   │                                #   components/EmailLayout.tsx (+ DetailsTable,
+│   │                                #   OrderItemsTable) for one consistent brand look.
+│   │                                #   preview-data.ts feeds `npm run email` (react-email's
+│   │                                #   local preview server, port 3010) with sample props
 ├── prisma/
 │   ├── schema.prisma                # Database schema — incl. Notification (admin-only order/
-│   │                                 #   highscore/Gmail alerts, soft-deletable + spam-flaggable),
-│   │                                 #   BlockedEmail (contact-form sender blocklist), User's
-│   │                                 #   TOTP/login-fingerprint fields, and DigitalMuseum/
-│   │                                 #   MuseumRoom/MuseumRoomArtwork/MuseumSceneObject and the
-│   │                                 #   mirror joins MuseumRoomCosplay/Story/MiniGame, plus
-│   │                                 #   Cosplay and Story/StoryPage (see "Digital Museum" above)
+│   │                                #   highscore/Gmail alerts, soft-deletable + spam-flaggable),
+│   │                                #   BlockedEmail (contact-form sender blocklist), User's
+│   │                                #   TOTP/login-fingerprint fields, and DigitalMuseum/
+│   │                                #   MuseumRoom/MuseumRoomArtwork/MuseumSceneObject and the
+│   │                                #   mirror joins MuseumRoomCosplay/Story/MiniGame, plus
+│   │                                #   Cosplay and Story/StoryPage (see "Digital Museum" above)
 │   └── seed.ts                      # Seed data (admin user + sample artworks)
 ├── types/
 │   └── index.ts                     # Shared TypeScript types
 ├── scripts/
 │   ├── backfill-artwork-slugs.ts    # One-off: populate slug for pre-existing artworks
+│   ├── backfill-image-variants.ts   # One-off: generate .m/.t webp variants for pre-compression uploads
+│   ├── migrate-media-to-r2.ts       # One-off: the Supabase Storage → R2 move (see Docs/Media_Storage_R2.md)
+│   ├── rewrite-media-urls.ts        # One-off: repoint stored URLs at R2_PUBLIC_URL
+│   ├── create-release-note.ts       # `yarn release-note` — files a draft Release Note straight to the DB
+│   ├── security-check.ts            # Verifies the RLS/grants posture (see Docs/System_Security.md)
 │   └── generate-tabler-icon-map.mjs # Regenerates lib/tabler-icon-imports.generated.ts
 ├── Docs/
 │   ├── PayMongo_Setup.md            # Live-mode PayMongo setup (GCash/Card/QR Ph + activating more methods)
 │   ├── OAuth2_Setup.md              # Google/Facebook admin OAuth setup (Cloud/Meta app + env vars)
 │   ├── System_Security.md           # RLS/grants/Storage posture, threat model, verification playbook
-│   ├── ProgressTimeline.md          # Dated implementation timeline & patch notes
-│   └── UserTraining.md              # Admin training guide (Sections/Artworks logic, login/2FA, etc.)
+│   ├── Media_Storage_R2.md          # Cloudflare R2: bucket layout, CORS policy, cache headers, migration log
+│   ├── Museum_SceneEditor.md        # Museum Scene Editor spec (placements, props, colliders)
+│   ├── Museum_AssetOptimization.md  # .glb Draco/Meshopt + KTX2 pipeline, image variants
+│   ├── Museum_VRMode.md             # VR mode phases (WebXR rig, HUD, Flip view)
+│   ├── Museum_SecondFloorStairs.md  # Second Floor + Stairs connector spec
+│   ├── Museum_StoriesRoom.md        # Tales Room (podiums mirroring the published library)
+│   ├── Museum_CosplayRoom.md        # Cosplay Room (standees, billboard lights)
+│   ├── Museum_MiniGames.md          # Arcade Room + mini games
+│   ├── Admin_StoriesModule.md       # Tales module admin spec
+│   ├── Progress_Timeline.md         # Dated implementation timeline & patch notes
+│   └── User_Training.md             # Admin training guide (Sections/Artworks logic, login/2FA, etc.)
 ├── app/sitemap.ts, app/robots.ts    # SEO — /sitemap.xml and /robots.txt (App Router conventions)
 ├── app/opengraph-image.tsx          # Site-wide 1200x630 social share card (generated, static)
 ├── auth.config.ts                   # Shared NextAuth edge-safe config (used by middleware)
@@ -975,9 +1010,9 @@ The spec is defined as a single TypeScript object in [`lib/openapi.ts`](lib/open
 
 All admin endpoints accept two auth methods — pick whichever fits your workflow:
 
-| Method | How it works |
-|---|---|
-| **Session cookie** | Log in to `/admin` in the same browser tab; Swagger UI includes the cookie automatically. No extra setup. |
+| Method                 | How it works                                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Session cookie**     | Log in to `/admin` in the same browser tab; Swagger UI includes the cookie automatically. No extra setup.                                                                     |
 | **`x-api-key` header** | Set `API_SECRET_KEY` in your env, generate a key, click **Authorize** in the Swagger UI and paste it. Useful for scripts, CI pipelines, or testing outside a browser session. |
 
 ### Generating and using an API key
@@ -1014,26 +1049,48 @@ Leave `API_SECRET_KEY` unset (or empty) to disable key-based auth entirely — t
 1. Push to GitHub and import at [vercel.com](https://vercel.com)
 2. Set these environment variables in Vercel project settings:
 
-| Variable                                                                  | Scope                    | Description                                                                              |
-| ------------------------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                                                            | Server                   | Supabase pooler connection string                                                        |
-| `DIRECT_URL`                                                              | Server                   | Supabase direct connection string                                                        |
-| `NEXTAUTH_SECRET`                                                         | Server                   | `openssl rand -base64 32`                                                                |
-| `NEXTAUTH_URL`                                                            | Server                   | `https://your-domain.vercel.app`                                                         |
-| `NEXT_PUBLIC_APP_URL`                                                     | Public                   | `https://your-domain.vercel.app`                                                         |
-| `NEXT_PUBLIC_SUPABASE_URL`                                                | Public                   | Supabase project URL                                                                     |
-| `SUPABASE_SERVICE_ROLE_KEY`                                               | Server                   | Supabase service role key                                                                |
-| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY`                 | Public / Server          | Contact form (optional)                                                                  |
-| `GMAIL_USER` / `GMAIL_APP_PASSWORD` or `RESEND_API_KEY`                   | Server                   | Contact form email delivery (optional)                                                   |
-| `MINIGAME_NOTIFY_EMAIL`                                                   | Server                   | Where mini-game reward alerts go (optional)                                              |
-| `PAYMONGO_SECRET_KEY` / `PAYMONGO_PUBLIC_KEY` / `PAYMONGO_WEBHOOK_SECRET` | Server / Public / Server | Only needed for V2 Shop/Checkout                                                         |
-| `VERCEL_ANALYTICS_TOKEN` / `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID`         | Server                   | Only needed for the admin dashboard's "Website Analytics" section (optional) — see below |
-| `API_SECRET_KEY`                                                           | Server                   | Static API key for `x-api-key` header auth. Leave unset to disable. `openssl rand -hex 32` |
+| Variable                                                                  | Scope                    | Description                                                                                |
+| ------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                                                            | Server                   | Supabase pooler connection string                                                          |
+| `DIRECT_URL`                                                              | Server                   | Supabase direct connection string                                                          |
+| `NEXTAUTH_SECRET`                                                         | Server                   | `openssl rand -base64 32`                                                                  |
+| `NEXTAUTH_URL`                                                            | Server                   | `https://your-domain.vercel.app`                                                           |
+| `NEXT_PUBLIC_APP_URL`                                                     | Public                   | `https://your-domain.vercel.app`                                                           |
+| `R2_ACCOUNT_ID`                                                           | Server                   | Cloudflare account id (32 hex chars) — see [Cloudflare R2](#cloudflare-r2-media-storage) below |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`                               | Server                   | R2 API token pair, *Object Read & Write*, scoped to the one bucket                         |
+| `R2_BUCKET`                                                               | Server                   | The bucket name                                                                            |
+| `R2_PUBLIC_URL`                                                           | Server                   | The bucket's public origin — custom domain or its `*.r2.dev` Public Development URL        |
+| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY`                 | Public / Server          | Contact form (optional)                                                                    |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` or `RESEND_API_KEY`                   | Server                   | Contact form email delivery (optional)                                                     |
+| `MINIGAME_NOTIFY_EMAIL`                                                   | Server                   | Where mini-game reward alerts go (optional)                                                |
+| `PAYMONGO_SECRET_KEY` / `PAYMONGO_PUBLIC_KEY` / `PAYMONGO_WEBHOOK_SECRET` | Server / Public / Server | Only needed for V2 Shop/Checkout                                                           |
+| `VERCEL_ANALYTICS_TOKEN` / `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID`         | Server                   | Only needed for the admin dashboard's "Website Analytics" section (optional) — see below   |
+| `API_SECRET_KEY`                                                          | Server                   | Static API key for `x-api-key` header auth. Leave unset to disable. `openssl rand -hex 32` |
 
 3. After first deploy, push the schema: `npx prisma db push` / `yarn prisma db push`
 4. Apply the RLS SQL from [Supabase Row-Level Security](#supabase-row-level-security-rls) above in the Supabase SQL Editor.
+5. Set up the R2 bucket below — the deploy boots without it, but every upload and every museum texture fails until it exists.
 
 The build script runs `prisma generate` automatically before `next build`.
+
+> Supabase is **Postgres only** in production. `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are no longer read by the app — only by the one-off migration scripts under `scripts/` — so they don't need to be on Vercel.
+
+### Cloudflare R2 (media storage)
+
+Every upload — artwork images and their resized variants, wall/floor/ceiling textures, `.glb` props, audio — lives in one R2 bucket, and R2 is the **only** copy (the `originals/` prefix holds the masters). The full story, layout and migration log is in [`Docs/Media_Storage_R2.md`](Docs/Media_Storage_R2.md); this is what production needs from it.
+
+In the Cloudflare Dashboard → **R2**:
+
+1. **Create bucket** — the name goes in `R2_BUCKET`. Location hint **APAC** so it sits next to the `sin1` function region above.
+2. **Settings → Public access** — connect a custom domain (preferred; it gets Cloudflare's CDN cache in front) or enable the **Public Development URL**. Whichever you use is `R2_PUBLIC_URL`, and it is baked into every stored media URL, so pick it before the first upload.
+3. **Settings → CORS Policy** — required. Without it the museum's WebGL textures fail to load and the browser's direct `.glb`/audio uploads (presigned PUT, see [Image uploads & egress](#image-uploads--egress)) are refused. Paste the policy from [`Docs/Media_Storage_R2.md` › CORS](Docs/Media_Storage_R2.md#cors); it must list the production origin *and* any preview origin you test from.
+4. **Manage R2 API Tokens → Create** — *Object Read & Write*, scoped to this bucket only. That pair is `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`; the account id on the same screen is `R2_ACCOUNT_ID`.
+5. Redeploy after adding the variables — they're read at request time, but Vercel only injects new env on the next build.
+
+Two production behaviours worth knowing:
+
+- **Cache** — objects are written with `Cache-Control: public, max-age=31536000, immutable`, and every upload gets a fresh key, so nothing is ever overwritten in place and a CDN never serves a stale file.
+- **CORS cache split** — pixel-reading loads (textures, canvas captures) go through `corsImageUrl()` (`?cors=1`) so the browser never reuses a CORS-less `<img>` cache entry for a CORS fetch. If a texture ever loads on the public site but not in the Scene Editor, or vice versa, that split is the first thing to check.
 
 ### Function region — keep it next to the database
 
@@ -1051,10 +1108,12 @@ If you ever move the Supabase project to another region, change this value in th
 
 > Region codes: `sin1` Singapore · `hnd1` Tokyo · `syd1` Sydney · `iad1` US East · `fra1` Frankfurt. Hobby projects may pin exactly one.
 
-### Implement Cloud Flare (No need to Implemented)
+### Cloudflare in front of the site — not needed
 
-- Vercel already covers you: CDN, SSL, baseline DDoS protection — the stuff Cloudflare would otherwise add.
-- PayMongo doesn't create a Cloudflare requirement: checkout happens on PayMongo's hosted page, so you're not holding card data that needs a WAF shield.
+R2 is the only Cloudflare product in use. Putting the *site* behind Cloudflare (proxy/WAF) isn't:
+
+- Vercel already covers CDN, SSL and baseline DDoS protection — the things a Cloudflare proxy would otherwise add.
+- PayMongo doesn't create a WAF requirement: checkout happens on PayMongo's hosted page, so the site never holds card data.
 
 ---
 
@@ -1178,19 +1237,19 @@ git push origin main
 
 ### Standing rules
 
-| Rule | Detail |
-| --- | --- |
-| **Swagger stays in sync** | Adding or changing an API route means updating `openApiSpec.paths` in `lib/openapi.ts` — the spec is hand-written, not generated. Admin-only endpoints need `security: adminSecurity`; public ones omit it. An endpoint missing from the spec never appears in `/admin/api-docs`. |
-| **`db:push` hits production** | `DATABASE_URL` points at the hosted Supabase Postgres. There is no local dev database and no `prisma/migrations/`, so `yarn db:push` alters the **live** schema with no staging buffer. Confirm before running it. Adding a nullable column is safe; dropping or retyping one is not. `yarn prisma generate` is local-only and safe to run freely. |
-| **`.claude/settings.json` rides along** | It's tracked, and grows each session from "don't ask again" permission approvals. Commit the churn as-is — as part of the work, or as a lone `chore:` commit. No pruning needed. |
-| **Modals lock the background** | Any `fixed inset-0` overlay must call `useLockBodyScroll(isOpen)` from `hooks/useLockBodyScroll.tsx`. Without it a wheel or touch scroll started on the overlay falls through to the page behind, and the site slides around underneath a dialog that stays put. The hook is reference-counted, so nested modals are safe. |
-| **Reuse the shared form primitives** | Never a bare `<select>` or `<input type="date">`: browsers draw their own caret and their own calendar, each one different and each one cramped against the field's border. Use `AdminSelect` and `AdminDatePicker` from `components/admin/`. `AdminDatePicker` keeps the native value formats (`YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm` with `withTime`), so swapping a native input for it needs no other change. Its month grid is `CalendarPanel`, shared with the sidebar's `DashboardCalendar` — one calendar, everywhere. |
+| Rule                                    | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Swagger stays in sync**               | Adding or changing an API route means updating `openApiSpec.paths` in `lib/openapi.ts` — the spec is hand-written, not generated. Admin-only endpoints need `security: adminSecurity`; public ones omit it. An endpoint missing from the spec never appears in `/admin/api-docs`.                                                                                                                                                                                                                                           |
+| **`db:push` hits production**           | `DATABASE_URL` points at the hosted Supabase Postgres. There is no local dev database and no `prisma/migrations/`, so `yarn db:push` alters the **live** schema with no staging buffer. Confirm before running it. Adding a nullable column is safe; dropping or retyping one is not. `yarn prisma generate` is local-only and safe to run freely.                                                                                                                                                                          |
+| **`.claude/settings.json` rides along** | It's tracked, and grows each session from "don't ask again" permission approvals. Commit the churn as-is — as part of the work, or as a lone `chore:` commit. No pruning needed.                                                                                                                                                                                                                                                                                                                                            |
+| **Modals lock the background**          | Any `fixed inset-0` overlay must call `useLockBodyScroll(isOpen)` from `hooks/useLockBodyScroll.tsx`. Without it a wheel or touch scroll started on the overlay falls through to the page behind, and the site slides around underneath a dialog that stays put. The hook is reference-counted, so nested modals are safe.                                                                                                                                                                                                  |
+| **Reuse the shared form primitives**    | Never a bare `<select>` or `<input type="date">`: browsers draw their own caret and their own calendar, each one different and each one cramped against the field's border. Use `AdminSelect` and `AdminDatePicker` from `components/admin/`. `AdminDatePicker` keeps the native value formats (`YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm` with `withTime`), so swapping a native input for it needs no other change. Its month grid is `CalendarPanel`, shared with the sidebar's `DashboardCalendar` — one calendar, everywhere. |
 
 ### Claude Code's memory (`MEMORY.md`)
 
 Claude keeps a small file-based memory outside the repo, loaded at the start of
 every session. It is for the things that are **not** derivable from the code, the
-git history or this README — mostly *how the user wants work done*.
+git history or this README — mostly _how the user wants work done_.
 
 **Write a memory when:**
 

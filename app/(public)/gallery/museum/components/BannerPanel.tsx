@@ -135,12 +135,17 @@ const SHIMMER_TEX_WIDTH = 128;
  *  crossing the surface rather than a stripe wiping over it. */
 const SHIMMER_BAND = 0.1;
 
-function BannerShimmer({
+/** Exported for ArtworkFrame.tsx, which plays the same sweep across an
+ *  artwork the visitor has walked up to (lib/museum/artworkShimmer.ts). */
+export function BannerShimmer({
   width,
   height,
   speed,
   strength,
   active,
+  color = "#ffffff",
+  band = SHIMMER_BAND,
+  z = 0.004,
 }: {
   width: number;
   height: number;
@@ -149,6 +154,12 @@ function BannerShimmer({
   /** False while the room is too far away to be drawn — no reason to scroll a
    *  texture nobody is looking at. */
   active: boolean;
+  /** Tint of the band — white is the plain sheen the labels use. */
+  color?: string;
+  /** Band half-width as a fraction of the panel. */
+  band?: number;
+  /** How far in front of the surface the sweep plane sits. */
+  z?: number;
 }) {
   const texture = useMemo(() => {
     const data = new Uint8Array(SHIMMER_TEX_WIDTH * 4);
@@ -156,7 +167,7 @@ function BannerShimmer({
       // Gaussian falloff around the middle of the strip, so tiling it leaves
       // one soft band with flat dark space either side of it.
       const t = i / SHIMMER_TEX_WIDTH - 0.5;
-      const a = Math.exp(-(t * t) / (2 * SHIMMER_BAND * SHIMMER_BAND));
+      const a = Math.exp(-(t * t) / (2 * band * band));
       data[i * 4] = 255;
       data[i * 4 + 1] = 255;
       data[i * 4 + 2] = 255;
@@ -167,7 +178,7 @@ function BannerShimmer({
     tex.wrapT = THREE.ClampToEdgeWrapping;
     tex.needsUpdate = true;
     return tex;
-  }, []);
+  }, [band]);
 
   // Freeing it matters: a DataTexture holds a GPU allocation that outlives the
   // component unless it's disposed.
@@ -184,10 +195,11 @@ function BannerShimmer({
   if (speed <= 0 || strength <= 0) return null;
 
   return (
-    <mesh position={[0, 0, 0.004]} renderOrder={1}>
+    <mesh position={[0, 0, z]} renderOrder={1}>
       <planeGeometry args={[width, height]} />
       <meshBasicMaterial
         map={texture}
+        color={color}
         transparent
         opacity={strength}
         blending={THREE.AdditiveBlending}

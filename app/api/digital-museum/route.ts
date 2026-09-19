@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { isHexColor } from "@/lib/intro-splash";
 import { MIN_SPLASH_SPEED, MAX_SPLASH_SPEED } from "@/lib/museum-splash";
 import { sanitizeMinimapHudConfig, serializeMinimapHudConfig } from "@/lib/museum/minimapHud";
+import { sanitizeArtworkShimmerConfig, serializeArtworkShimmerConfig } from "@/lib/museum/artworkShimmer";
 import { parseVisionFilterConfig, serializeVisionFilterConfig } from "@/lib/museum/visionFilters";
 import { ensureAboutRoom } from "@/lib/museum/aboutRoom";
 import { ensureFreedomWallRoom } from "@/lib/museum/freedomWallRoom";
@@ -103,6 +104,7 @@ export async function GET() {
         achievementsEnabled: true,
         achievementsHudEnabled: true,
         minimapConfig: true,
+        artworkShimmerConfig: true,
         visionFiltersEnabled: true,
         visionFilterConfig: true,
         museumMusicUrl: true,
@@ -110,6 +112,7 @@ export async function GET() {
         museumMusicVolume: true,
         museumBrightnessLight: true,
         museumBrightnessDark: true,
+        museumBrightnessDim: true,
         // ABOUT is excluded — that's the auto-generated "About ScriptOverNovel"
         // capstone room (see lib/museum/aboutRoom.ts), rendered as its own
         // fixed card at the bottom of RoomsTab.tsx rather than in this
@@ -281,7 +284,9 @@ export async function PATCH(request: NextRequest) {
       museumMusicVolume,
       museumBrightnessLight,
       museumBrightnessDark,
+      museumBrightnessDim,
       minimapConfig,
+      artworkShimmerConfig,
       visionFiltersEnabled,
       visionFilterConfig,
     } = body;
@@ -487,6 +492,13 @@ export async function PATCH(request: NextRequest) {
       }
       data.museumBrightnessDark = Math.round(Math.min(100, Math.max(0, b)));
     }
+    if (museumBrightnessDim !== undefined) {
+      const b = Number(museumBrightnessDim);
+      if (!Number.isFinite(b)) {
+        return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      }
+      data.museumBrightnessDim = Math.round(Math.min(100, Math.max(0, b)));
+    }
     // Minimap HUD look — the radar card's size, the colour of every mark on
     // it, and the counters' size/icons, as one JSON blob (see
     // lib/museum/minimapHud.ts for why it isn't a column per knob). Accepted
@@ -513,6 +525,17 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
       }
       data.visionFiltersEnabled = visionFiltersEnabled;
+    }
+    // Artwork shimmer — same JSON-blob handling as the minimap above; null
+    // goes back to the defaults (the sweep on, as designed).
+    if (artworkShimmerConfig !== undefined) {
+      if (artworkShimmerConfig === null) {
+        data.artworkShimmerConfig = null;
+      } else if (typeof artworkShimmerConfig === "object") {
+        data.artworkShimmerConfig = serializeArtworkShimmerConfig(sanitizeArtworkShimmerConfig(artworkShimmerConfig));
+      } else {
+        return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      }
     }
     if (visionFilterConfig !== undefined) {
       if (visionFilterConfig === null) {
@@ -560,6 +583,7 @@ export async function PATCH(request: NextRequest) {
         achievementsEnabled: true,
         achievementsHudEnabled: true,
         minimapConfig: true,
+        artworkShimmerConfig: true,
         visionFiltersEnabled: true,
         visionFilterConfig: true,
         museumMusicUrl: true,
@@ -567,6 +591,7 @@ export async function PATCH(request: NextRequest) {
         museumMusicVolume: true,
         museumBrightnessLight: true,
         museumBrightnessDark: true,
+        museumBrightnessDim: true,
       },
     });
 

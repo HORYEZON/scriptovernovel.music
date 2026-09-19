@@ -591,6 +591,10 @@ model DigitalMuseum {
   // MINIMAP_HUD_DEFAULTS in lib/museum/minimapHud.ts, which holds those
   // exact values, so nothing renders differently until an admin changes it.
   minimapConfig           String?
+  // The light sweep across an artwork the visitor has walked up to — on/off,
+  // speed, strength, colour, band width as one JSON blob, same reasoning as
+  // minimapConfig above. Null = lib/museum/artworkShimmer.ts's defaults (on).
+  artworkShimmerConfig    String?
   // Museum-specific soundtrack — separate from the site-wide Profile.musicUrl
   // track. Visitors toggle it via the HUD button inside the museum; the global
   // BackgroundMusicPlayer is hidden behind the museum's z-50 overlay.
@@ -603,6 +607,11 @@ model DigitalMuseum {
   // via getRoomLighting(roomType, darkMode, brightness).
   museumBrightnessLight   Int          @default(50)
   museumBrightnessDark    Int          @default(50)
+  // The third visitor lighting mode, "Dim" — [L] cycles Light → Dim → Dark.
+  // Light mode's own colour presets at this brightness, sitting between the
+  // bright default and dark mode's cool after-hours presets. Defaults to 25
+  // (half of light mode's baseline) so it reads as a step down on day one.
+  museumBrightnessDim     Int          @default(25)
   // "Filter Vision" — visitor-selectable look filters, cycled with [Q] or the
   // HUD button on a phone (see lib/museum/visionFilters.ts). The master
   // switch; off removes the key handler and the button entirely rather than
@@ -772,6 +781,19 @@ model MuseumRoom {
   wallTexture    String?
   floorTexture   String?
   ceilingTexture String?
+  // The room's ceiling lights, set from the Museum Scene Editor's "Room
+  // Lights" card. Before these existed the point lights' colour came only
+  // from the roomType's preset (roomConstants.ts's ROOM_LIGHTING_PRESETS —
+  // GALLERY warm-white, ARCADE blue, ...) with nothing an admin could change,
+  // and the lights had no visible fixture at all. `lightColor` overrides the
+  // preset's point-light colour in every mode (null = the preset's own);
+  // `lightScale` sizes the fixture drawn at each light (1 = as designed);
+  // `lightModelUrl` swaps the built-in fixture for an uploaded .glb. The
+  // fixtures follow the lights exactly — a device that halves the light
+  // count (MuseumRoom.tsx's quality="low") draws half the fixtures too.
+  lightColor     String?
+  lightScale     Float                @default(1)
+  lightModelUrl  String?
   // Room-entry splash overrides (RoomSplash.tsx/RoomSplashContent.tsx) —
   // both null by default, same "platform:name" icon value convention as
   // Profile.splashIcon (see components/ui/icon-values.ts). Unset icon falls
@@ -1140,13 +1162,24 @@ model Order {
 model OrderItem {
   id           String          @id @default(cuid())
   orderId      String
-  productId    String
+  // Nullable, with the product released (SetNull) when it is permanently
+  // deleted. It used to be required, which made a product that had ever
+  // been ordered impossible to purge from Trash — the FK threw, the bulk
+  // purge counted it as "already gone", and the row sat in Trash forever.
+  // An order is a record of what was bought; it must not pin the catalogue.
+  productId    String?
   quantity     Int
   price        Float
   variantId    String?
   variantLabel String?
+  // What the line was, kept on the line itself so a receipt, the admin's
+  // order list and the customer's lookup still read right after the product
+  // is gone. Stamped by lib/trash-actions' purge just before the delete (and
+  // by nothing else — while the product exists, its own title/image win).
+  titleSnapshot String?
+  imageSnapshot String?
   order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product      Product         @relation(fields: [productId], references: [id])
+  product      Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   variant      ProductVariant? @relation(fields: [variantId], references: [id])
 }
 

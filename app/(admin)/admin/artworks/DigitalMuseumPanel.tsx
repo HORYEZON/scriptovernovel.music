@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Landmark, DoorOpen, Save, User, Trophy, Music, Megaphone, Sparkles, Radar, Aperture } from "lucide-react";
+import { Landmark, DoorOpen, Save, User, Trophy, Music, Megaphone, Sparkles, Radar, Aperture, Wand2 } from "lucide-react";
 import toast from "@/lib/toast";
 import { Toggle } from "./museum-ui";
 import type { PickableArtwork } from "./ArtworkPicker";
@@ -13,6 +13,7 @@ import { ChaseCompanionsSection } from "./ChaseCompanionsSection";
 import { AchievementsTab, type AchievementsConfigValue } from "./AchievementsTab";
 import { MuseumSplashSection, type MuseumSplashValue } from "./MuseumSplashSection";
 import { MinimapHudSection } from "./MinimapHudSection";
+import { ArtworkShimmerSection } from "./ArtworkShimmerSection";
 import { VisionFiltersSection } from "./VisionFiltersSection";
 import { AdminAccordion, useAccordionState } from "@/components/admin/AdminAccordion";
 import {
@@ -21,6 +22,7 @@ import {
   type VisionFilterConfig,
 } from "@/lib/museum/visionFilters";
 import { parseMinimapHudConfig, MINIMAP_HUD_DEFAULTS, type MinimapHudConfig } from "@/lib/museum/minimapHud";
+import { parseArtworkShimmerConfig, ARTWORK_SHIMMER_DEFAULTS, type ArtworkShimmerConfig } from "@/lib/museum/artworkShimmer";
 import { MUSEUM_SPLASH_DEFAULTS } from "@/lib/museum-splash";
 // MuseumPreviewSidebar removed — brightness controls live in the Scene Editor now.
 import { AudioUploader } from "../settings/Preferences/AudioUploader";
@@ -97,6 +99,10 @@ export function DigitalMuseumPanel({ artworks }: { artworks: PickableArtwork[] }
   const [minimap, setMinimap] = useState<MinimapHudConfig>(MINIMAP_HUD_DEFAULTS);
   const [savedMinimap, setSavedMinimap] = useState<MinimapHudConfig>(MINIMAP_HUD_DEFAULTS);
   const [savingMinimap, setSavingMinimap] = useState(false);
+  // Artwork Shimmer — same load/save/dirty shape as the minimap above.
+  const [artworkShimmer, setArtworkShimmer] = useState<ArtworkShimmerConfig>(ARTWORK_SHIMMER_DEFAULTS);
+  const [savedArtworkShimmer, setSavedArtworkShimmer] = useState<ArtworkShimmerConfig>(ARTWORK_SHIMMER_DEFAULTS);
+  const [savingArtworkShimmer, setSavingArtworkShimmer] = useState(false);
   // Filter Vision — same local-edits-plus-one-Save shape as the minimap and
   // splash blocks above, for the same reason (colour pickers and sliders fire
   // on every drag step). The master switch is deliberately *not* part of that:
@@ -117,6 +123,7 @@ export function DigitalMuseumPanel({ artworks }: { artworks: PickableArtwork[] }
     "basics",
     "splash",
     "minimap",
+    "shimmer",
     "filters",
   ] as const);
 
@@ -149,6 +156,9 @@ export function DigitalMuseumPanel({ artworks }: { artworks: PickableArtwork[] }
         const loadedMinimap = parseMinimapHudConfig(museum.minimapConfig);
         setMinimap(loadedMinimap);
         setSavedMinimap(loadedMinimap);
+        const loadedShimmer = parseArtworkShimmerConfig(museum.artworkShimmerConfig);
+        setArtworkShimmer(loadedShimmer);
+        setSavedArtworkShimmer(loadedShimmer);
         setAboutVisuals({
           aboutWallColor: museum.aboutWallColor,
           aboutFloorColor: museum.aboutFloorColor,
@@ -310,37 +320,9 @@ export function DigitalMuseumPanel({ artworks }: { artworks: PickableArtwork[] }
     }
   }
 
-  // Freedom Wall room's wall/floor/ceiling — PATCHes the MuseumRoom row
-  // directly (same endpoint as any curated room) so we can keep these in the
-  // room row rather than on DigitalMuseum like the About room does.
-  const FW_VISUAL_LABELS: Record<keyof FreedomWallRoomVisuals, string> = {
-    wallColor: "Wall Color",
-    floorColor: "Floor Color",
-    ceilingColor: "Ceiling Color",
-    wallTexture: "Wall Texture",
-    floorTexture: "Floor Texture",
-    ceilingTexture: "Ceiling Texture",
-  };
-
-  async function updateFreedomWallVisuals(patch: Partial<FreedomWallRoomVisuals>) {
-    if (!freedomWallVisuals || !freedomWallRoomId) return;
-    const previous = freedomWallVisuals;
-    setFreedomWallVisuals({ ...freedomWallVisuals, ...patch });
-    const label = FW_VISUAL_LABELS[Object.keys(patch)[0] as keyof FreedomWallRoomVisuals];
-    try {
-      const res = await fetch(`/api/digital-museum/rooms/${freedomWallRoomId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) throw new Error();
-      if (label) toast.success(`${label} updated`);
-      router.refresh();
-    } catch {
-      setFreedomWallVisuals(previous);
-      toast.error(label ? `Failed to update ${label}` : "Failed to update Freedom Wall room");
-    }
-  }
+  // The Freedom Wall / Stairs rooms' wall/floor/ceiling are edited from
+  // their Scene Editor's "Room Surfaces" card now (MuseumEditorClient.tsx),
+  // PATCHing the room row there; this panel only still fetches them.
 
   // Second Floor toggle (see docs/SecondFloorStairs_Spec.md) — About and
   // Freedom Wall's own `floor` column is a real MuseumRoom field, PATCHed
@@ -387,29 +369,6 @@ export function DigitalMuseumPanel({ artworks }: { artworks: PickableArtwork[] }
     } catch (e) {
       setFreedomWallFloor(previous);
       toast.error(e instanceof Error && e.message ? e.message : "Failed to update Floor");
-    }
-  }
-
-  // Stairs connector room's wall/floor/ceiling — same PATCH pattern as
-  // Freedom Wall's visuals above. No enabled/floor toggle of its own (see
-  // lib/museum/stairsRoom.ts and the fixed card in RoomsTab.tsx).
-  async function updateStairsVisuals(patch: Partial<FreedomWallRoomVisuals>) {
-    if (!stairsVisuals || !stairsRoomId) return;
-    const previous = stairsVisuals;
-    setStairsVisuals({ ...stairsVisuals, ...patch });
-    const label = FW_VISUAL_LABELS[Object.keys(patch)[0] as keyof FreedomWallRoomVisuals];
-    try {
-      const res = await fetch(`/api/digital-museum/rooms/${stairsRoomId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) throw new Error();
-      if (label) toast.success(`${label} updated`);
-      router.refresh();
-    } catch {
-      setStairsVisuals(previous);
-      toast.error(label ? `Failed to update ${label}` : "Failed to update Stairs room");
     }
   }
 
@@ -512,6 +471,7 @@ export function DigitalMuseumPanel({ artworks }: { artworks: PickableArtwork[] }
   const splashDirty = JSON.stringify(splash) !== JSON.stringify(savedSplash);
 
   const minimapDirty = JSON.stringify(minimap) !== JSON.stringify(savedMinimap);
+  const artworkShimmerDirty = JSON.stringify(artworkShimmer) !== JSON.stringify(savedArtworkShimmer);
 
   const visionDirty =
     JSON.stringify(visionConfig) !== JSON.stringify(savedVisionConfig);
@@ -574,6 +534,25 @@ export function DigitalMuseumPanel({ artworks }: { artworks: PickableArtwork[] }
       toast.error("Failed to save the Minimap HUD");
     } finally {
       setSavingMinimap(false);
+    }
+  }
+
+  async function saveArtworkShimmer() {
+    setSavingArtworkShimmer(true);
+    try {
+      const res = await fetch("/api/digital-museum", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artworkShimmerConfig: artworkShimmer }),
+      });
+      if (!res.ok) throw new Error();
+      setSavedArtworkShimmer(artworkShimmer);
+      toast.success("Artwork Shimmer saved");
+      router.refresh();
+    } catch {
+      toast.error("Failed to save the Artwork Shimmer");
+    } finally {
+      setSavingArtworkShimmer(false);
     }
   }
 
@@ -848,6 +827,45 @@ export function DigitalMuseumPanel({ artworks }: { artworks: PickableArtwork[] }
           </AdminAccordion>
 
           <AdminAccordion
+            title="Artwork Shimmer"
+            subtitle="The light that sweeps across a piece when a visitor walks up to it"
+            icon={<Wand2 size={15} />}
+            badge={artworkShimmer.enabled ? "on" : "off"}
+            open={sections.open.shimmer}
+            onToggle={() => sections.toggle("shimmer")}
+          >
+          <ArtworkShimmerSection
+            value={artworkShimmer}
+            onChange={(patch) => setArtworkShimmer((c) => ({ ...c, ...patch }))}
+            artworks={artworks}
+          />
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={saveArtworkShimmer}
+              disabled={savingArtworkShimmer || !artworkShimmerDirty}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sepia text-white font-jakarta text-sm font-medium hover:bg-sepia-dark transition-all duration-200 shadow-md disabled:opacity-50"
+            >
+              {savingArtworkShimmer ? (
+                <>
+                  <div className="w-4 h-4 border border-cream/30 border-t-cream rounded-full animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  Save Artwork Shimmer
+                </>
+              )}
+            </button>
+            {artworkShimmerDirty && !savingArtworkShimmer && (
+              <span className="font-body text-xs text-ink-400 dark:text-ink-300">Unsaved changes</span>
+            )}
+          </div>
+          </AdminAccordion>
+
+          <AdminAccordion
             title="Filter Vision"
             subtitle="The looks visitors cycle with [Q] — five built in, plus your own colours"
             icon={<Aperture size={15} />}
@@ -905,14 +923,12 @@ export function DigitalMuseumPanel({ artworks }: { artworks: PickableArtwork[] }
             freedomWallEnabled={freedomWallEnabled}
             onToggleFreedomWall={toggleFreedomWallEnabled}
             freedomWallVisuals={freedomWallVisuals}
-            onUpdateFreedomWallVisuals={updateFreedomWallVisuals}
             freedomWallFloor={freedomWallFloor}
             onUpdateFreedomWallFloor={updateFreedomWallFloor}
             freedomWallSplashEnabled={freedomWallSplashEnabled}
             onUpdateFreedomWallSplashEnabled={updateFreedomWallSplashEnabled}
             stairsRoomId={stairsRoomId}
             stairsVisuals={stairsVisuals}
-            onUpdateStairsVisuals={updateStairsVisuals}
             stairsSplashEnabled={stairsSplashEnabled}
             onUpdateStairsSplashEnabled={updateStairsSplashEnabled}
           />

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import type { ArtworkShimmerConfig } from "@/lib/museum/artworkShimmer";
 import { Canvas, useThree } from "@react-three/fiber";
 import { PerformanceMonitor, AdaptiveDpr, AdaptiveEvents, PerspectiveCamera, Text, useProgress } from "@react-three/drei";
 import * as THREE from "three";
@@ -22,6 +23,7 @@ import { VrContactPanel } from "./VrContactPanel";
 import { VrInteractionPrompt } from "./VrInteractionPrompt";
 import { VrHud, type VrHudProps } from "./VrHud";
 import { VrMapPanel } from "./VrMapPanel";
+import { VrFlipView } from "./VrFlipView";
 import { VrPrompt } from "./VrPrompt";
 import { XR, createXRStore } from "@react-three/xr";
 import { TouchControls } from "./TouchControls";
@@ -184,6 +186,8 @@ export function MuseumScene({
   brightnessLight = 50,
   brightnessDark = 50,
   onToggleDarkMode,
+  lightModeLabel,
+  artworkShimmer,
   onToggleMap,
   onToggleHud,
   activeFilterCss,
@@ -233,6 +237,11 @@ export function MuseumScene({
   onRoomChange?: (roomId: string) => void;
   /** Visitor-toggled ambiance, owned by MuseumClient.tsx (persisted across the session) — dims every room's lighting plus the background/fog, see roomConstants.ts. */
   darkMode?: boolean;
+  /** The VR HUD's wording for the lighting button — see VrHud.tsx. */
+  lightModeLabel?: string;
+  /** The light sweep on the artwork the visitor is standing at — passed to
+   *  every ArtworkFrame, which only draws it while it is the active one. */
+  artworkShimmer?: ArtworkShimmerConfig;
   /** Admin-set brightness for light mode (0–100, 50 = baseline). */
   brightnessLight?: number;
   /** Admin-set brightness for dark mode (0–100, 50 = baseline). */
@@ -1482,7 +1491,7 @@ export function MuseumScene({
   const promptLabel = activeCert
     ? "View Certificate"
     : activePodium
-      ? "Read Story"
+      ? "Read Tale"
       : activeStandee
         ? "View Cosplay"
         : activeArcadeGame
@@ -1609,7 +1618,7 @@ export function MuseumScene({
           />
         )}
         {share360Ref && (
-          <Room360Capture shareRef={share360Ref} getEye={getShare360Eye} prepare={prepareShare360} lowEnd={lowEnd} />
+          <Room360Capture shareRef={share360Ref} getEye={getShare360Eye} prepare={prepareShare360} lowEnd={lowEnd} filterCss={activeFilterCss} />
         )}
         {/* Perf regression trio — all read/drive R3F's own internal
             `state.performance`, not a device/UA sniff: PerformanceMonitor
@@ -1644,9 +1653,17 @@ export function MuseumScene({
             wallTexture={layout.room.wallTexture}
             floorTexture={layout.room.floorTexture}
             ceilingTexture={layout.room.ceilingTexture}
+            lightColor={layout.room.lightColor}
+            lightScale={layout.room.lightScale}
+            lightModelUrl={layout.room.lightModelUrl}
             darkMode={darkMode}
             brightness={darkMode ? brightnessDark : brightnessLight}
             lightsEnabled={nearbyRoomIds.has(layout.room.id) || capturing360}
+            // Ambient/hemisphere are scene-global, so exactly one room may
+            // contribute them — the one the visitor is in (the spawn room
+            // until PlayerControls reports in). See MuseumRoom's prop doc for
+            // the twelve-fold over-lighting this replaces.
+            ambientEnabled={layout.room.id === (currentRoomId ?? entryLayout?.room.id)}
             // Halves this room's point lights (4 -> 2, see MuseumRoom.tsx).
             // Point lights are the dominant per-fragment cost in the whole
             // scene, so this is the biggest single lever available at runtime.
@@ -1697,6 +1714,16 @@ export function MuseumScene({
               darkMode={darkMode}
             />
           ))}
+        {/* Every room's contents below sit behind their own <Suspense>. drei's
+            <Text> *suspends* (suspend-react) the first time it meets a font +
+            characters pair it hasn't preloaded, and the room contents mount
+            their plaques lazily as the visitor approaches — so the first walk
+            into, say, the Tales Room threw a suspension with no boundary
+            nearer than MuseumSceneLoader's dynamic import. That showed the
+            museum's loading screen mid-walk and remounted the whole scene,
+            which put the visitor back at the spawn point; the second visit
+            was fine only because the font was cached by then. A boundary per
+            room keeps a late font load to a blink of that room's own props. */}
         {artworks.map((artwork, i) => (
           <ArtworkFrame
             key={keys[i]}
@@ -1705,11 +1732,12 @@ export function MuseumScene({
             active={activeIndex === i}
             scale={scales[i]}
             shouldLoad={nearbyRoomIds.has(roomIds[i])}
+            shimmer={artworkShimmer}
           />
         ))}
         {modelPlacements.map((o) => (
           <group key={o.id} position={o.position} rotation={[0, o.rotationY, 0]}>
-            <CustomSceneObject url={o.modelUrl} scale={o.scale} />
+            <CustomSceneObject url={o.modelUrl} scale={o.scale} recenter />
           </group>
         ))}
         {/* Divider walls — admin-placed partitions that reshape a room (see
@@ -1732,10 +1760,12 @@ export function MuseumScene({
             walk back in. */}
         {clockPlacements.map((o) => (
           <group key={o.id} position={o.position} rotation={[0, o.rotationY, 0]} scale={o.scale}>
-            <WallClock
-              config={parseWallClockConfig(o.modelUrl)}
-              ticking={nearbyRoomIds.has(o.roomId)}
-            />
+            <Suspense fallback={null}>
+              <WallClock
+                config={parseWallClockConfig(o.modelUrl)}
+                ticking={nearbyRoomIds.has(o.roomId)}
+              />
+            </Suspense>
           </group>
         ))}
         {textPlacements.map((o) => {
@@ -1768,21 +1798,22 @@ export function MuseumScene({
         {sceneBannerPlacements.map((o) => {
           const cfg = parseSceneBannerConfig(o.modelUrl);
           return (
-            <SceneBanner
-              key={o.id}
-              text={cfg.text}
-              eyebrow={cfg.eyebrow}
-              // Sized against the room's own width so a wide banner can't
-              // overrun the walls it hangs between — see bannerWidth().
-              width={bannerWidth(cfg, ROOM_WIDTH)}
-              height={cfg.height}
-              finish={bannerFinish(cfg)}
-              textColor={cfg.textColor}
-              fontFamily={cfg.fontFamily}
-              fontSize={cfg.fontSize}
-              position={o.position}
-              rotationY={o.rotationY}
-            />
+            <Suspense fallback={null} key={o.id}>
+              <SceneBanner
+                text={cfg.text}
+                eyebrow={cfg.eyebrow}
+                // Sized against the room's own width so a wide banner can't
+                // overrun the walls it hangs between — see bannerWidth().
+                width={bannerWidth(cfg, ROOM_WIDTH)}
+                height={cfg.height}
+                finish={bannerFinish(cfg)}
+                textColor={cfg.textColor}
+                fontFamily={cfg.fontFamily}
+                fontSize={cfg.fontSize}
+                position={o.position}
+                rotationY={o.rotationY}
+              />
+            </Suspense>
           );
         })}
         {chaseCompanions?.map((companion, i) => (
@@ -1812,118 +1843,130 @@ export function MuseumScene({
           />
         )}
         {aboutData && aboutLayout && (
-          <AboutRoomContents
-            data={aboutData}
-            depth={aboutLayout.depth}
-            centerZ={aboutLayout.centerZ}
-            baseY={aboutLayout.floorYSouth}
-            shouldLoad={nearbyRoomIds.has(aboutLayout.room.id)}
-            onActiveCertChange={setActiveCert}
-            onGigsProximityChange={(near) => setActiveGigs(near && (aboutData.gigs?.length ?? 0) > 0)}
-            onContactProximityChange={setActiveContact}
-            contact={aboutContact}
-            clock={aboutLayout.room.aboutClock}
-            blockOffsets={aboutLayout.room.aboutBlockOffsets}
-            banner={bannerStyles.about}
-          />
+          <Suspense fallback={null}>
+            <AboutRoomContents
+              data={aboutData}
+              depth={aboutLayout.depth}
+              centerZ={aboutLayout.centerZ}
+              baseY={aboutLayout.floorYSouth}
+              shouldLoad={nearbyRoomIds.has(aboutLayout.room.id)}
+              onActiveCertChange={setActiveCert}
+              onGigsProximityChange={(near) => setActiveGigs(near && (aboutData.gigs?.length ?? 0) > 0)}
+              onContactProximityChange={setActiveContact}
+              contact={aboutContact}
+              clock={aboutLayout.room.aboutClock}
+              blockOffsets={aboutLayout.room.aboutBlockOffsets}
+              banner={bannerStyles.about}
+            />
+          </Suspense>
         )}
         {servicesLayout && (
-          <ServicesRoomContents
-            tags={servicesPriceTags}
-            depth={servicesLayout.depth}
-            centerZ={servicesLayout.centerZ}
-            baseY={servicesLayout.floorYSouth}
-            isEmpty={servicesLayout.room.artworks.length === 0}
-            shouldLoad={nearbyRoomIds.has(servicesLayout.room.id)}
-            banner={bannerStyles.services}
-          />
+          <Suspense fallback={null}>
+            <ServicesRoomContents
+              tags={servicesPriceTags}
+              depth={servicesLayout.depth}
+              centerZ={servicesLayout.centerZ}
+              baseY={servicesLayout.floorYSouth}
+              isEmpty={servicesLayout.room.artworks.length === 0}
+              shouldLoad={nearbyRoomIds.has(servicesLayout.room.id)}
+              banner={bannerStyles.services}
+            />
+          </Suspense>
         )}
         {storiesLayout && (
-          <StoriesRoomContents
-            podiums={storyPodiums}
-            depth={storiesLayout.depth}
-            centerZ={storiesLayout.centerZ}
-            baseY={storiesLayout.floorYSouth}
-            shouldLoad={nearbyRoomIds.has(storiesLayout.room.id)}
-            activeEntryId={activePodium?.entryId ?? null}
-            onActiveChange={setActivePodium}
-            podiumModelUrl={podiumModel.url}
-            podiumBookHeight={podiumModel.bookHeight}
-            podiumTextureUrl={podiumModel.textureUrl}
-            scaleFor={(entryId) =>
-              storiesLayout.room.stories.find((e) => e.entryId === entryId)?.scale ?? 1
-            }
-            banner={bannerStyles.stories}
-          />
+          <Suspense fallback={null}>
+            <StoriesRoomContents
+              podiums={storyPodiums}
+              depth={storiesLayout.depth}
+              centerZ={storiesLayout.centerZ}
+              baseY={storiesLayout.floorYSouth}
+              shouldLoad={nearbyRoomIds.has(storiesLayout.room.id)}
+              activeEntryId={activePodium?.entryId ?? null}
+              onActiveChange={setActivePodium}
+              podiumModelUrl={podiumModel.url}
+              podiumBookHeight={podiumModel.bookHeight}
+              podiumTextureUrl={podiumModel.textureUrl}
+              scaleFor={(entryId) =>
+                storiesLayout.room.stories.find((e) => e.entryId === entryId)?.scale ?? 1
+              }
+              banner={bannerStyles.stories}
+            />
+          </Suspense>
         )}
         {arcadeLayout && (
-          <ArcadeRoomContents
-            cabinets={arcadeCabinets}
-            depth={arcadeLayout.depth}
-            centerZ={arcadeLayout.centerZ}
-            baseY={arcadeLayout.floorYSouth}
-            shouldLoad={nearbyRoomIds.has(arcadeLayout.room.id)}
-            activeEntryId={activeArcadeGame?.entryId ?? null}
-            onActiveChange={setActiveArcadeGame}
-            scaleFor={(entryId) =>
-              arcadeLayout.room.miniGames.find((e) => e.entryId === entryId)?.scale ?? 1
-            }
-            cabinetModel={arcadeLayout.room.arcadeCabinet}
-            banner={bannerStyles.arcade}
-          />
+          <Suspense fallback={null}>
+            <ArcadeRoomContents
+              cabinets={arcadeCabinets}
+              depth={arcadeLayout.depth}
+              centerZ={arcadeLayout.centerZ}
+              baseY={arcadeLayout.floorYSouth}
+              shouldLoad={nearbyRoomIds.has(arcadeLayout.room.id)}
+              activeEntryId={activeArcadeGame?.entryId ?? null}
+              onActiveChange={setActiveArcadeGame}
+              scaleFor={(entryId) =>
+                arcadeLayout.room.miniGames.find((e) => e.entryId === entryId)?.scale ?? 1
+              }
+              cabinetModel={arcadeLayout.room.arcadeCabinet}
+              banner={bannerStyles.arcade}
+            />
+          </Suspense>
         )}
         {cosplayLayout && (
-          <CosplayRoomContents
-            standees={cosplayStandees}
-            depth={cosplayLayout.depth}
-            centerZ={cosplayLayout.centerZ}
-            baseY={cosplayLayout.floorYSouth}
-            shouldLoad={nearbyRoomIds.has(cosplayLayout.room.id)}
-            activeEntryId={activeStandee?.entryId ?? null}
-            onActiveChange={setActiveStandee}
-            standeeModelUrl={cosplayLayout.room.cosplayStandee?.modelUrl}
-            standeeCutoutHeight={cosplayLayout.room.cosplayStandee?.cutoutHeight}
-            standeeTextureUrl={cosplayLayout.room.cosplayStandee?.textureUrl}
-            backdropEnabled={cosplayLayout.room.cosplayStandee?.backdropEnabled}
-            backdropWidth={cosplayLayout.room.cosplayStandee?.backdropWidth}
-            backdropHeight={cosplayLayout.room.cosplayStandee?.backdropHeight}
-            backdropFrameColor={cosplayLayout.room.cosplayStandee?.backdropFrameColor}
-            backdropEdgeColor={cosplayLayout.room.cosplayStandee?.backdropEdgeColor}
-            backdropEdgeThickness={cosplayLayout.room.cosplayStandee?.backdropEdgeThickness}
-            banner={bannerStyles.cosplay}
-            lightsStyle={cosplayLayout.room.cosplayStandee?.lightsStyle}
-            lightsColor={cosplayLayout.room.cosplayStandee?.lightsColor}
-            lightsIntensity={cosplayLayout.room.cosplayStandee?.lightsIntensity}
-            lightsBulbSize={cosplayLayout.room.cosplayStandee?.lightsBulbSize}
-            lightsSpacing={cosplayLayout.room.cosplayStandee?.lightsSpacing}
-            lightsAnimation={cosplayLayout.room.cosplayStandee?.lightsAnimation}
-            lightsSpeed={cosplayLayout.room.cosplayStandee?.lightsSpeed}
-            // Docs/Museum_VRMode.md's Phase 5 — capped to at most 1 while
-            // presenting, same reasoning as the `quality` prop above: each
-            // of these is its own point/spot light, and stereo doubles
-            // every one's per-fragment cost.
-            floodCount={
-              isPresenting
-                ? Math.min(cosplayLayout.room.cosplayStandee?.floodCount ?? 1, 1)
-                : cosplayLayout.room.cosplayStandee?.floodCount
-            }
-            floodBeamHeight={cosplayLayout.room.cosplayStandee?.floodBeamHeight}
-            floodBeamSpread={cosplayLayout.room.cosplayStandee?.floodBeamSpread}
-            scaleFor={(entryId) =>
-              cosplayLayout.room.cosplays.find((e) => e.entryId === entryId)?.scale ?? 1
-            }
-          />
+          <Suspense fallback={null}>
+            <CosplayRoomContents
+              standees={cosplayStandees}
+              depth={cosplayLayout.depth}
+              centerZ={cosplayLayout.centerZ}
+              baseY={cosplayLayout.floorYSouth}
+              shouldLoad={nearbyRoomIds.has(cosplayLayout.room.id)}
+              activeEntryId={activeStandee?.entryId ?? null}
+              onActiveChange={setActiveStandee}
+              standeeModelUrl={cosplayLayout.room.cosplayStandee?.modelUrl}
+              standeeCutoutHeight={cosplayLayout.room.cosplayStandee?.cutoutHeight}
+              standeeTextureUrl={cosplayLayout.room.cosplayStandee?.textureUrl}
+              backdropEnabled={cosplayLayout.room.cosplayStandee?.backdropEnabled}
+              backdropWidth={cosplayLayout.room.cosplayStandee?.backdropWidth}
+              backdropHeight={cosplayLayout.room.cosplayStandee?.backdropHeight}
+              backdropFrameColor={cosplayLayout.room.cosplayStandee?.backdropFrameColor}
+              backdropEdgeColor={cosplayLayout.room.cosplayStandee?.backdropEdgeColor}
+              backdropEdgeThickness={cosplayLayout.room.cosplayStandee?.backdropEdgeThickness}
+              banner={bannerStyles.cosplay}
+              lightsStyle={cosplayLayout.room.cosplayStandee?.lightsStyle}
+              lightsColor={cosplayLayout.room.cosplayStandee?.lightsColor}
+              lightsIntensity={cosplayLayout.room.cosplayStandee?.lightsIntensity}
+              lightsBulbSize={cosplayLayout.room.cosplayStandee?.lightsBulbSize}
+              lightsSpacing={cosplayLayout.room.cosplayStandee?.lightsSpacing}
+              lightsAnimation={cosplayLayout.room.cosplayStandee?.lightsAnimation}
+              lightsSpeed={cosplayLayout.room.cosplayStandee?.lightsSpeed}
+              // Docs/Museum_VRMode.md's Phase 5 — capped to at most 1 while
+              // presenting, same reasoning as the `quality` prop above: each
+              // of these is its own point/spot light, and stereo doubles
+              // every one's per-fragment cost.
+              floodCount={
+                isPresenting
+                  ? Math.min(cosplayLayout.room.cosplayStandee?.floodCount ?? 1, 1)
+                  : cosplayLayout.room.cosplayStandee?.floodCount
+              }
+              floodBeamHeight={cosplayLayout.room.cosplayStandee?.floodBeamHeight}
+              floodBeamSpread={cosplayLayout.room.cosplayStandee?.floodBeamSpread}
+              scaleFor={(entryId) =>
+                cosplayLayout.room.cosplays.find((e) => e.entryId === entryId)?.scale ?? 1
+              }
+            />
+          </Suspense>
         )}
         {freedomWallLayout && (
-          <FreedomWallRoomContents
-            notes={freedomWallNotes}
-            depth={freedomWallLayout.depth}
-            centerZ={freedomWallLayout.centerZ}
-            baseY={freedomWallLayout.floorYSouth}
-            hasNorthOpening={freedomWallLayout.hasNorthOpening}
-            hasSouthOpening={freedomWallLayout.hasSouthOpening}
-            shouldLoad={nearbyRoomIds.has(freedomWallLayout.room.id)}
-          />
+          <Suspense fallback={null}>
+            <FreedomWallRoomContents
+              notes={freedomWallNotes}
+              depth={freedomWallLayout.depth}
+              centerZ={freedomWallLayout.centerZ}
+              baseY={freedomWallLayout.floorYSouth}
+              hasNorthOpening={freedomWallLayout.hasNorthOpening}
+              hasSouthOpening={freedomWallLayout.hasSouthOpening}
+              shouldLoad={nearbyRoomIds.has(freedomWallLayout.room.id)}
+            />
+          </Suspense>
         )}
         <PlayerControls
           rigRef={rigRef}
@@ -1992,6 +2035,7 @@ export function MuseumScene({
                 hudHidden={hudHidden}
                 onToggleHud={onToggleHud}
                 darkMode={darkMode}
+                lightModeLabel={lightModeLabel}
                 onToggleDarkMode={onToggleDarkMode}
                 musicPlaying={vrHud.musicPlaying}
                 onToggleMusic={vrHud.onToggleMusic}
@@ -2005,8 +2049,12 @@ export function MuseumScene({
                 onDismissAchievement={vrHud.onDismissAchievement}
                 splashEnabled={vrHud.splashEnabled}
                 splashSpeedMs={vrHud.splashSpeedMs}
+                flipView={vrHud.flipView}
+                onToggleFlipView={vrHud.onToggleFlipView}
               />
             )}
+            {/* Phone-in-goggles upside-down fix — see VrFlipView.tsx. */}
+            <VrFlipView enabled={Boolean(vrHud?.flipView)} />
             {vrHud?.mapOpen && !anyPanelOpen && (
               <VrMapPanel
                 rooms={rooms}

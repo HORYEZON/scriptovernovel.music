@@ -536,14 +536,40 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
     },
+    "/artworks/availability": {
+      get: {
+        tags: ["Artworks"],
+        summary: "Check whether saved artwork ids are still public",
+        description:
+          "Public — no auth. Used by the Wishlist page, which is a localStorage snapshot " +
+          "that can outlive the artwork it was saved from. For each id in `ids` " +
+          "(comma-separated, max 200), reports whether it still passes the exact gate the " +
+          "artwork detail page itself uses (published, not deleted) — i.e. whether clicking " +
+          "through would still work. An id that doesn't exist at all reports the same as one " +
+          "that's since been deleted or unpublished: `false`.",
+        parameters: [
+          { name: "ids", in: "query", required: true, schema: { type: "string" }, description: "Comma-separated artwork ids." },
+        ],
+        responses: {
+          "200": {
+            description: "Map of artwork id → still available",
+            content: {
+              "application/json": {
+                schema: { type: "object", additionalProperties: { type: "boolean" } },
+              },
+            },
+          },
+        },
+      },
+    },
 
     // ═══════════════════════════════════════════════════════
     // STORIES
     // ═══════════════════════════════════════════════════════
     "/stories": {
       get: {
-        tags: ["Stories"],
-        summary: "List all stories",
+        tags: ["Tales"],
+        summary: "List all tales",
         description: "Public. Supports query filters: published, featured, type, genre.",
         parameters: [
           { name: "published", in: "query", schema: { type: "string", enum: ["true", "false"] } },
@@ -560,7 +586,7 @@ export const openApiSpec: OpenAPIV3.Document = {
         ],
         responses: {
           "200": {
-            description: "Array of stories",
+            description: "Array of tales",
             content: {
               "application/json": {
                 schema: { type: "array", items: { $ref: "#/components/schemas/Story" } },
@@ -570,8 +596,8 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
       post: {
-        tags: ["Stories"],
-        summary: "Create story",
+        tags: ["Tales"],
+        summary: "Create tale",
         description:
           "Cover and page images must already be uploaded via POST /upload — this endpoint stores URLs only.",
         security: adminSecurity,
@@ -624,8 +650,8 @@ export const openApiSpec: OpenAPIV3.Document = {
     },
     "/stories/{id}": {
       get: {
-        tags: ["Stories"],
-        summary: "Get story by ID",
+        tags: ["Tales"],
+        summary: "Get tale by ID",
         parameters: [IdParam],
         responses: {
           "200": { description: "Story", content: { "application/json": { schema: { $ref: "#/components/schemas/Story" } } } },
@@ -633,8 +659,8 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
       patch: {
-        tags: ["Stories"],
-        summary: "Update story",
+        tags: ["Tales"],
+        summary: "Update tale",
         description: "Slug is set on create and never changed here — shared links stay valid.",
         security: adminSecurity,
         parameters: [IdParam],
@@ -672,8 +698,8 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
       delete: {
-        tags: ["Stories"],
-        summary: "Soft-delete story (moves to trash)",
+        tags: ["Tales"],
+        summary: "Soft-delete tale (moves to trash)",
         security: adminSecurity,
         parameters: [IdParam],
         responses: { "200": SuccessResponse, "401": ErrorResponse, "404": ErrorResponse },
@@ -681,8 +707,8 @@ export const openApiSpec: OpenAPIV3.Document = {
     },
     "/stories/{id}/pages": {
       post: {
-        tags: ["Stories"],
-        summary: "Append page(s) to a story",
+        tags: ["Tales"],
+        summary: "Append page(s) to a tale",
         security: adminSecurity,
         parameters: [IdParam],
         requestBody: {
@@ -716,10 +742,10 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
       put: {
-        tags: ["Stories"],
-        summary: "Reorder a story's pages",
+        tags: ["Tales"],
+        summary: "Reorder a tale's pages",
         description:
-          "Body must list every page id of the story exactly once, in the new reading order; pageNumber is re-normalized to 1..n.",
+          "Body must list every page id of the tale exactly once, in the new reading order; pageNumber is re-normalized to 1..n.",
         security: adminSecurity,
         parameters: [IdParam],
         requestBody: {
@@ -744,7 +770,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     },
     "/stories/{id}/pages/{pageId}": {
       patch: {
-        tags: ["Stories"],
+        tags: ["Tales"],
         summary: "Update a page's caption",
         security: adminSecurity,
         parameters: [
@@ -765,7 +791,7 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
       delete: {
-        tags: ["Stories"],
+        tags: ["Tales"],
         summary: "Delete one page permanently",
         description: "Remaining pages are renumbered to stay contiguous.",
         security: adminSecurity,
@@ -1063,6 +1089,33 @@ export const openApiSpec: OpenAPIV3.Document = {
         responses: { "200": SuccessResponse, "401": ErrorResponse, "404": ErrorResponse },
       },
     },
+    "/products/availability": {
+      get: {
+        tags: ["Products"],
+        summary: "Check whether saved product ids are still buyable",
+        description:
+          "Public — no auth. Used by the Cart and Checkout pages, both localStorage " +
+          "snapshots that can outlive the product they were added from. For each id in " +
+          "`ids` (comma-separated, max 200), reports whether it still passes the exact " +
+          "gate the Shop listing itself uses (available, not deleted, and its artwork not " +
+          "deleted) — i.e. whether it would still show up in the Shop. `POST /checkout` " +
+          "re-checks the same thing server-side at order time regardless of what this " +
+          "reports; this only drives what the Cart/Checkout UI shows beforehand.",
+        parameters: [
+          { name: "ids", in: "query", required: true, schema: { type: "string" }, description: "Comma-separated product ids." },
+        ],
+        responses: {
+          "200": {
+            description: "Map of product id → still buyable",
+            content: {
+              "application/json": {
+                schema: { type: "object", additionalProperties: { type: "boolean" } },
+              },
+            },
+          },
+        },
+      },
+    },
 
     // ═══════════════════════════════════════════════════════
     // ORDERS
@@ -1162,7 +1215,13 @@ export const openApiSpec: OpenAPIV3.Document = {
       post: {
         tags: ["Checkout"],
         summary: "Create PayMongo checkout session",
-        description: "Public. Validates stock server-side, creates an Order record, returns a PayMongo checkout URL.",
+        description:
+          "Public. Validates each product server-side — available, not deleted, its artwork " +
+          "not deleted, and stock covers the requested quantity — before creating an Order " +
+          "record and returning a PayMongo checkout URL. A product that fails any of those " +
+          "(including one that's since been deleted or paused, which a stale cart can't tell " +
+          "apart from the id simply not existing) fails the whole request with 400, same as " +
+          "one that's out of stock.",
         requestBody: {
           required: true,
           content: {
@@ -1599,7 +1658,7 @@ export const openApiSpec: OpenAPIV3.Document = {
         tags: ["Digital Museum"],
         summary: "Get museum config + room list (admin)",
         description:
-          "Lazily provisions the About ScriptOverNovel, Freedom Wall, Stairs, Services, Stories, Arcade and Cosplay rooms, and reconciles the mirror rooms' contents (Services → live shop, Stories → published library, Arcade → playable mini games, Cosplay → published cosplays) before responding. `rooms` holds the curated rooms plus the Services, Stories, Arcade and Cosplay rooms (each with a real displayOrder among them); About/Freedom Wall/Stairs are returned as their own top-level ids/visuals instead. Also returns `storiesRoomId`, `arcadeRoomId` and `cosplayRoomId` for direct addressing.",
+          "Lazily provisions the About ScriptOverNovel, Freedom Wall, Stairs, Services, Tales, Arcade and Cosplay rooms, and reconciles the mirror rooms' contents (Services → live shop, Stories → published library, Arcade → playable mini games, Cosplay → published cosplays) before responding. `rooms` holds the curated rooms plus the Services, Stories, Arcade and Cosplay rooms (each with a real displayOrder among them); About/Freedom Wall/Stairs are returned as their own top-level ids/visuals instead. Also returns `storiesRoomId`, `arcadeRoomId` and `cosplayRoomId` for direct addressing.",
         security: adminSecurity,
         responses: { "200": { description: "Museum configuration and rooms" }, "401": ErrorResponse },
       },
@@ -1627,6 +1686,20 @@ export const openApiSpec: OpenAPIV3.Document = {
                   museumMusicVolume: { type: "integer" },
                   museumBrightnessLight: { type: "integer" },
                   museumBrightnessDark: { type: "integer" },
+                  artworkShimmerConfig: {
+                    type: "object",
+                    nullable: true,
+                    description:
+                      "The light sweep across an artwork the visitor has walked up to, museum-wide. Sent as an object and stored as JSON; null restores the defaults (on). See lib/museum/artworkShimmer.ts.",
+                    properties: {
+                      enabled: { type: "boolean" },
+                      speed: { type: "number", description: "Sweeps per second (0.1–3)." },
+                      strength: { type: "number", description: "0–1." },
+                      color: { type: "string", description: "Hex tint of the band." },
+                      bandWidth: { type: "number", description: "Band width as a fraction of the artwork (0.04–0.4)." },
+                    },
+                  },
+                  museumBrightnessDim: { type: "integer", description: "0–100 brightness for the third visitor lighting mode, Dim ([L] cycles Light → Dim → Dark). Light mode's colour presets at this brightness." },
                   visionFiltersEnabled: {
                     type: "boolean",
                     description:
@@ -1684,6 +1757,7 @@ export const openApiSpec: OpenAPIV3.Document = {
                         enum: ["normal", "bold", "italic", "bold-italic"],
                       },
                       floorLabelSize: { type: "integer" },
+                      floorLabelSpacing: { type: "integer", description: "Pixels of room around the floor label — card edge on one side, room outline on the other (0–40, default 5)." },
                       floorLabelColor: { type: "string" },
                       floorLabelPosition: {
                         type: "string",
@@ -1793,6 +1867,9 @@ export const openApiSpec: OpenAPIV3.Document = {
                   wallTexture: { type: "string" },
                   floorTexture: { type: "string" },
                   ceilingTexture: { type: "string" },
+                  lightColor: { type: "string", nullable: true, description: "Hex colour for the room's ceiling lights in every mode, or null/\"\" to go back to the roomType preset's colour." },
+                  lightScale: { type: "number", description: "Size multiplier for the fixture drawn at each ceiling light (clamped 0.25–4, 1 = as designed)." },
+                  lightModelUrl: { type: "string", nullable: true, description: ".glb URL (from the signed model upload) drawn at each ceiling light in place of the built-in fixture, or null/\"\" for the built-in one." },
                   splashIcon: { type: "string" },
                   splashTitle: { type: "string" },
                 },
@@ -1927,7 +2004,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     "/digital-museum/room-stories/{id}": {
       patch: {
         tags: ["Digital Museum"],
-        summary: "Update story podium position/scale in scene",
+        summary: "Update tale podium position/scale in scene",
         description:
           "[id] is the MuseumRoomStory join row's id. Position is all-or-nothing: send all four fields as numbers (a custom placement) or all four as null (reset to podiumPlacement.ts's auto floor grid). Only the Stories Room has these rows, and membership is mirrored from the published library — this endpoint only ever moves a podium, never adds or removes one.",
         security: adminSecurity,
@@ -3904,7 +3981,7 @@ export const openApiSpec: OpenAPIV3.Document = {
 
   tags: [
     { name: "Artworks", description: "Artwork CRUD and share tracking" },
-    { name: "Stories", description: "Books, novels, comics & manga — CRUD plus their page images" },
+    { name: "Tales", description: "Books, novels, comics & manga (the Tales module; routes keep their /stories paths) — CRUD plus their page images" },
     { name: "Cosplays", description: "Costume photography \u2014 each a standee in the museum's Cosplay Room" },
     { name: "Sections", description: "Gallery section groupings" },
     { name: "Products", description: "Shop product listings tied to artworks" },

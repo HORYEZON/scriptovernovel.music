@@ -29,6 +29,7 @@ import { ArcadeCabinet } from "@/app/(public)/gallery/museum/components/ArcadeCa
 import { CosplayStandee } from "@/app/(public)/gallery/museum/components/CosplayStandee";
 import type { LightsAnimation, LightsStyle } from "@/lib/museum/cosplayStandee";
 import type { RoomBannerStyle } from "@/lib/museum/roomBanner";
+import { PriceTag } from "@/app/(public)/gallery/museum/components/ServicesRoomContents";
 import { ArcadePoster } from "@/app/(public)/gallery/museum/components/ArcadePoster";
 import { AboutRoomContents } from "@/app/(public)/gallery/museum/components/AboutRoomContents";
 import { StickyNote3D, FreedomWallPlaque } from "@/app/(public)/gallery/museum/components/FreedomWallRoomContents";
@@ -122,6 +123,10 @@ interface RoomShell {
   wallTexture: string | null;
   floorTexture: string | null;
   ceilingTexture: string | null;
+  /** The room's ceiling lights — see MuseumRoom.tsx's props of the same name. */
+  lightColor: string | null;
+  lightScale: number;
+  lightModelUrl: string | null;
 }
 
 interface OpeningFlags {
@@ -273,7 +278,7 @@ function EditableSceneObject({
         }}
       >
         {object.kind === "custom" && object.modelUrl && (
-          <CustomSceneObject url={object.modelUrl} scale={object.scale} onMeasure={handleMeasure} />
+          <CustomSceneObject url={object.modelUrl} scale={object.scale} recenter onMeasure={handleMeasure} />
         )}
         {object.kind === "custom" && object.solid && (
           // The collision footprint a visitor is kept out of in the public
@@ -462,8 +467,12 @@ function EditableArtwork({
   onInteractionStart,
   setOrbitEnabled,
   allItems,
+  roomBanner,
 }: {
   item: EditableArtworkItem;
+  /** The room's Room Label Style — only the Services Room's frames use it,
+   *  for the price plaque under each one (see item.priceLabel). */
+  roomBanner?: RoomBannerStyle;
   selected: boolean;
   onSelect: () => void;
   onChangePosition: (patch: { positionX: number; positionY: number; positionZ: number; rotationY: number }) => void;
@@ -511,6 +520,26 @@ function EditableArtwork({
           scale={item.scale}
           shouldLoad
         />
+        {/* The Services Room's price plaque, hung under the frame exactly as
+            ServicesRoomContents hangs it (same drop, same wall offset), in
+            this room's live Room Label Style — so glass, shimmer, edge and
+            texture set on that card are seen on the plaques they style, and
+            the plaque follows the frame while it is dragged. The public
+            museum builds these from the saved placements; here the group
+            above *is* the placement, so the tag sits at its origin. */}
+        {item.priceLabel && roomBanner && (
+          <PriceTag
+            tag={{
+              id: item.id,
+              label: item.priceLabel,
+              position: [0, 0, 0],
+              wallNormal: [0, 0, 1],
+              rotationY: 0,
+            }}
+            banner={roomBanner}
+            active
+          />
+        )}
       </group>
       {selected && node && (
         <TransformControls
@@ -1399,9 +1428,15 @@ export function MuseumEditorScene({
   return (
     <Canvas camera={{ fov: 55, near: 0.1, far: 100, position: [0, depth * 0.55, depth * 0.75] }}>
       <color attach="background" args={[darkMode ? SCENE_BACKGROUND_DARK : SCENE_BACKGROUND_LIGHT]} />
-      <ambientLight intensity={0.6} />
-      <hemisphereLight args={["#ffffff", "#444444", 0.6]} />
-      <pointLight position={[0, 4, 0]} intensity={0.8} />
+      {/* No lights of the editor's own. MuseumRoom below brings the room's
+          full lighting rig (ambient + hemisphere + point lights, at the same
+          brightness the public museum uses), so anything added here is
+          *on top* of what a visitor sees. Phase 1 had a flat ambient +
+          hemisphere + point light here from before the room carried its
+          own — left in, they more than doubled the ambient term, and a
+          light-coloured wall texture blew out to plain white (the side
+          walls first, being nearest the point lights) while the same room
+          rendered fine on the public site. */}
       {share360Ref && (
         <Room360Capture shareRef={share360Ref} getEye={getShare360Eye} exclude={isEditorOnlyObject} stage={stageShare360} />
       )}
@@ -1425,6 +1460,9 @@ export function MuseumEditorScene({
         wallTexture={room.wallTexture}
         floorTexture={room.floorTexture}
         ceilingTexture={room.ceilingTexture}
+        lightColor={room.lightColor}
+        lightScale={room.lightScale}
+        lightModelUrl={room.lightModelUrl}
         darkMode={darkMode}
         brightness={brightness}
         lightsEnabled
@@ -1500,6 +1538,7 @@ export function MuseumEditorScene({
           onInteractionStart={onInteractionStart}
           setOrbitEnabled={setOrbitEnabled}
           allItems={artworkItems}
+          roomBanner={roomBanner}
         />
       ))}
       {podiumItems.map((item) => (

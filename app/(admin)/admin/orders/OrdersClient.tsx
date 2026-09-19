@@ -1,6 +1,7 @@
 // app/(admin)/admin/orders/OrdersClient.tsx
 "use client";
 
+import { orderItemTitle, orderItemImageOrPlaceholder } from "@/lib/orders/item-display";
 import { useState, useMemo, useEffect } from "react";
 import Image from "@/components/ui/SafeImage";
 import {
@@ -59,10 +60,14 @@ interface OrderItem {
   quantity: number;
   price: number;
   variantLabel?: string | null;
+  /** Null once the product has been permanently deleted — the line then
+   *  reads from its snapshots (lib/orders/item-display.ts). */
   product: {
     id: string;
     artwork: { title: string; imageUrl: string };
-  };
+  } | null;
+  titleSnapshot?: string | null;
+  imageSnapshot?: string | null;
 }
 
 interface Order {
@@ -132,7 +137,7 @@ function csvRow(order: Order): unknown[] {
     order.items
       .map(
         (i) =>
-          `${i.product.artwork.title}${i.variantLabel ? ` (${i.variantLabel})` : ""} ×${i.quantity} @ ${i.price}`
+          `${orderItemTitle(i)}${i.variantLabel ? ` (${i.variantLabel})` : ""} ×${i.quantity} @ ${i.price}`
       )
       .join("; "),
   ];
@@ -280,7 +285,7 @@ export function OrdersClient({ initialOrders }: { initialOrders: Order[] }) {
           o.id.toLowerCase().includes(query) ||
           (o.paymongoRef && o.paymongoRef.toLowerCase().includes(query)) ||
           o.items.some((item) =>
-            item.product.artwork.title.toLowerCase().includes(query)
+            orderItemTitle(item).toLowerCase().includes(query)
           );
 
         return matchesStatus && matchesSearch;
@@ -615,16 +620,16 @@ export function OrdersClient({ initialOrders }: { initialOrders: Order[] }) {
                       key={item.id}
                       onClick={() =>
                         setPreviewImage({
-                          url: item.product.artwork.imageUrl,
-                          title: item.product.artwork.title,
+                          url: orderItemImageOrPlaceholder(item),
+                          title: orderItemTitle(item),
                         })
                       }
                       className="group relative w-9 h-9 shrink-0 border border-ink-100 dark:border-ink-700 rounded-lg overflow-hidden cursor-zoom-in"
-                      title={item.product.artwork.title}
+                      title={orderItemTitle(item)}
                     >
                       <Image
-                        src={item.product.artwork.imageUrl}
-                        alt={item.product.artwork.title}
+                        src={orderItemImageOrPlaceholder(item)}
+                        alt={orderItemTitle(item)}
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-110"
                       />
@@ -865,22 +870,22 @@ export function OrdersClient({ initialOrders }: { initialOrders: Order[] }) {
                           type="button"
                           onClick={() =>
                             setPreviewImage({
-                              url: item.product.artwork.imageUrl,
-                              title: item.product.artwork.title,
+                              url: orderItemImageOrPlaceholder(item),
+                              title: orderItemTitle(item),
                             })
                           }
                           className="group relative w-10 h-10 shrink-0 border border-ink-100 dark:border-ink-700 rounded-lg overflow-hidden cursor-zoom-in"
-                          title={`View ${item.product.artwork.title}`}
+                          title={`View ${orderItemTitle(item)}`}
                         >
                           <Image
-                            src={item.product.artwork.imageUrl}
-                            alt={item.product.artwork.title}
+                            src={orderItemImageOrPlaceholder(item)}
+                            alt={orderItemTitle(item)}
                             fill
                             className="object-cover transition-transform duration-300 group-hover:scale-110"
                           />
                         </button>
                         <p className="font-jakarta text-sm font-semibold tracking-tight flex-1 min-w-0 truncate text-sepia dark:text-cream">
-                          {item.product.artwork.title}
+                          {orderItemTitle(item)}
                           {item.variantLabel && (
                             <span className="font-body text-xs font-normal text-ink-400 dark:text-ink-300">
                               {" "}
@@ -1120,16 +1125,16 @@ export function OrdersClient({ initialOrders }: { initialOrders: Order[] }) {
                         type="button"
                         onClick={() =>
                           setPreviewImage({
-                            url: item.product.artwork.imageUrl,
-                            title: item.product.artwork.title,
+                            url: orderItemImageOrPlaceholder(item),
+                            title: orderItemTitle(item),
                           })
                         }
                         className="group relative w-12 h-12 shrink-0 border border-ink-100 dark:border-ink-700 rounded-lg overflow-hidden cursor-zoom-in"
-                        title={`View ${item.product.artwork.title}`}
+                        title={`View ${orderItemTitle(item)}`}
                       >
                         <Image
-                          src={item.product.artwork.imageUrl}
-                          alt={item.product.artwork.title}
+                          src={orderItemImageOrPlaceholder(item)}
+                          alt={orderItemTitle(item)}
                           fill
                           className="object-cover transition-transform duration-300 group-hover:scale-110"
                         />
@@ -1142,7 +1147,7 @@ export function OrdersClient({ initialOrders }: { initialOrders: Order[] }) {
                       </button>
                       <div className="flex-1 min-w-0">
                         <p className="font-jakarta text-sm font-semibold text-ink dark:text-cream truncate">
-                          {item.product.artwork.title}
+                          {orderItemTitle(item)}
                         </p>
                         {item.variantLabel && (
                           <p className="font-body text-xs text-ink-400 dark:text-ink-300 truncate">
