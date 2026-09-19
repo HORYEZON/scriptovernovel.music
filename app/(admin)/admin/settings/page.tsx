@@ -13,6 +13,7 @@ import {
   BookOpen,
   DatabaseBackup,
   Sparkles,
+  LayoutTemplate,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 
@@ -50,6 +51,32 @@ export default async function AdminSettingsPage() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <Link
+          href="/admin/site-design"
+          className="group admin-card border rounded-2xl p-5 backdrop-blur-md shadow-sm hover:shadow-lg hover:border-sepia/40 transition-all flex flex-col gap-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-11 h-11 rounded-xl bg-sepia/10 text-sepia flex items-center justify-center">
+              <LayoutTemplate size={20} />
+            </div>
+            <ChevronRight
+              size={18}
+              className="text-ink-400 dark:text-ink-300 group-hover:translate-x-1 group-hover:text-sepia transition-all"
+            />
+          </div>
+          <div>
+            <h3 className="font-jakarta text-base font-semibold text-ink dark:text-cream">
+              Site Design
+            </h3>
+            <p className="font-body text-xs text-ink-400 dark:text-ink-300 mt-1">
+              The public header, full-screen menu overlay, and homepage hero
+            </p>
+          </div>
+          <div className="font-body text-xs text-ink-400 dark:text-ink-300 pt-3 border-t border-black/5 dark:border-white/5">
+            Header &middot; Menu &middot; Hero
+          </div>
+        </Link>
+
         <Link
           href="/admin/settings/Preferences"
           className="group admin-card border rounded-2xl p-5 backdrop-blur-md shadow-sm hover:shadow-lg hover:border-sepia/40 transition-all flex flex-col gap-4"

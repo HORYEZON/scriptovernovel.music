@@ -50,6 +50,7 @@ import {
   DatabaseBackup,
   Sparkles,
   Trophy,
+  LayoutTemplate,
   type LucideIcon,
 } from "lucide-react";
 import { SafeImg } from "@/components/ui/SafeImage";
@@ -203,6 +204,28 @@ const ADMIN_PAGES: AdminPage[] = [
     href: "/admin/events",
     icon: MapPin,
     keywords: "timeline events gigs shows map pins next event",
+    group: "Site",
+  },
+  {
+    label: "Site Design",
+    href: "/admin/site-design",
+    icon: LayoutTemplate,
+    keywords:
+      "site design header menu overlay hero homepage wordmark logo navigation links fonts colors branding",
+    group: "Site",
+  },
+  {
+    label: "Site Design — Menu",
+    href: "/admin/site-design?tab=menu",
+    icon: LayoutTemplate,
+    keywords: "menu overlay links navigation underline scribble panel colour photo",
+    group: "Site",
+  },
+  {
+    label: "Site Design — Homepage Hero",
+    href: "/admin/site-design?tab=hero",
+    icon: LayoutTemplate,
+    keywords: "hero homepage landing banner heading button cta",
     group: "Site",
   },
   // ── Settings (main hub + sub-pages + preference tabs) ────────────────────

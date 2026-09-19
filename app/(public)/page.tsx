@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getProfile } from "@/lib/public-data";
+import { getSiteDesign } from "@/lib/site-design-server";
+import { HomeHero } from "@/components/public/site-design/HomeHero";
 import { buildPublicGames } from "@/lib/minigames/server";
 import { readPlayerId } from "@/lib/minigames/player";
 import { GalleryClient } from "./gallery/GalleryClient";
@@ -96,20 +98,28 @@ async function getFreedomWallStatus() {
 }
 
 export default async function HomePage() {
-  const [sections, featuredArtworks, profile, miniGames, museumStatus, freedomWallStatus] = await Promise.all([
+  const [sections, featuredArtworks, profile, miniGames, museumStatus, freedomWallStatus, siteDesign] = await Promise.all([
     getPublishedSections(),
     getFeaturedArtworks(),
     getProfile().catch(() => null),
     getMiniGames().catch(() => []),
     getMuseumStatus().catch(() => ({ enabled: false, count: 0 })),
     getFreedomWallStatus().catch(() => ({ isActive: false, museumRoomEnabled: false })),
+    // Same memoized call the layout makes for the header — one query.
+    getSiteDesign(),
   ]);
 
   // Filter out sections with no published artworks
   const sectionsWithArtworks = sections.filter((s) => s.artworks.length > 0);
 
+  // The hero is the first full screen (Admin → Site Design → Homepage Hero);
+  // it already clears the fixed header itself, so the collection below only
+  // needs top padding when the hero is switched off.
+  const showHero = siteDesign.settings.heroEnabled;
+
   return (
-    <div className="pt-24 pb-24">
+    <div className={showHero ? "pb-24" : "pt-24 pb-24"}>
+      {showHero && <HomeHero settings={siteDesign.settings} />}
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -120,7 +130,7 @@ export default async function HomePage() {
             "A curated collection from ScriptOverNovel — House of Arts. Original paintings, prints, and mixed media available for acquisition.",
         }}
       />
-      <div className="section-padding">
+      <div className={showHero ? "section-padding pt-16 md:pt-24" : "section-padding"}>
         {/* Dark glass content panel */}
         <div className="bg-black/30 dark:bg-black/45 rounded-2xl border border-white/5 shadow-2xl p-8 md:p-14">
           {/* Header */}

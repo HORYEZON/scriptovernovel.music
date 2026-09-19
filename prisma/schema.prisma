@@ -305,6 +305,143 @@ model SiteTheme {
   adminModalBgLight    String   @default("#FFFFFF")
 }
 
+// The public site's chrome — the fixed header (search · logo · MENU), the
+// full-screen menu overlay it opens, and the homepage hero. One singleton
+// row (id = "singleton"); every column is a look-and-feel knob edited from
+// Admin → Site Design. Defaults, validators and the TypeScript shape live in
+// lib/site-design.ts and must be kept in step with the @default()s here.
+//
+// Free-form strings (font families, sizes, colors) are validated on write
+// (app/api/site-design/route.ts) AND re-validated on read (resolveSiteDesign)
+// because several of them are interpolated into inline styles.
+model SiteDesign {
+  id String @id @default("singleton")
+
+  // Browser-tab icon. When set it replaces the icon-catalog favicon
+  // (Profile.faviconIcon + AnimatedFavicon's colour cycle) outright with
+  // this static image.
+  faviconImage           String?
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  // Uploaded wordmark (the handwritten-signature look). Falls back to
+  // headerLogoText rendered in headerLogoFontFamily when unset.
+  headerLogoImage        String?
+  headerLogoText         String  @default("ScriptOverNovel")
+  headerLogoFontFamily   String  @default("var(--font-caveat), cursive")
+  headerLogoFontSize     String  @default("2rem")
+  headerLogoHeight       String  @default("40px")
+  headerBgColor          String  @default("#F2EFE6")
+  headerTextColor        String  @default("#0D0D0D")
+  headerMenuLabel        String  @default("MENU")
+  // The MENU button while hovered — same idea as the overlay's × button:
+  // colours flip and it moves per CLOSE_HOVER_EFFECTS ("spin" turns the
+  // dots glyph, not the word).
+  headerMenuHoverBgColor   String @default("#0D0D0D")
+  headerMenuHoverTextColor String @default("#F2EFE6")
+  headerMenuHoverEffect    String @default("spin")
+  headerShowSearch       Boolean @default(true)
+  // Cart/wishlist icons additionally self-reveal whenever they hold items
+  // (SiteHeader.tsx) so a shopper is never locked out of their basket by a
+  // header configured to the bare search · logo · MENU look.
+  headerShowThemeToggle  Boolean @default(false)
+  headerShowWishlist     Boolean @default(false)
+  headerShowCart         Boolean @default(false)
+  headerShowReleaseNotes Boolean @default(false)
+
+  // ── Menu overlay ──────────────────────────────────────────────────────────
+  // How the overlay enters when MENU is pressed and how it leaves when × is
+  // pressed — each its own effect (lib/site-design.ts's MENU_OPEN_EFFECTS /
+  // MENU_CLOSE_EFFECTS) and duration.
+  menuOpenEffect      String  @default("drop")
+  menuOpenSpeedMs     Int     @default(500)
+  menuCloseEffect     String  @default("drop")
+  menuCloseSpeedMs    Int     @default(500)
+  // How the links (and the panel foot) appear once the sheet has opened —
+  // one of MENU_ITEMS_EFFECTS — and how long each takes.
+  menuItemsEffect     String  @default("fade")
+  menuItemsSpeedMs    Int     @default(500)
+  menuFontFamily      String  @default("var(--font-playfair), Georgia, serif")
+  menuFontSize        String  @default("6rem")
+  menuFontSizeMobile  String  @default("3.25rem")
+  menuFontWeight      String  @default("900")
+  menuFontStyle       String  @default("normal")
+  menuTextTransform   String  @default("uppercase")
+  menuLetterSpacing   String  @default("-0.03em")
+  menuLineHeight      Float   @default(1)
+  // Resting look — before anything is hovered: a near-black panel, white
+  // links, the resting photo, no underline. Hovering any link swaps in that
+  // SiteMenuItem's panel colour + photo, recolours every link to
+  // menuHoverTextColor, and draws that link's underline.
+  menuTextColor       String  @default("#FFFFFF")
+  menuHoverTextColor  String  @default("#141414")
+  menuBgColor         String  @default("#1C1C1C")
+  menuImage           String?
+  // Width of the colour panel as a % of the viewport on desktop; the image
+  // takes the rest. Phones always stack (panel full-width, image hidden).
+  menuPanelWidth      Int     @default(50)
+  menuCloseBgColor    String  @default("#FFFFFF")
+  menuCloseIconColor  String  @default("#0D0D0D")
+  // The × button while hovered: its colours flip, and it moves per
+  // lib/site-design.ts's CLOSE_HOVER_EFFECTS ("spin" turns the × a quarter).
+  menuCloseHoverBgColor   String @default("#141414")
+  menuCloseHoverIconColor String @default("#FFFFFF")
+  menuCloseHoverEffect    String @default("spin")
+  menuFooterText      String  @default("JOIN THE MAILING LIST")
+  menuFooterHref      String  @default("/contact")
+  menuShowSocialLinks Boolean @default(true)
+
+  // ── Homepage hero ─────────────────────────────────────────────────────────
+  heroEnabled           Boolean @default(false)
+  heroBgColor           String  @default("#F2EFE6")
+  // Optional texture laid over heroBgColor (cover, centred) — a paper or
+  // newsprint scan, say. The header goes transparent over the hero at the
+  // top of the homepage so the texture runs under it uninterrupted.
+  heroBgImage           String?
+  heroImage             String?
+  heroImageWidth        String  @default("480px")
+  heroHeading           String  @default("The new collection")
+  heroHeadingFontFamily String  @default("var(--font-playfair), Georgia, serif")
+  heroHeadingFontSize   String  @default("3rem")
+  heroHeadingFontWeight String  @default("700")
+  heroHeadingColor      String  @default("#141414")
+  heroSubheading        String  @default("")
+  heroCtaLabel          String  @default("VIEW NOW")
+  heroCtaHref           String  @default("/gallery")
+  heroCtaBgColor        String  @default("#141414")
+  heroCtaTextColor      String  @default("#FFFFFF")
+  // Small ornament pinned to a corner of the hero (the sketched bird on the
+  // reference design). Optional; nothing renders when unset.
+  heroDecorImage        String?
+  heroDecorPosition     String  @default("bottom-left")
+  heroDecorWidth        String  @default("96px")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One row per link in the menu overlay. Ordered by sortOrder; hidden rows
+// stay editable in the admin but never render publicly. No relation to
+// SiteDesign on purpose — there's exactly one design, so a foreign key would
+// only add a join for nothing.
+model SiteMenuItem {
+  id             String   @id @default(cuid())
+  label          String
+  href           String
+  // Panel colour while this item is hovered/active, and the colour + shape
+  // of the hand-drawn underline that gets drawn across it.
+  bgColor        String   @default("#F5D480")
+  underlineColor String   @default("#FDA063")
+  underlineStyle String   @default("scribble")
+  // Photo for the right-hand panel while hovered; falls back to
+  // SiteDesign.menuImage when unset.
+  image          String?
+  openInNewTab   Boolean  @default(false)
+  isVisible      Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 model SocialLink {
   id         String   @id @default(cuid())
   label      String

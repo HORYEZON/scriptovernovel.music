@@ -678,6 +678,20 @@ img {
     text-wrap: balance;
   }
 
+  /* The menu overlay's links (components/public/site-design/MenuPanel).
+     Desktop and phone sizes both arrive as custom properties set inline
+     from Site Design → Menu, and this picks one at Tailwind's `md`
+     breakpoint — the same width the overlay's photo panel appears at — so
+     the switch needs no JS and can't mismatch between server and client. */
+  .site-menu-link {
+    font-size: var(--site-menu-fs-mobile, 3.25rem);
+  }
+  @media (min-width: 768px) {
+    .site-menu-link {
+      font-size: var(--site-menu-fs, 6rem);
+    }
+  }
+
   /* Hides the scrollbar on an otherwise-native scroll container — used by
      the Gallery's "Swipe Only" mobile carousel mode, which relies on real
      touch-scrolling + scroll-snap rather than a JS/animation-driven track. */

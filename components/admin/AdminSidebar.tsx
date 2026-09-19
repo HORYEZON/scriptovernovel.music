@@ -31,6 +31,7 @@ import {
   Store,
   CircleUser,
   TrendingUp,
+  LayoutTemplate,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -124,6 +125,10 @@ const NAV: NavEntry[] = [
       { href: "/admin/events", label: "Timeline / Events", icon: MapPin },
     ],
   },
+  // The public site's header / menu overlay / homepage hero look — its own
+  // top-level entry (not a Preferences tab) since it's a whole surface with
+  // a live preview, not a handful of knobs.
+  { href: "/admin/site-design", label: "Site Design", icon: LayoutTemplate },
   { href: "/admin/settings", label: "Settings", icon: Settings },
   { href: "/admin/trash", label: "Trash", icon: Trash2 },
 ];

@@ -1,9 +1,20 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans, DM_Mono, Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
+import {
+  Cormorant_Garamond,
+  DM_Sans,
+  DM_Mono,
+  Space_Grotesk,
+  Plus_Jakarta_Sans,
+  Playfair_Display,
+  Bodoni_Moda,
+  Fraunces,
+  Caveat,
+} from "next/font/google";
 import { prisma } from "@/lib/prisma";
 import { SITE_URL } from "@/lib/site-url";
 import AnimatedFavicon from "@/components/AnimatedFavicon";
+import { getSiteDesign } from "@/lib/site-design-server";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -37,6 +48,39 @@ const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-plus-jakarta",
+  display: "swap",
+});
+
+// Display serifs for the Site Design module (menu overlay + homepage hero —
+// see lib/site-design.ts). All three are variable fonts, so every weight the
+// admin's picker offers (400–900) and italic are one file each rather than a
+// request per weight.
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-playfair",
+  display: "swap",
+});
+
+const bodoniModa = Bodoni_Moda({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-bodoni",
+  display: "swap",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-fraunces",
+  display: "swap",
+});
+
+// Handwritten — the header wordmark's text fallback when no signature image
+// has been uploaded (SiteDesign.headerLogoImage).
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--font-caveat",
   display: "swap",
 });
 
@@ -82,7 +126,10 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const profile = await prisma.profile.findFirst().catch(() => null);
+  const [profile, siteDesign] = await Promise.all([
+    prisma.profile.findFirst().catch(() => null),
+    getSiteDesign(),
+  ]);
   const bgStyle = profile?.backgroundImage
     ? ({ "--bg-image": `url('${profile.backgroundImage}')` } as React.CSSProperties)
     : {};
@@ -90,7 +137,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cormorant.variable} ${dmSans.variable} ${dmMono.variable} ${spaceGrotesk.variable} ${plusJakarta.variable}`}
+      className={`${cormorant.variable} ${dmSans.variable} ${dmMono.variable} ${spaceGrotesk.variable} ${plusJakarta.variable} ${playfair.variable} ${bodoniModa.variable} ${fraunces.variable} ${caveat.variable}`}
       style={bgStyle}
       suppressHydrationWarning
     >
@@ -102,7 +149,10 @@ export default async function RootLayout({
         />
       </head>
       <body className="text-ink dark:text-cream antialiased transition-colors duration-300">
-        <AnimatedFavicon colors={profile?.faviconIconColors} />
+        <AnimatedFavicon
+          colors={profile?.faviconIconColors}
+          imageHref={siteDesign.settings.faviconImage}
+        />
         <div className="page-glass" aria-hidden="true" />
         <div className="relative" style={{ zIndex: 1 }}>
           {children}

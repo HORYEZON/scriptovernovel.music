@@ -4,7 +4,8 @@
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
+    "dev:webpack": "next dev",
     "email": "email dev --dir emails --port 3010",
     "postinstall": "prisma generate",
     "build": "prisma generate && next build",

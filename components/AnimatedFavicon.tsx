@@ -30,7 +30,15 @@ import { MUSEUM_FAVICON_ICON } from "@/lib/favicon";
 const DEFAULT_COLORS = ["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"];
 const STEP_MS = 2500;
 
-export default function AnimatedFavicon({ colors }: { colors?: string[] }) {
+export default function AnimatedFavicon({
+  colors,
+  imageHref,
+}: {
+  colors?: string[];
+  /** Site Design → Header → Favicon. When set, the tab shows this image,
+   *  static — no icon catalog, no colour cycle, no museum override. */
+  imageHref?: string | null;
+}) {
   const cycleColors = colors && colors.length > 0 ? colors : DEFAULT_COLORS;
   // Joined so the effect only restarts when the actual color list changes,
   // not merely when the caller passes a new array instance.
@@ -46,6 +54,14 @@ export default function AnimatedFavicon({ colors }: { colors?: string[] }) {
   const iconOverride = pathname?.startsWith("/gallery/museum") ? MUSEUM_FAVICON_ICON : null;
 
   useEffect(() => {
+    if (imageHref) {
+      document.querySelectorAll<HTMLLinkElement>('link[rel="icon"]').forEach((l) => l.remove());
+      const link = document.createElement("link");
+      link.rel = "icon";
+      link.href = imageHref;
+      document.head.appendChild(link);
+      return () => link.remove();
+    }
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     // Take over favicon rendering: drop whatever <link rel="icon"> Next
@@ -74,7 +90,7 @@ export default function AnimatedFavicon({ colors }: { colors?: string[] }) {
       window.clearInterval(id);
       link.remove();
     };
-  }, [colorsKey, iconOverride]);
+  }, [colorsKey, iconOverride, imageHref]);
 
   return null;
 }

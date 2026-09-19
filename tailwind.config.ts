@@ -49,6 +49,10 @@ const config: Config = {
         jakarta: ["var(--font-plus-jakarta)", "system-ui", "sans-serif"],
         "anime-ace": ['"AnimeAce"', "serif"],
         badaboom: ['"BadaBoomBB"', "serif"],
+        playfair: ["var(--font-playfair)", "Georgia", "serif"],
+        bodoni: ["var(--font-bodoni)", "Georgia", "serif"],
+        fraunces: ["var(--font-fraunces)", "Georgia", "serif"],
+        caveat: ["var(--font-caveat)", "cursive"],
       },
       animation: {
         "fade-up": "fadeUp 0.6s ease forwards",

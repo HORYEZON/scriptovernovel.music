@@ -1,6 +1,6 @@
 // app/(public)/layout.tsx
 import { Analytics } from "@vercel/analytics/next";
-import { Navbar } from "@/components/public/Navbar";
+import { SiteHeader } from "@/components/public/site-design/SiteHeader";
 import { Footer } from "@/components/public/Footer";
 import { IntroSplash } from "@/components/public/IntroSplash";
 import { CartProvider } from "@/components/public/CartProvider";
@@ -17,6 +17,7 @@ import { Toaster } from "react-hot-toast";
 import { RecaptchaProvider } from "@/components/public/RecaptchaProvider";
 import { prisma } from "@/lib/prisma";
 import { getProfile, getSocialLinks } from "@/lib/public-data";
+import { getSiteDesign } from "@/lib/site-design-server";
 import { estimateMarqueeHeight, type Marquee } from "@/lib/marquee";
 import { clampReleaseNoteLimit } from "@/lib/release-notes";
 import type { PublicReleaseNote } from "@/components/public/ReleaseNotes";
@@ -63,9 +64,12 @@ export default async function PublicLayout({
 
   // Independent of each other and of `profile` above, so run them together
   // instead of awaiting one at a time.
-  const [socialLinks, theme, marqueeRows, releaseNoteRows] = await Promise.all([
+  const [socialLinks, theme, siteDesign, marqueeRows, releaseNoteRows] = await Promise.all([
     getSocialLinks().catch(() => []),
     prisma.siteTheme.findFirst().catch(() => null),
+    // Header + menu overlay look (Admin → Site Design). getSiteDesign never
+    // throws — it falls back to lib/site-design.ts's defaults per query.
+    getSiteDesign(),
     prisma.marqueeAnnouncement
       .findMany({
         where: {
@@ -145,8 +149,10 @@ export default async function PublicLayout({
     <CursorGlow enabled={resolvedTheme.cursorGlowEnabled} />
     <CartProvider>
       <div className="min-h-screen flex flex-col">
-        <Navbar
-          logoImage={profile?.logoImage}
+        <SiteHeader
+          settings={siteDesign.settings}
+          menuItems={siteDesign.menuItems}
+          socialLinks={socialLinks}
           marquees={marquees}
           releaseNotes={releaseNotes}
         />

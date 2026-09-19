@@ -186,6 +186,13 @@ export const THEME_FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "Plus Jakarta Sans", value: "var(--font-plus-jakarta), system-ui, sans-serif" },
   { label: "Anime Ace", value: '"AnimeAce", serif' },
   { label: "BadaBoom BB", value: '"BadaBoomBB", serif' },
+  // Display serifs + handwriting added for the Site Design module (menu
+  // overlay / hero / header wordmark) — loaded in app/layout.tsx like the
+  // rest, so they're just as safe to offer everywhere this list is used.
+  { label: "Playfair Display (display serif)", value: "var(--font-playfair), Georgia, serif" },
+  { label: "Bodoni Moda (display serif)", value: "var(--font-bodoni), Georgia, serif" },
+  { label: "Fraunces (display serif)", value: "var(--font-fraunces), Georgia, serif" },
+  { label: "Caveat (handwriting)", value: "var(--font-caveat), cursive" },
 ];
 
 const COLOR_RE =
