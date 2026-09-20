@@ -2,14 +2,16 @@
 //
 // The header search's one endpoint: everything a visitor might look for on
 // the band site, as flat `SiteSearchItem`s the overlay filters client-side.
-// Releases and the store (merch) today; videos join as their model lands,
-// each contributing a `kind` so the overlay can label a row. Public, read-only, no query param
+// Releases, videos and the store (merch), each with a `kind` so the overlay
+// can label a row. Public, read-only, no query param
 // — the catalogue is small and one fetch per open is cheaper than a round
 // trip per keystroke.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { productHref, productImage, productTitle } from "@/lib/store/product-display";
 import { getPublicReleases } from "@/lib/releases-server";
+import { getPublicVideos } from "@/lib/videos-server";
+import { VIDEO_KIND_LABELS, youtubeThumbnail } from "@/lib/videos";
 import { RELEASE_TYPE_LABELS, formatReleaseDate } from "@/lib/releases";
 import type { SiteSearchItem } from "@/lib/site-search";
 
@@ -24,7 +26,7 @@ export async function GET() {
     })
     .catch(() => []);
 
-  const releases = await getPublicReleases().catch(() => []);
+  const [releases, videos] = await Promise.all([getPublicReleases().catch(() => []), getPublicVideos().catch(() => [])]);
 
   const items: SiteSearchItem[] = [];
   for (const r of releases) {
@@ -36,6 +38,17 @@ export async function GET() {
       keywords: r.tracks.map((t) => t.title),
       imageUrl: r.coverImageUrl,
       href: `/music#${r.slug ?? r.id}`,
+    });
+  }
+  for (const v of videos) {
+    items.push({
+      id: `video:${v.id}`,
+      kind: "video",
+      title: v.title,
+      subtitle: `${VIDEO_KIND_LABELS[v.kind]}${v.release ? ` · ${v.release.title}` : ""}`,
+      keywords: v.release ? [v.release.title] : [],
+      imageUrl: youtubeThumbnail(v.youtubeId),
+      href: `/videos#${v.id}`,
     });
   }
   for (const p of products) {

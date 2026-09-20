@@ -32,7 +32,8 @@ export type TrashType =
   | "freedom-wall-notes"
   | "freedom-wall-events"
   | "release-notes"
-  | "releases";
+  | "releases"
+  | "videos";
 
 export const TRASH_TYPES: TrashType[] = [
   "announcements",
@@ -49,6 +50,7 @@ export const TRASH_TYPES: TrashType[] = [
   "freedom-wall-events",
   "release-notes",
   "releases",
+  "videos",
 ];
 
 export function isTrashType(value: string): value is TrashType {
@@ -77,6 +79,7 @@ export async function listTrashedIds(type: TrashType): Promise<string[]> {
       case "freedom-wall-events": return prisma.freedomWallEvent.findMany(opts);
       case "release-notes": return prisma.releaseNote.findMany(opts);
       case "releases": return prisma.release.findMany(opts);
+      case "videos": return prisma.video.findMany(opts);
     }
   })();
   return rows.map((r) => r.id);
@@ -108,6 +111,7 @@ const REVALIDATE_PATHS: Record<TrashType, string[]> = {
   "freedom-wall-events": ["/admin/freedom-wall", "/gallery/freedom-wall", "/gallery/museum"],
   "release-notes": ["/admin/settings/release-notes"],
   releases: ["/admin/releases", "/music"],
+  videos: ["/admin/videos", "/videos"],
 };
 
 /** Invalidate everything one type's rows show up on, plus the shell and the
@@ -195,6 +199,9 @@ export async function restoreTrashItem(type: TrashType, id: string): Promise<voi
       case "releases":
         // Back with its published/featured flags as they were.
         await prisma.release.update({ where: { id }, data: { deletedAt: null } });
+        break;
+      case "videos":
+        await prisma.video.update({ where: { id }, data: { deletedAt: null } });
         break;
   }
 }
@@ -346,5 +353,9 @@ export async function purgeTrashItem(type: TrashType, id: string): Promise<void>
         if (release) deleteArtworkImage(release.coverImageUrl).catch(() => {});
         break;
       }
+      case "videos":
+        // A YouTube link — nothing of ours in storage.
+        await prisma.video.delete({ where: { id } });
+        break;
   }
 }

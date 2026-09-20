@@ -113,3 +113,24 @@ not a release of its own.
 ### Infra / DB
 
 - New tables `Release` and `ReleaseTrack` (migration `20260920160000_releases`)
+
+---
+
+## September 20, 2026 — v0.4
+
+### Admin Side
+
+- **Videos** (sidebar → Music): paste a YouTube link, title it, tag it as a
+  music video / live / behind the scenes, tie it to a release. Feature,
+  hide, reorder, trash and restore
+
+### Public Side
+
+- **Videos page** — every video as a still frame that plays in place when
+  pressed; filter by kind. The homepage gets a Videos strip, and the hero's
+  WATCH button jumps to the featured release's own video when it has one
+- Header search finds videos too
+
+### Infra / DB
+
+- New table `Video` (migration `20260920170000_videos`)

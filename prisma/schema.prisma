@@ -611,6 +611,7 @@ model Release {
   updatedAt     DateTime       @updatedAt
   deletedAt     DateTime?
   tracks        ReleaseTrack[]
+  videos        Video[]
 
   @@index([published, releaseDate])
   @@index([deletedAt])
@@ -630,6 +631,39 @@ model ReleaseTrack {
   lyrics      String?
 
   @@index([releaseId, trackNumber])
+}
+
+// A YouTube video on the Videos page — a music video, a live recording or
+// something from behind the scenes — optionally tied to the release it's
+// for. Only YouTube (validated by lib/embeds.ts's parseYouTube on write;
+// the 11-char id is stored alongside the pasted URL so thumbnails and the
+// player need no re-parse). Same conventions as Release: published /
+// featured / sortOrder, soft delete.
+model Video {
+  id          String    @id @default(cuid())
+  title       String
+  youtubeUrl  String
+  youtubeId   String
+  kind        VideoKind @default(MUSIC_VIDEO)
+  releaseId   String?
+  release     Release?  @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  description String?
+  published   Boolean   @default(true)
+  featured    Boolean   @default(false)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([published, sortOrder])
+  @@index([deletedAt])
+  @@index([releaseId])
+}
+
+enum VideoKind {
+  MUSIC_VIDEO
+  LIVE
+  BEHIND_THE_SCENES
 }
 
 enum ReleaseType {

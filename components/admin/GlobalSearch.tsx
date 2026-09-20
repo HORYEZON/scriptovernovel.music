@@ -52,6 +52,7 @@ import {
   Trophy,
   LayoutTemplate,
   Disc3,
+  Clapperboard,
   type LucideIcon,
 } from "lucide-react";
 import { SafeImg } from "@/components/ui/SafeImage";
@@ -114,6 +115,13 @@ const ADMIN_PAGES: AdminPage[] = [
     href: "/admin/releases",
     icon: Disc3,
     keywords: "releases music singles ep album tracklist lyrics spotify bandcamp",
+    group: "Music",
+  },
+  {
+    label: "Videos",
+    href: "/admin/videos",
+    icon: Clapperboard,
+    keywords: "videos youtube music video live behind the scenes",
     group: "Music",
   },
   // ── Artworks (main page + tab-based sub-modules) ──────────────────────────
@@ -396,6 +404,13 @@ interface SearchResponse {
     published: boolean;
     featured: boolean;
   }[];
+  videos: {
+    id: string;
+    title: string;
+    kind: string;
+    published: boolean;
+    featured: boolean;
+  }[];
 }
 
 const EMPTY_RESULTS: SearchResponse = {
@@ -410,6 +425,7 @@ const EMPTY_RESULTS: SearchResponse = {
   faqs: [],
   events: [],
   releases: [],
+  videos: [],
 };
 
 interface ResultItem {
@@ -721,6 +737,25 @@ export function GlobalSearch() {
           badge: r.featured
             ? { label: "Featured", className: DRAFT_BADGE }
             : r.published
+              ? { label: "Published", className: ACTIVE_BADGE }
+              : { label: "Hidden", className: INACTIVE_BADGE },
+        })),
+      });
+    }
+
+    if (results.videos.length > 0) {
+      list.push({
+        key: "videos",
+        label: "Videos",
+        icon: Clapperboard,
+        items: results.videos.map((v) => ({
+          key: v.id,
+          title: v.title,
+          subtitle: v.kind.replace(/_/g, " ").toLowerCase(),
+          href: "/admin/videos",
+          badge: v.featured
+            ? { label: "Featured", className: DRAFT_BADGE }
+            : v.published
               ? { label: "Published", className: ACTIVE_BADGE }
               : { label: "Hidden", className: INACTIVE_BADGE },
         })),

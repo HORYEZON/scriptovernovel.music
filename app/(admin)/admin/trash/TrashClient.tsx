@@ -245,6 +245,18 @@ interface TrashedRelease {
   createdAt: string;
 }
 
+interface TrashedVideo {
+  id: string;
+  title: string;
+  kind: string;
+  youtubeId: string;
+  release: { id: string; title: string } | null;
+  published: boolean;
+  featured: boolean;
+  deletedAt: string;
+  createdAt: string;
+}
+
 type Category =
   | "announcements"
   | "marquees"
@@ -259,7 +271,8 @@ type Category =
   | "freedom-wall-notes"
   | "freedom-wall-events"
   | "release-notes"
-  | "releases";
+  | "releases"
+  | "videos";
 // "createdAt" sorts by when the item was originally made rather than when it
 // was thrown away — the two orders diverge sharply for Freedom Wall notes,
 // where a whole event's worth of notes shares one deletedAt from a bulk
@@ -280,7 +293,8 @@ type AnyTrashedItem =
   | TrashedFreedomWallNote
   | TrashedFreedomWallEvent
   | TrashedReleaseNote
-  | TrashedRelease;
+  | TrashedRelease
+  | TrashedVideo;
 
 const ROOM_TYPE_LABEL: Record<TrashedRoom["roomType"], string> = {
   MAIN_HALL: "Main Hall",
@@ -296,7 +310,7 @@ const ROOM_TYPE_LABEL: Record<TrashedRoom["roomType"], string> = {
 // is the Sales module, Events is the Timeline module, etc.
 const CATEGORY_GROUPS: { label: string; keys: Category[] }[] = [
   { label: "Notifications", keys: ["notifications"] },
-  { label: "Music", keys: ["releases"] },
+  { label: "Music", keys: ["releases", "videos"] },
   { label: "Museum & Archive", keys: ["artworks", "sections", "stories", "cosplays"] },
   { label: "Digital Museum", keys: ["rooms"] },
   { label: "Freedom Wall", keys: ["freedom-wall-events", "freedom-wall-notes"] },
@@ -368,6 +382,8 @@ function getItemName(item: AnyTrashedItem, cat: Category): string {
       return (item as TrashedReleaseNote).title;
     case "releases":
       return (item as TrashedRelease).title;
+    case "videos":
+      return (item as TrashedVideo).title;
   }
 }
 
@@ -439,6 +455,11 @@ function getItemSubtext(item: AnyTrashedItem, cat: Category): string {
       const r = item as TrashedRelease;
       const kind = r.type.charAt(0) + r.type.slice(1).toLowerCase();
       return `${kind} · ${r._count.tracks} track${r._count.tracks !== 1 ? "s" : ""}${r.releaseDate ? ` · ${formatDate(r.releaseDate)}` : ""}`;
+    }
+    case "videos": {
+      const v = item as TrashedVideo;
+      const kind = v.kind.replace(/_/g, " ").toLowerCase();
+      return v.release ? `${kind} · ${v.release.title}` : kind;
     }
   }
 }
@@ -800,6 +821,19 @@ function ViewModalFields({
         </>
       );
     }
+    case "videos": {
+      const v = item as TrashedVideo;
+      return (
+        <>
+          <FieldRow label="Title" value={<span className="font-semibold">{v.title}</span>} />
+          <FieldRow label="Kind" value={v.kind.replace(/_/g, " ").toLowerCase()} />
+          {v.release && <FieldRow label="Release" value={v.release.title} />}
+          <FieldRow label="YouTube" value={<a href={`https://www.youtube.com/watch?v=${v.youtubeId}`} target="_blank" rel="noopener noreferrer" className="underline">{v.youtubeId}</a>} />
+          <FieldRow label="Status" value={v.published ? (v.featured ? "Published · Featured" : "Published") : "Hidden"} />
+          <FieldRow label="Created" value={formatDate(v.createdAt)} />
+        </>
+      );
+    }
   }
 }
 
@@ -818,6 +852,7 @@ export function TrashClient({
   initialFreedomWallEvents,
   initialReleaseNotes,
   initialReleases,
+  initialVideos,
 }: {
   initialAnnouncements: TrashedAnnouncement[];
   initialMarquees: TrashedMarquee[];
@@ -833,6 +868,7 @@ export function TrashClient({
   initialFreedomWallEvents: TrashedFreedomWallEvent[];
   initialReleaseNotes: TrashedReleaseNote[];
   initialReleases: TrashedRelease[];
+  initialVideos: TrashedVideo[];
 }) {
   const [announcements, setAnnouncements] = useState(initialAnnouncements);
   const [marquees, setMarquees] = useState(initialMarquees);
@@ -848,6 +884,7 @@ export function TrashClient({
   const [freedomWallEvents, setFreedomWallEvents] = useState(initialFreedomWallEvents);
   const [releaseNotes, setReleaseNotes] = useState(initialReleaseNotes);
   const [releases, setReleases] = useState(initialReleases);
+  const [videos, setVideos] = useState(initialVideos);
 
   const [activeCategory, setActiveCategory] = useState<Category>("artworks");
   const [searchQuery, setSearchQuery] = useState("");
@@ -950,8 +987,10 @@ export function TrashClient({
         return releaseNotes;
       case "releases":
         return releases;
+      case "videos":
+        return videos;
     }
-  }, [activeCategory, announcements, marquees, artworks, stories, cosplays, products, sections, notifications, rooms, events, freedomWallNotes, freedomWallEvents, releaseNotes, releases]);
+  }, [activeCategory, announcements, marquees, artworks, stories, cosplays, products, sections, notifications, rooms, events, freedomWallNotes, freedomWallEvents, releaseNotes, releases, videos]);
 
   const processedItems = useMemo(() => {
     return currentItems
@@ -1031,6 +1070,9 @@ export function TrashClient({
       case "releases":
         setReleases((p) => p.filter((i) => i.id !== id));
         break;
+      case "videos":
+        setVideos((p) => p.filter((i) => i.id !== id));
+        break;
     }
   }
 
@@ -1052,6 +1094,7 @@ export function TrashClient({
       case "freedom-wall-events": setFreedomWallEvents([]); break;
       case "release-notes": setReleaseNotes([]); break;
       case "releases": setReleases([]); break;
+      case "videos": setVideos([]); break;
     }
   }
 
@@ -1157,6 +1200,7 @@ export function TrashClient({
     "freedom-wall-events": "Events",
     "release-notes": "Release Notes",
     releases: "Releases",
+    videos: "Videos",
   };
 
   // Singular noun for the row-detail heading and the permanent-delete copy —
@@ -1176,6 +1220,7 @@ export function TrashClient({
     "freedom-wall-events": "event",
     "release-notes": "release note",
     releases: "release",
+    videos: "video",
   };
 
   const CATEGORY_COUNT: Record<Category, number> = {
@@ -1193,6 +1238,7 @@ export function TrashClient({
     "freedom-wall-events": freedomWallEvents.length,
     "release-notes": releaseNotes.length,
     releases: releases.length,
+    videos: videos.length,
   };
 
   return (

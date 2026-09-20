@@ -305,6 +305,24 @@ export const openApiSpec: OpenAPIV3.Document = {
           updatedAt: { type: "string", format: "date-time" },
         },
       },
+      Video: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          title: { type: "string" },
+          youtubeUrl: { type: "string", description: "The pasted YouTube link (watch / youtu.be / shorts)." },
+          youtubeId: { type: "string", description: "Derived 11-char id; thumbnails and the player use this." },
+          kind: { type: "string", enum: ["MUSIC_VIDEO", "LIVE", "BEHIND_THE_SCENES"] },
+          releaseId: { type: "string", nullable: true },
+          release: { type: "object", nullable: true, properties: { id: { type: "string" }, title: { type: "string" }, slug: { type: "string", nullable: true } } },
+          description: { type: "string", nullable: true },
+          published: { type: "boolean" },
+          featured: { type: "boolean", description: "Leads the homepage strip and the Videos page." },
+          sortOrder: { type: "integer" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
       Event: {
         type: "object",
         properties: {
@@ -1628,6 +1646,58 @@ export const openApiSpec: OpenAPIV3.Document = {
       delete: {
         tags: ["Releases"],
         summary: "Move a release to Trash",
+        security: adminSecurity,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": SuccessResponse, "401": ErrorResponse },
+      },
+    },
+    "/videos": {
+      get: {
+        tags: ["Videos"],
+        summary: "List live videos (admin)",
+        security: adminSecurity,
+        responses: { "200": { description: "Videos", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Video" } } } } }, "401": ErrorResponse },
+      },
+      post: {
+        tags: ["Videos"],
+        summary: "Create a video",
+        description: "`youtubeUrl` must parse as a YouTube link (400 otherwise); the id is derived server-side. `releaseId` must name a live release.",
+        security: adminSecurity,
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { type: "object", required: ["title", "youtubeUrl"], properties: { title: { type: "string" }, youtubeUrl: { type: "string" }, kind: { type: "string", enum: ["MUSIC_VIDEO", "LIVE", "BEHIND_THE_SCENES"] }, releaseId: { type: "string", nullable: true }, description: { type: "string", nullable: true }, published: { type: "boolean" }, featured: { type: "boolean" } } } } },
+        },
+        responses: { "201": { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Video" } } } }, "400": ErrorResponse, "401": ErrorResponse },
+      },
+    },
+    "/videos/public": {
+      get: {
+        tags: ["Videos"],
+        summary: "Published videos (public)",
+        responses: { "200": { description: "Videos, featured first" } },
+      },
+    },
+    "/videos/reorder": {
+      put: {
+        tags: ["Videos"],
+        summary: "Reorder videos",
+        security: adminSecurity,
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { order: { type: "array", items: { type: "object", properties: { id: { type: "string" }, sortOrder: { type: "integer" } } } } } } } } },
+        responses: { "200": { description: "Videos in new order" }, "400": ErrorResponse, "401": ErrorResponse },
+      },
+    },
+    "/videos/{id}": {
+      patch: {
+        tags: ["Videos"],
+        summary: "Update a video (partial)",
+        security: adminSecurity,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: { content: { "application/json": { schema: { type: "object" } } } },
+        responses: { "200": { description: "Updated", content: { "application/json": { schema: { $ref: "#/components/schemas/Video" } } } }, "400": ErrorResponse, "401": ErrorResponse, "404": ErrorResponse },
+      },
+      delete: {
+        tags: ["Videos"],
+        summary: "Move a video to Trash",
         security: adminSecurity,
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
         responses: { "200": SuccessResponse, "401": ErrorResponse },
@@ -4111,6 +4181,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Products", description: "Shop product listings tied to artworks" },
     { name: "Orders", description: "Customer orders (admin + public lookup)" },
     { name: "Releases", description: "The band's singles, EPs and albums — covers, tracklists, lyrics, streaming links" },
+    { name: "Videos", description: "YouTube videos on the Videos page — music videos, live, behind the scenes" },
     { name: "Checkout", description: "PayMongo checkout session and webhook" },
     { name: "Announcements", description: "Timed site announcements" },
     { name: "Marquees", description: "Scrolling marquee announcements" },

@@ -33,6 +33,7 @@ import {
   TrendingUp,
   LayoutTemplate,
   Disc3,
+  Clapperboard,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -92,6 +93,7 @@ const NAV: NavEntry[] = [
     icon: Disc3,
     children: [
       { href: "/admin/releases", label: "Releases", icon: Disc3 },
+      { href: "/admin/videos", label: "Videos", icon: Clapperboard },
     ],
   },
   {

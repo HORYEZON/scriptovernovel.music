@@ -23,6 +23,7 @@ export default async function AdminTrashPage() {
     freedomWallEvents,
     releaseNotes,
     releases,
+    videos,
   ] =
     await Promise.all([
       prisma.announcement.findMany({
@@ -101,6 +102,11 @@ export default async function AdminTrashPage() {
         include: { _count: { select: { tracks: true } } },
         orderBy: { deletedAt: "desc" },
       }),
+      prisma.video.findMany({
+        where: { deletedAt: { not: null } },
+        include: { release: { select: { id: true, title: true } } },
+        orderBy: { deletedAt: "desc" },
+      }),
     ]);
 
   const total =
@@ -117,7 +123,8 @@ export default async function AdminTrashPage() {
     freedomWallNotes.length +
     freedomWallEvents.length +
     releaseNotes.length +
-    releases.length;
+    releases.length +
+    videos.length;
 
   return (
     <div>
@@ -140,6 +147,7 @@ export default async function AdminTrashPage() {
         initialFreedomWallEvents={JSON.parse(JSON.stringify(freedomWallEvents))}
         initialReleaseNotes={JSON.parse(JSON.stringify(releaseNotes))}
         initialReleases={JSON.parse(JSON.stringify(releases))}
+        initialVideos={JSON.parse(JSON.stringify(videos))}
       />
     </div>
   );

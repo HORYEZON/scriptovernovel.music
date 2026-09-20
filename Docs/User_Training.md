@@ -13,9 +13,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 3. [Site Design — Menu animation](#3-site-design--menu-animation)
 4. [Preferences — Site Background Effects](#4-preferences--site-background-effects)
 5. [Releases (Music page)](#5-releases-music-page)
-6. [Homepage](#6-homepage)
-7. [Glossary — Confusing Terms Explained](#7-glossary--confusing-terms-explained)
-8. [Quick Troubleshooting](#8-quick-troubleshooting)
+6. [Videos](#6-videos)
+7. [Homepage](#7-homepage)
+8. [Glossary — Confusing Terms Explained](#8-glossary--confusing-terms-explained)
+9. [Quick Troubleshooting](#9-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -120,13 +121,34 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 6. Homepage
+## 6. Videos
+
+**What this is for:** the public **Videos** page and the Videos strip on the homepage. Only YouTube — paste the link, the site does the rest.
+
+### 6.1 Adding a video
+
+1. **Videos → + New video.**
+2. Paste the **YouTube link** (a `watch?v=`, `youtu.be` or `shorts` link). The thumbnail appears under the box when the link is good.
+3. **Title**, **Kind** (Music video / Live / Behind the scenes), optionally the **Release** it belongs to, and a short note.
+4. **Add video**.
+
+### 6.2 Featured, hidden, order
+
+- **★ Featured** videos lead the homepage strip and the Videos page (and the hero's WATCH button jumps to the featured release's video when there is one).
+- **Published / Hidden** pill, ↑ ↓ ordering and 🗑 Trash work exactly as for Releases.
+
+> 💡 Visitors see a still frame first; YouTube's player only loads when they press play — pages stay fast and nothing from YouTube runs until then.
+
+---
+
+## 7. Homepage
 
 **What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
 
 - **Hero** — the featured release (else the newest published one): its cover blurred behind the title, LISTEN into its player, WATCH to Videos. With no releases yet: the band's name (Site Design → Header → Wordmark), the genres (About → Skills, relabelled Genres / tags; falls back to the band's four), the tagline (About → Headline) — or, if **Site Design → Homepage Hero** is switched on, your custom hero.
 - **Latest release** — the same release in full (player, tracklist, links), right under the hero.
 - **Upcoming shows** — Shows / Events with a date in the future (up to three). Hidden when there are none.
+- **Videos** — the four newest videos, featured first. Hidden when there are none.
 - **Merch** — the four newest available products. Hidden when the store is empty.
 - **Fan wall** — the three newest notes, when the Freedom Wall is active.
 - **Digital Museum + Mini games** — shown when the museum is enabled with published artworks, and when at least one game is playable.
@@ -135,7 +157,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 7. Glossary — Confusing Terms Explained
+## 8. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -145,7 +167,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 8. Quick Troubleshooting
+## 9. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

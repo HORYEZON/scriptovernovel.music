@@ -29,13 +29,17 @@ export function EmbedFrame({
   title,
   className,
   showOpenLink = true,
+  autoplay = false,
 }: {
   url: string;
   title: string;
   className?: string;
   showOpenLink?: boolean;
+  /** Skip the click-to-load poster and start playing at once — for a
+   *  caller whose own click already was the consent (VideoCard). */
+  autoplay?: boolean;
 }) {
-  const [armed, setArmed] = useState(false);
+  const [armed, setArmed] = useState(autoplay);
   const embed = parseEmbed(url);
   if (!embed) return null;
   const label = EMBED_PROVIDER_LABELS[embed.provider];

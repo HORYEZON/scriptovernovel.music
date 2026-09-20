@@ -34,6 +34,10 @@ export async function ReleaseHero() {
   if (release) {
     const player = primaryEmbed(release);
     const anchor = `/music#${release.slug ?? release.id}`;
+    // WATCH goes to the release's own video when it has one, else /videos.
+    const video = await prisma.video
+      .findFirst({ where: { releaseId: release.id, published: true, deletedAt: null }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], select: { id: true } })
+      .catch(() => null);
     return (
       <PageHero
         size="full"
@@ -47,7 +51,7 @@ export async function ReleaseHero() {
         <CtaButton href={player ? anchor : "/music"} colors={cta}>
           Listen
         </CtaButton>
-        <CtaButton href="/videos" variant="ghost">
+        <CtaButton href={video ? `/videos#${video.id}` : "/videos"} variant="ghost">
           Watch
         </CtaButton>
       </PageHero>
