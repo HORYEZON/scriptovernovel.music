@@ -18,8 +18,29 @@
 // at the centre, independently of each other. This wrapper stays a no-op
 // for it (identity pose, nothing to transition), and MenuPanel animates its
 // own two halves instead, reading the same openEffect/closeEffect/speeds.
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { MenuOpenEffect } from "@/lib/site-design";
+
+/**
+ * True once the sheet has *landed* — `openSpeedMs` after `shown` flips on —
+ * and false the instant it flips off. Drive MenuPanel's `revealed` from
+ * this rather than from `shown` itself: the link entrance
+ * (menuItemsEffect) is meant to play on a sheet that has already arrived,
+ * and started together with the sheet it just rides along inside the
+ * panel's own motion and is never seen as its own effect.
+ */
+export function useSheetLanded(shown: boolean, openSpeedMs: number): boolean {
+  const [landed, setLanded] = useState(false);
+  useEffect(() => {
+    if (!shown) {
+      setLanded(false);
+      return;
+    }
+    const t = setTimeout(() => setLanded(true), openSpeedMs);
+    return () => clearTimeout(t);
+  }, [shown, openSpeedMs]);
+  return landed;
+}
 
 const EASE = "cubic-bezier(0.65, 0, 0.35, 1)";
 

@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MenuPanel, type MenuSocialLink } from "./MenuPanel";
-import { MenuOpenTransition } from "./MenuOpenTransition";
+import { MenuOpenTransition, useSheetLanded } from "./MenuOpenTransition";
 import type { SiteDesignSettings, SiteMenuItem } from "@/lib/site-design";
 
 export function MenuOverlay({
@@ -34,6 +34,8 @@ export function MenuOverlay({
   // open effect) from "not shown because it's leaving" (end pose of the
   // close effect) — see MenuOpenTransition.
   const [closing, setClosing] = useState(false);
+  // Links play their entrance only once the sheet has arrived.
+  const landed = useSheetLanded(shown, settings.menuOpenSpeedMs);
 
   useEffect(() => {
     if (open) {
@@ -101,7 +103,8 @@ export function MenuOverlay({
           pathname={pathname}
           onClose={onClose}
           onNavigate={onClose}
-          revealed={shown}
+          revealed={landed}
+          sheetShown={shown}
           closing={closing}
         />
       </MenuOpenTransition>

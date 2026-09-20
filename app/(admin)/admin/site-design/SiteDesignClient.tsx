@@ -15,7 +15,7 @@ import { cn, getErrorMessage } from "@/lib/utils";
 import { UnsavedChangesBar } from "@/components/admin/UnsavedChangesBar";
 import { SettingsAccordion, useAccordionSections } from "@/app/(admin)/admin/settings/Preferences/SettingsAccordion";
 import { MenuPanel, type MenuSocialLink } from "@/components/public/site-design/MenuPanel";
-import { MenuOpenTransition } from "@/components/public/site-design/MenuOpenTransition";
+import { MenuOpenTransition, useSheetLanded } from "@/components/public/site-design/MenuOpenTransition";
 import { HomeHero } from "@/components/public/site-design/HomeHero";
 import { SafeImg } from "@/components/ui/SafeImage";
 import { isValidThemeColor, isValidThemeLength } from "@/lib/theme";
@@ -249,6 +249,9 @@ export function SiteDesignClient({
   // changes, and on demand via the Play button.
   const [menuPreviewShown, setMenuPreviewShown] = useState(true);
   const [menuPreviewClosing, setMenuPreviewClosing] = useState(false);
+  // Same landing gate the public overlay uses, so the link entrance previews
+  // where visitors actually see it: after the sheet has arrived.
+  const menuPreviewLanded = useSheetLanded(menuPreviewShown, settings.menuOpenSpeedMs);
   const replayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playMenuOpen = useCallback(() => {
     if (replayTimer.current) clearTimeout(replayTimer.current);
@@ -463,7 +466,7 @@ export function SiteDesignClient({
                 closing={menuPreviewClosing}
                 className="h-full w-full"
               >
-                <MenuPanel settings={settings} items={menuItems} socialLinks={socialLinks} preview revealed={menuPreviewShown} closing={menuPreviewClosing} />
+                <MenuPanel settings={settings} items={menuItems} socialLinks={socialLinks} preview revealed={menuPreviewLanded} sheetShown={menuPreviewShown} closing={menuPreviewClosing} />
               </MenuOpenTransition>
             </ScaledPreview>
           </div>

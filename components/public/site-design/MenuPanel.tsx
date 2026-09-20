@@ -55,11 +55,18 @@ export function MenuPanel({
   onNavigate,
   /** False while the sheet is still arriving (or leaving): links and the
    *  foot sit at their entrance start pose. Flip to true once the sheet
-   *  has landed to play menuItemsEffect. Defaults to true so a bare
-   *  MenuPanel (the admin swatch, tests) is simply visible. */
+   *  has landed (MenuOpenTransition's useSheetLanded) to play
+   *  menuItemsEffect. Defaults to true so a bare MenuPanel (the admin
+   *  swatch, tests) is simply visible. */
   revealed = true,
-  /** True while `revealed` is false because the sheet is on its way out
-   *  (vs. not yet opened) — same distinction MenuOpenTransition draws, and
+  /** Whether the sheet itself is at rest / on its way there — the same
+   *  `shown` MenuOpenTransition gets, and what the "split" halves (see
+   *  below) travel on. Separate from `revealed` because the halves start
+   *  moving the moment the sheet opens, while the links wait for it to
+   *  land. Defaults to `revealed` for callers that don't distinguish. */
+  sheetShown = revealed,
+  /** True while the sheet is not shown because it's on its way out (vs.
+   *  not yet opened) — same distinction MenuOpenTransition draws, and
    *  needed here too so the "split" open/close effects (see below) know
    *  which direction's edges to travel to. */
   closing = false,
@@ -77,6 +84,7 @@ export function MenuPanel({
   preview?: boolean;
   className?: string;
   revealed?: boolean;
+  sheetShown?: boolean;
   closing?: boolean;
 }) {
   const visible = items.filter((i) => i.isVisible);
@@ -121,7 +129,7 @@ export function MenuPanel({
   function splitHalfStyle(direction: "left" | "right"): CSSProperties {
     if (!usesSplitOpen && !usesSplitClose) return {};
     const departed = direction === "left" ? "translateX(-100%)" : "translateX(100%)";
-    if (revealed) {
+    if (sheetShown) {
       // Arriving — always at rest once landed; the trip there runs on the
       // open effect's speed regardless of which pose (open's or none) it
       // started from.
