@@ -51,6 +51,7 @@ import {
   HrefField,
   ImageField,
   LengthField,
+  LengthSliderField,
   LetterSpacingField,
   RangeField,
   SelectField,
@@ -357,7 +358,9 @@ export function SiteDesignClient({
                 <LengthField label="Logo height" value={settings.headerLogoHeight} onChange={(v) => set("headerLogoHeight", v)} placeholder="40px" />
                 <TextField label="Fallback text" value={settings.headerLogoText} onChange={(v) => set("headerLogoText", v)} maxLength={MAX_LABEL_LENGTH} hint="Shown when there's no logo image." />
                 <SelectField label="Fallback font" value={settings.headerLogoFontFamily} onChange={(v) => set("headerLogoFontFamily", v)} options={SITE_DESIGN_FONT_OPTIONS} />
-                <LengthField label="Fallback size" value={settings.headerLogoFontSize} onChange={(v) => set("headerLogoFontSize", v)} placeholder="2rem" />
+                {/* 1–4rem: the header row is 56/64px tall, so 4rem (64px) is
+                    as large as the text can get without leaving the bar. */}
+                <LengthSliderField label="Fallback size" value={settings.headerLogoFontSize} onChange={(v) => set("headerLogoFontSize", v)} minRem={1} maxRem={4} hint="Phones cap it at 7% of the screen width so it can't crowd the menu button." />
               </div>
             </div>
           </SettingsAccordion>

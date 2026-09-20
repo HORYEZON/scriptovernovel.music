@@ -71,7 +71,11 @@ Deleting a section moves it to Trash — **and everything inside it goes too.** 
 
 > 💡 These two colours only apply while a visitor is in **light** mode. In **dark** mode (the default for new visitors) the bar switches to the site's near-black glass with cream text, whatever you picked — so you never have to check your colours twice.
 
-### 2.2 The light/dark switch
+### 2.2 Wordmark text size
+
+**Site Design → Header → Wordmark → Fallback size** is a slider (1–4rem; the readout also shows pixels). It sizes the text wordmark shown when no logo image is uploaded. Phones automatically cap it so it can't crowd the MENU button.
+
+### 2.3 The light/dark switch
 
 The sun/moon pill to the right of **MENU** is always on — there's no setting to hide it. The site starts in dark mode for a first-time visitor, and the pill is how they get to light mode; their choice is remembered on that device.
 

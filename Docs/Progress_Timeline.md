@@ -24,6 +24,8 @@ not a release of its own.
   site's ink/cream, so a header can't end up as a cream slab over a dark page
 - The "Light / dark toggle" switch under Header icons is gone: the toggle is
   a permanent part of the header now
+- The wordmark's **Fallback size** is a slider (1–4rem) instead of a typed
+  CSS length
 - **Preferences → Branding → Site Background Effects**: an effect picker,
   speed slider and live preview (with Replay) in the same arrangement as the
   Entrance Splash card, played on your own uploaded background photo

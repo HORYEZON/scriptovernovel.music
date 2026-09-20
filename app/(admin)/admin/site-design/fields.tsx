@@ -107,6 +107,58 @@ export function LengthField({
   );
 }
 
+/**
+ * A LengthField as a slider, for a size that is really one number: the value
+ * stays a CSS length string ("2.25rem") so it keeps passing isValidThemeLength
+ * and nothing downstream changes — the same arrangement as the Entrance
+ * Splash's tagline sizes (lib/intro-splash.ts's taglineRemFromLength). A
+ * stored px/em value (typed into the old text field) is read at 16px/rem and
+ * 1:1 respectively rather than thrown away, so the thumb always sits where
+ * the site currently is.
+ */
+export function LengthSliderField({
+  label,
+  value,
+  onChange,
+  minRem,
+  maxRem,
+  step = 0.05,
+  hint,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  minRem: number;
+  maxRem: number;
+  step?: number;
+  hint?: string;
+}) {
+  const clamp = (n: number) => Math.min(maxRem, Math.max(minRem, n));
+  const match = /^(\d{1,3}(?:\.\d{1,2})?)(px|rem|em)$/.exec(value.trim());
+  const rem = match ? clamp(match[2] === "px" ? parseFloat(match[1]) / 16 : parseFloat(match[1])) : clamp(2);
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <FieldLabel>{label}</FieldLabel>
+        <span className="mb-2 font-mono text-xs text-ink-400 dark:text-ink-300">
+          {Number(rem.toFixed(2))}rem · {Math.round(rem * 16)}px
+        </span>
+      </div>
+      <input
+        type="range"
+        min={minRem}
+        max={maxRem}
+        step={step}
+        value={rem}
+        onChange={(e) => onChange(`${Number(clamp(Number(e.target.value)).toFixed(2))}rem`)}
+        className="w-full cursor-pointer accent-sepia"
+        aria-label={label}
+      />
+      {hint && <p className="mt-1 font-body text-xs text-ink-400 dark:text-ink-300">{hint}</p>}
+    </div>
+  );
+}
+
 export function LetterSpacingField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const invalid = value.trim() !== "" && !isValidLetterSpacing(value);
   return (
