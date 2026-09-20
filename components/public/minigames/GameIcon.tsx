@@ -1,6 +1,6 @@
 "use client";
 
-import { Puzzle, RotateCw, LayoutGrid, Layers, ScanSearch, Gamepad2 } from "lucide-react";
+import { Puzzle, RotateCw, LayoutGrid, Layers, ScanSearch, Gamepad2, Disc3, Music2, MicVocal, ListOrdered, CalendarRange } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 // The registry stores an icon *key* rather than a component so lib/minigames
@@ -14,6 +14,11 @@ const GAME_ICONS: Record<string, LucideIcon> = {
   sliding: LayoutGrid,
   memory: Layers,
   difference: ScanSearch,
+  cover: Disc3,
+  track: Music2,
+  lyric: MicVocal,
+  tracklist: ListOrdered,
+  timeline: CalendarRange,
 };
 
 export function GameIcon({

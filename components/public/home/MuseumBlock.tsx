@@ -10,7 +10,6 @@ import { buildPublicGames } from "@/lib/minigames/server";
 import { readPlayerId } from "@/lib/minigames/player";
 import { SectionHeading } from "@/components/public/system/SectionHeading";
 import { GlassPanel } from "@/components/public/system/GlassPanel";
-import { Reveal } from "@/components/public/system/Reveal";
 import { GoToMuseumButton } from "@/components/public/GoToMuseumButton";
 import { MiniGamesLauncher } from "@/components/public/minigames/MiniGamesLauncher";
 
@@ -40,8 +39,10 @@ export async function MuseumBlock() {
   const hasGames = games.length > 0;
   if (!open && !hasGames) return null;
 
+  // A plain section, not a Reveal: the launcher's overlays are `fixed` and a
+  // transformed ancestor would clip them to this block.
   return (
-    <Reveal as="section" className="section-padding">
+    <section className="section-padding">
       <div className={`grid grid-cols-1 gap-6 ${open && hasGames ? "md:grid-cols-2" : ""}`}>
         {open && (
           <GlassPanel padding="page" className="flex flex-col justify-between overflow-hidden">
@@ -60,11 +61,14 @@ export async function MuseumBlock() {
             </div>
           </GlassPanel>
         )}
+        {/* The games panel has no backdrop blur and no overflow clip: the
+            launcher's popover and the game session are fixed overlays
+            rendered from inside it, and either would trap them. */}
         {hasGames && (
-          <GlassPanel padding="page" className="flex flex-col justify-between overflow-hidden">
+          <GlassPanel padding="page" blur={false} className="flex flex-col justify-between">
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-vermillion/10 blur-3xl"
+              className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 overflow-hidden rounded-full bg-vermillion/10 blur-3xl"
             />
             <SectionHeading
               eyebrow="Arcade"
@@ -78,6 +82,6 @@ export async function MuseumBlock() {
           </GlassPanel>
         )}
       </div>
-    </Reveal>
+    </section>
   );
 }

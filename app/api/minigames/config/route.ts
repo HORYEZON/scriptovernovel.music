@@ -55,15 +55,27 @@ export async function PUT(request: NextRequest) {
     const raw = body as Record<string, unknown>;
     const definition = GAME_REGISTRY[type];
 
-    const artworkId = sanitizeArtworkId(raw.artworkId);
+    // The subject: a release (the current way) or, for a game still on a
+    // gallery artwork, the artwork ids. Catalog games take neither.
+    const isCatalog = definition.subject === "catalog";
+    const releaseId = isCatalog ? null : sanitizeArtworkId(raw.releaseId);
+    const artworkId = isCatalog || releaseId ? null : sanitizeArtworkId(raw.artworkId);
     // Only Find the Difference has a second image; storing one against any
     // other game would be dead data that the next reader has to explain.
-    const secondaryArtworkId = definition.needsSecondaryArtwork
+    const secondaryImageUrl =
+      definition.needsSecondaryArtwork && typeof raw.secondaryImageUrl === "string" && raw.secondaryImageUrl.trim()
+        ? raw.secondaryImageUrl.trim().slice(0, 2000)
+        : null;
+    const secondaryArtworkId = definition.needsSecondaryArtwork && !secondaryImageUrl
       ? sanitizeArtworkId(raw.secondaryArtworkId)
       : null;
 
-    // Both ids are checked against the table rather than trusted, so a saved
-    // configuration can never point at an artwork that isn't there.
+    // Ids are checked against their tables rather than trusted, so a saved
+    // configuration can never point at a row that isn't there.
+    if (releaseId) {
+      const release = await prisma.release.findFirst({ where: { id: releaseId, deletedAt: null }, select: { id: true } });
+      if (!release) return NextResponse.json({ error: "That release no longer exists." }, { status: 400 });
+    }
     const referenced = [artworkId, secondaryArtworkId].filter(
       (id): id is string => id !== null
     );
@@ -85,6 +97,8 @@ export async function PUT(request: NextRequest) {
       difficulty: sanitizeDifficulty(raw.difficulty) as MiniGameDifficulty,
       artworkId,
       secondaryArtworkId,
+      releaseId,
+      secondaryImageUrl,
       timeLimitSec: clampTimeLimit(raw.timeLimitSec),
       scoreMultiplier: clampScoreMultiplier(raw.scoreMultiplier),
       leaderboardEnabled: Boolean(raw.leaderboardEnabled),

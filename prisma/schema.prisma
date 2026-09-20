@@ -612,6 +612,7 @@ model Release {
   deletedAt     DateTime?
   tracks        ReleaseTrack[]
   videos        Video[]
+  miniGames     MiniGame[]     @relation("MiniGameRelease")
 
   @@index([published, releaseDate])
   @@index([deletedAt])
@@ -1547,8 +1548,17 @@ model MiniGame {
   type               MiniGameType         @unique
   enabled            Boolean              @default(false)
   difficulty         MiniGameDifficulty   @default(MEDIUM)
+  // The game's *subject*. Since the band-site rebuild a game is built on a
+  // Release's cover (releaseId); artworkId/secondaryArtworkId are the
+  // gallery-era subject and still work for a game that was configured on
+  // one (lib/minigames/server.ts's resolveSubject prefers the release).
+  // secondaryImageUrl is Find the Difference's uploaded "altered" cover.
+  // Catalog games (Guess the Cover, Name That Track, Release Timeline)
+  // ignore all of these and draw from every published release.
   artworkId          String?
   secondaryArtworkId String?
+  releaseId          String?
+  secondaryImageUrl  String?
   timeLimitSec       Int                  @default(0)
   scoreMultiplier    Float                @default(1)
   leaderboardEnabled Boolean              @default(true)
@@ -1563,6 +1573,7 @@ model MiniGame {
   entries            LeaderboardEntry[]
   artwork            Artwork?             @relation("MiniGamePrimaryArtwork", fields: [artworkId], references: [id])
   secondaryArtwork   Artwork?             @relation("MiniGameSecondaryArtwork", fields: [secondaryArtworkId], references: [id])
+  release            Release?             @relation("MiniGameRelease", fields: [releaseId], references: [id], onDelete: SetNull)
   sessions           MiniGameSession[]
   claims             RewardClaim[]
   // Only ever non-empty once the Arcade Room is provisioned — one row per
@@ -1964,6 +1975,11 @@ enum MiniGameType {
   SLIDING_PUZZLE
   MEMORY_CARDS
   FIND_DIFFERENCE
+  GUESS_THE_COVER
+  TRACKLIST_ORDER
+  LYRIC_FILL
+  NAME_THAT_TRACK
+  RELEASE_TIMELINE
 }
 
 enum MiniGameDifficulty {

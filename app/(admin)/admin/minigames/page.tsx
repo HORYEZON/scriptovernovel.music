@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Minigames" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminMinigamesPage() {
-  const [games, gameArtworks, museumRooms] = await Promise.all([
+  const [games, gameArtworks, releaseRows, museumRooms] = await Promise.all([
     buildAdminGames().catch(() => []),
     prisma.artwork
       .findMany({
@@ -28,14 +28,23 @@ export default async function AdminMinigamesPage() {
         select: { id: true, title: true, imageUrl: true, published: true },
       })
       .catch(() => []),
+    // The releases a game can be built on — the band's records.
+    prisma.release
+      .findMany({
+        where: { deletedAt: null },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+        select: { id: true, title: true, coverImageUrl: true, published: true },
+      })
+      .catch(() => []),
     getMuseumRoomStatus(),
   ]);
+  const releases = releaseRows.map((r) => ({ id: r.id, title: r.title, imageUrl: r.coverImageUrl, published: r.published }));
 
   return (
     <div>
       <AdminPageHeader
         title="Minigames"
-        description="Puzzle games, leaderboards and reward claims for the public site."
+        description="Games built on the band's releases — guess the cover, name that track, lyric fill, tracklist and timeline ordering, and the cover puzzles — with leaderboards and reward claims."
         action={
           <AdminGoToMenu
             links={[
@@ -50,7 +59,7 @@ export default async function AdminMinigamesPage() {
           />
         }
       />
-      <MiniGamesClient initialGames={games} artworks={gameArtworks} />
+      <MiniGamesClient initialGames={games} artworks={gameArtworks} releases={releases} />
     </div>
   );
 }

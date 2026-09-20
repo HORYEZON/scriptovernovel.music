@@ -28,7 +28,7 @@ export default function RewardAlertEmail({
   score = "12,345",
   threshold = "10,000",
   email = "player@example.com",
-  artworkTitle = "Deep Sea Bloom",
+  artworkTitle = "Static Bloom EP",
   reward = "10% off code",
   dateLabel = "2026-08-18",
   logoUrl = PREVIEW_LOGO_URL,
@@ -51,7 +51,7 @@ export default function RewardAlertEmail({
           { label: "Score", value: score },
           { label: "Target", value: threshold },
           { label: "Email", value: email },
-          { label: "Artwork", value: artworkTitle ?? "—" },
+          { label: "Release", value: artworkTitle ?? "—" },
           { label: "Reward", value: reward },
           { label: "Date", value: dateLabel },
         ]}

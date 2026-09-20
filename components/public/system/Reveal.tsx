@@ -23,6 +23,16 @@ export function Reveal({
 }) {
   const ref = useRef<HTMLElement | null>(null);
   const [shown, setShown] = useState(false);
+  // Once the fade-up has played, the transform and will-change come off:
+  // either would make this element the containing block for any
+  // `position: fixed` descendant (a modal, an overlay), which would then be
+  // clipped to the section instead of covering the viewport.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!shown) return;
+    const t = setTimeout(() => setSettled(true), 1300 + delayMs);
+    return () => clearTimeout(t);
+  }, [shown, delayMs]);
 
   useEffect(() => {
     const el = ref.current;
@@ -52,11 +62,15 @@ export function Reveal({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ref={ref as any}
       className={cn(
-        "transition-[opacity,transform] duration-[1200ms] ease-out will-change-[opacity,transform]",
-        shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+        settled
+          ? "opacity-100"
+          : cn(
+              "transition-[opacity,transform] duration-[1200ms] ease-out will-change-[opacity,transform]",
+              shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+            ),
         className
       )}
-      style={{ transitionDelay: `${delayMs}ms` }}
+      style={settled ? undefined : { transitionDelay: `${delayMs}ms` }}
     >
       {children}
     </Tag>

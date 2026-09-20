@@ -16,9 +16,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 6. [Videos](#6-videos)
 7. [About & Band Members](#7-about--band-members)
 8. [Store (Products)](#8-store-products)
-9. [Homepage](#9-homepage)
-10. [Glossary — Confusing Terms Explained](#10-glossary--confusing-terms-explained)
-11. [Quick Troubleshooting](#11-quick-troubleshooting)
+9. [Mini Games](#9-mini-games)
+10. [Homepage](#10-homepage)
+11. [Glossary — Confusing Terms Explained](#11-glossary--confusing-terms-explained)
+12. [Quick Troubleshooting](#12-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -184,7 +185,31 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 9. Homepage
+## 9. Mini Games
+
+**What this is for:** the games visitors can play from the homepage's Arcade block and inside the Digital Museum's Arcade Room. They are built on your releases now.
+
+### 9.1 The ten games
+
+- **Guess the Cover** — a cover comes into focus step by step; name it early for more points. *Uses every published release (needs 4+).*
+- **Name That Track** — a song title, which record is it on? *Needs 2+ published releases with tracklists.*
+- **Release Timeline** — put the records in order, oldest to newest. *Needs 4+ published releases with a release date.*
+- **Fill the Lyric** — words missing from a few lines. *Pick a release whose tracks have lyrics (Releases → track → Lyrics).*
+- **Tracklist Order** — put one record's songs back in running order. *Pick a release with 3+ tracks.*
+- **Cover Puzzle · Rotate & Solve · Sliding Cover · Cover Memory · Find the Difference** — the picture puzzles, now played on a release's cover. *Pick a release; Find the Difference also wants an uploaded altered cover, then mark the changes.*
+
+### 9.2 Setting one up
+
+1. **Minigames** (sidebar → Museum & Archive) → pick a game.
+2. **Release** — choose the record (the three catalogue games have nothing to pick; they say what they need instead).
+3. Difficulty, time limit, scoring, leaderboard and reward settings are as before. **Save**.
+4. A game that can't run yet shows why in amber (e.g. "Needs at least 4 published releases").
+
+> 💡 A game that was set up on a gallery artwork before still works until you pick a release for it.
+
+---
+
+## 10. Homepage
 
 **What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
 
@@ -200,7 +225,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 10. Glossary — Confusing Terms Explained
+## 11. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -210,7 +235,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 11. Quick Troubleshooting
+## 12. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

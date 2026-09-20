@@ -418,9 +418,13 @@ export const openApiSpec: OpenAPIV3.Document = {
       },
       MiniGame: {
         type: "object",
+        description:
+          "One of ten game types: the five cover puzzles (ART_PUZZLE, ROTATE_SOLVE, SLIDING_PUZZLE, MEMORY_CARDS, FIND_DIFFERENCE) and the five music games (GUESS_THE_COVER, NAME_THAT_TRACK, LYRIC_FILL, TRACKLIST_ORDER, RELEASE_TIMELINE). A game's subject is a Release (releaseId); GUESS_THE_COVER, NAME_THAT_TRACK and RELEASE_TIMELINE draw on every published release instead and take no releaseId. `artwork` on the public payload is that subject (title + cover) — the name is kept for the Digital Museum's Arcade Room.",
         properties: {
-          type: { type: "string" },
+          type: { type: "string", enum: ["ART_PUZZLE", "ROTATE_SOLVE", "SLIDING_PUZZLE", "MEMORY_CARDS", "FIND_DIFFERENCE", "GUESS_THE_COVER", "NAME_THAT_TRACK", "LYRIC_FILL", "TRACKLIST_ORDER", "RELEASE_TIMELINE"] },
           name: { type: "string" },
+          releaseId: { type: "string", nullable: true },
+          secondaryImageUrl: { type: "string", nullable: true, description: "FIND_DIFFERENCE: the uploaded altered cover." },
           enabled: { type: "boolean" },
           difficulty: { type: "string", enum: ["EASY", "MEDIUM", "HARD"] },
           timeLimitSec: { type: "integer" },
@@ -2562,7 +2566,9 @@ export const openApiSpec: OpenAPIV3.Document = {
                   type: { type: "string" },
                   enabled: { type: "boolean" },
                   difficulty: { type: "string", enum: ["EASY", "MEDIUM", "HARD"] },
-                  artworkId: { type: "string" },
+                  releaseId: { type: "string", nullable: true, description: "The release the game is built on (ignored by catalog games)." },
+                  secondaryImageUrl: { type: "string", nullable: true, description: "FIND_DIFFERENCE only — the altered cover from POST /upload." },
+                  artworkId: { type: "string", nullable: true, description: "Legacy gallery subject; cleared when releaseId is set." },
                   timeLimitSec: { type: "integer" },
                   leaderboardEnabled: { type: "boolean" },
                   rewardEnabled: { type: "boolean" },

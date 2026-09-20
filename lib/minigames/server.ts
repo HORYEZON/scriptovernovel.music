@@ -10,10 +10,12 @@ import type { MiniGame, MiniGameType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { GAME_REGISTRY } from "./registry";
 import { sanitizeDifferenceRegions } from "./config";
+import { loadCatalogCounts, type CatalogCounts } from "./catalog";
 import type {
   AdminGameConfig,
   Difficulty,
   DifferenceRegion,
+  GameReleaseOption,
   GameType,
   PublicGame,
   PublicGameArtwork,
@@ -29,27 +31,70 @@ const ARTWORK_SELECT = {
   deletedAt: true,
 } satisfies Prisma.ArtworkSelect;
 
+const RELEASE_SELECT = {
+  id: true,
+  title: true,
+  coverImageUrl: true,
+  published: true,
+  deletedAt: true,
+  _count: { select: { tracks: true } },
+  tracks: { where: { lyrics: { not: null } }, select: { id: true }, take: 1 },
+} satisfies Prisma.ReleaseSelect;
+
+type GameSubjectRow = {
+  id: string;
+  title: string;
+  imageUrl: string;
+  published: boolean;
+  deletedAt: Date | null;
+};
+
 type GameWithArtworks = MiniGame & {
-  artwork: {
+  artwork: GameSubjectRow | null;
+  secondaryArtwork: GameSubjectRow | null;
+  release: {
     id: string;
     title: string;
-    imageUrl: string;
+    coverImageUrl: string;
     published: boolean;
     deletedAt: Date | null;
+    _count: { tracks: number };
+    tracks: { id: string }[];
   } | null;
-  secondaryArtwork: {
-    id: string;
-    title: string;
-    imageUrl: string;
-    published: boolean;
-    deletedAt: Date | null;
-  } | null;
+  /** Attached by loadAllGames/getGame — what the catalog games need. */
+  catalog: CatalogCounts;
 };
 
 const GAME_INCLUDE = {
   artwork: { select: ARTWORK_SELECT },
   secondaryArtwork: { select: ARTWORK_SELECT },
+  release: { select: RELEASE_SELECT },
 } satisfies Prisma.MiniGameInclude;
+
+/**
+ * The game's subject — a release's cover, else the artwork it was configured
+ * on in the gallery days. Null when neither is set or the one set is gone.
+ */
+export function resolveSubject(game: GameWithArtworks, { requirePublished = true } = {}): GameSubjectRow | null {
+  if (game.release) {
+    const r = game.release;
+    if (requirePublished && (!r.published || r.deletedAt)) return null;
+    return { id: r.id, title: r.title, imageUrl: r.coverImageUrl, published: r.published, deletedAt: r.deletedAt };
+  }
+  return game.artwork;
+}
+
+/** Find the Difference's altered image: the uploaded one, else the legacy
+ *  secondary artwork. */
+export function resolveSecondary(game: GameWithArtworks, { requirePublished = true } = {}): GameSubjectRow | null {
+  if (game.secondaryImageUrl) {
+    return { id: "upload", title: "Altered cover", imageUrl: game.secondaryImageUrl, published: true, deletedAt: null };
+  }
+  const a = game.secondaryArtwork;
+  if (!a) return null;
+  if (requirePublished && (!a.published || a.deletedAt)) return null;
+  return a;
+}
 
 /**
  * Every game type, whether or not it has been configured yet — a type with no
@@ -57,21 +102,26 @@ const GAME_INCLUDE = {
  * dashboard always lists exactly five games and the first save is an upsert.
  */
 export async function loadAllGames(): Promise<GameWithArtworks[]> {
-  const rows = await prisma.miniGame.findMany({ include: GAME_INCLUDE });
+  const [rows, catalog] = await Promise.all([
+    prisma.miniGame.findMany({ include: GAME_INCLUDE }),
+    loadCatalogCounts(),
+  ]);
   const byType = new Map(rows.map((row) => [row.type as GameType, row]));
 
-  return GAME_TYPES.map(
-    (type) => byType.get(type) ?? (unsavedGameRow(type) as GameWithArtworks)
-  );
+  return GAME_TYPES.map((type) => {
+    const row = byType.get(type) ?? unsavedGameRow(type);
+    return { ...row, catalog } as GameWithArtworks;
+  });
 }
 
 export async function getGame(
   type: GameType
 ): Promise<GameWithArtworks | null> {
-  return prisma.miniGame.findUnique({
-    where: { type: type as MiniGameType },
-    include: GAME_INCLUDE,
-  });
+  const [row, catalog] = await Promise.all([
+    prisma.miniGame.findUnique({ where: { type: type as MiniGameType }, include: GAME_INCLUDE }),
+    loadCatalogCounts(),
+  ]);
+  return row ? { ...row, catalog } : null;
 }
 
 /**
@@ -79,7 +129,7 @@ export async function getGame(
  * persisted — writing five rows on first page view would be a side effect of
  * merely *looking* at the dashboard.
  */
-function unsavedGameRow(type: GameType): GameWithArtworks {
+function unsavedGameRow(type: GameType): Omit<GameWithArtworks, "catalog"> {
   const now = new Date();
   return {
     id: "",
@@ -90,6 +140,9 @@ function unsavedGameRow(type: GameType): GameWithArtworks {
     artwork: null,
     secondaryArtworkId: null,
     secondaryArtwork: null,
+    releaseId: null,
+    release: null,
+    secondaryImageUrl: null,
     timeLimitSec: 0,
     scoreMultiplier: 1,
     leaderboardEnabled: true,
@@ -101,7 +154,7 @@ function unsavedGameRow(type: GameType): GameWithArtworks {
     differences: [],
     createdAt: now,
     updatedAt: now,
-  } as unknown as GameWithArtworks;
+  } as unknown as Omit<GameWithArtworks, "catalog">;
 }
 
 /** Hotspots as a typed array — the column is Json, so it is re-validated on read. */
@@ -120,19 +173,40 @@ export function readDifferences(
  */
 export function unavailableReason(game: GameWithArtworks): string | null {
   if (!game.enabled) return "This game is currently turned off.";
+  const definition = GAME_REGISTRY[game.type as GameType];
 
-  const primary = game.artwork;
-  if (!primary) return "No artwork has been chosen for this game yet.";
-  if (!primary.published || primary.deletedAt) {
-    return "The artwork for this game is no longer available.";
+  if (definition.subject === "catalog") {
+    const c = game.catalog;
+    switch (game.type as GameType) {
+      case "RELEASE_TIMELINE":
+        if (c.datedReleases < definition.catalogMin) return `Needs at least ${definition.catalogMin} published releases with a release date.`;
+        break;
+      case "NAME_THAT_TRACK":
+        if (c.releasesWithTracks < definition.catalogMin) return `Needs at least ${definition.catalogMin} published releases with a tracklist.`;
+        break;
+      default:
+        if (c.releases < definition.catalogMin) return `Needs at least ${definition.catalogMin} published releases.`;
+    }
+    return null;
   }
 
-  if (GAME_REGISTRY[game.type as GameType].needsSecondaryArtwork) {
-    const secondary = game.secondaryArtwork;
-    if (!secondary)
-      return "The altered artwork for this game has not been chosen yet.";
+  const primary = resolveSubject(game, { requirePublished: false });
+  if (!primary) return "No release has been chosen for this game yet.";
+  if (!primary.published || primary.deletedAt) {
+    return "The release for this game is no longer published.";
+  }
+  if (game.type === "TRACKLIST_ORDER" && (game.release?._count.tracks ?? 0) < 3) {
+    return "The chosen release needs at least three tracks.";
+  }
+  if (game.type === "LYRIC_FILL" && (game.release?.tracks.length ?? 0) === 0) {
+    return "The chosen release has no track with lyrics yet.";
+  }
+
+  if (definition.needsSecondaryArtwork) {
+    const secondary = resolveSecondary(game, { requirePublished: false });
+    if (!secondary) return "The altered cover for this game has not been uploaded yet.";
     if (!secondary.published || secondary.deletedAt) {
-      return "The altered artwork for this game is no longer available.";
+      return "The altered image for this game is no longer available.";
     }
     if (readDifferences(game).length === 0) {
       return "No differences have been marked for this game yet.";
@@ -143,17 +217,21 @@ export function unavailableReason(game: GameWithArtworks): string | null {
 }
 
 function toPublicArtwork(
-  artwork: GameWithArtworks["artwork"]
+  artwork: GameSubjectRow | null
 ): PublicGameArtwork | null {
   if (!artwork || !artwork.published || artwork.deletedAt) return null;
   return { id: artwork.id, title: artwork.title, imageUrl: artwork.imageUrl };
 }
 
 function toAdminArtwork(
-  artwork: GameWithArtworks["artwork"]
+  artwork: GameSubjectRow | null
 ): PublicGameArtwork | null {
   if (!artwork) return null;
   return { id: artwork.id, title: artwork.title, imageUrl: artwork.imageUrl };
+}
+
+function toAdminRelease(release: GameWithArtworks["release"]): GameReleaseOption | null {
+  return release ? { id: release.id, title: release.title, coverImageUrl: release.coverImageUrl } : null;
 }
 
 /**
@@ -228,8 +306,8 @@ export async function buildPublicGames(
       rewardThreshold: game.rewardThreshold,
       rewardDescription: game.rewardDescription,
       rewardRequireEmail: game.rewardRequireEmail,
-      artwork: toPublicArtwork(game.artwork),
-      secondaryArtwork: toPublicArtwork(game.secondaryArtwork),
+      artwork: toPublicArtwork(resolveSubject(game)),
+      secondaryArtwork: toPublicArtwork(resolveSecondary(game)),
       topScores: game.leaderboardEnabled ? rows : [],
       bestScore: bestByGame.get(game.id) ?? null,
       unavailableReason: null,
@@ -305,6 +383,9 @@ export async function buildAdminGames(): Promise<AdminGameConfig[]> {
       difficulty: game.difficulty as Difficulty,
       artworkId: game.artworkId,
       secondaryArtworkId: game.secondaryArtworkId,
+      releaseId: game.releaseId,
+      secondaryImageUrl: game.secondaryImageUrl,
+      subject: definition.subject,
       timeLimitSec: game.timeLimitSec,
       scoreMultiplier: game.scoreMultiplier,
       leaderboardEnabled: game.leaderboardEnabled,
@@ -318,8 +399,9 @@ export async function buildAdminGames(): Promise<AdminGameConfig[]> {
       // Shown whatever its published state, unlike the public projection —
       // the admin needs to see the artwork they picked in order to understand
       // the warning that it has since been unpublished.
-      artwork: toAdminArtwork(game.artwork),
-      secondaryArtwork: toAdminArtwork(game.secondaryArtwork),
+      artwork: toAdminArtwork(resolveSubject(game, { requirePublished: false })),
+      secondaryArtwork: toAdminArtwork(resolveSecondary(game, { requirePublished: false })),
+      release: toAdminRelease(game.release),
       // Only meaningful for an enabled game: a game that is off is not
       // "broken", it is just off.
       unavailableReason: game.enabled ? unavailableReason(game) : null,

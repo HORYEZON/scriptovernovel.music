@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     const session = await prisma.miniGameSession.findUnique({
       where: { id: sessionId },
       include: {
-        game: { include: { artwork: { select: { title: true } } } },
+        game: { include: { artwork: { select: { title: true } }, release: { select: { title: true } } } },
         claim: true,
         entry: true,
       },
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
         score: session.score,
         threshold: game.rewardThreshold,
         reward,
-        artworkTitle: game.artwork?.title ?? null,
+        artworkTitle: game.release?.title ?? game.artwork?.title ?? null,
       },
       select: { id: true, createdAt: true },
     });
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
         score: session.score,
         threshold: game.rewardThreshold,
         reward,
-        artworkTitle: game.artwork?.title ?? null,
+        artworkTitle: game.release?.title ?? game.artwork?.title ?? null,
         occurredAt: claim.createdAt,
       }),
       notifyPlayerOfRewardClaim({

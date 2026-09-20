@@ -21,6 +21,10 @@ import { ArtMemoryCards } from "./games/ArtMemoryCards";
 import { ArtPuzzle } from "./games/ArtPuzzle";
 import { ArtSlidingPuzzle } from "./games/ArtSlidingPuzzle";
 import { FindTheDifference } from "./games/FindTheDifference";
+import { GuessTheCover } from "./games/GuessTheCover";
+import { NameThatTrack } from "./games/NameThatTrack";
+import { LyricFill } from "./games/LyricFill";
+import { OrderList } from "./games/OrderList";
 import { RotateAndSolve } from "./games/RotateAndSolve";
 
 interface GameSessionProps {
@@ -419,10 +423,45 @@ function GameCanvas({
 }) {
   const { challenge, artwork, secondaryArtwork } = session;
 
+  // The music games carry everything they need inside the challenge; only
+  // the image puzzles need the subject picture.
+  switch (challenge.kind) {
+    case "GUESS_THE_COVER":
+      return <GuessTheCover challenge={challenge} interactive={interactive} onProgress={onProgress} onComplete={onComplete} playMoveSound={playMoveSound} />;
+    case "NAME_THAT_TRACK":
+      return <NameThatTrack challenge={challenge} interactive={interactive} onProgress={onProgress} onComplete={onComplete} playMoveSound={playMoveSound} />;
+    case "LYRIC_FILL":
+      return <LyricFill challenge={challenge} interactive={interactive} onProgress={onProgress} onComplete={onComplete} playMoveSound={playMoveSound} />;
+    case "TRACKLIST_ORDER":
+      return (
+        <OrderList
+          items={challenge.titles.map((t, i) => ({ key: `${i}-${t}`, label: t }))}
+          order={challenge.order}
+          interactive={interactive}
+          onProgress={onProgress}
+          onComplete={(swaps) => onComplete({ kind: "TRACKLIST_ORDER", swaps })}
+          playMoveSound={playMoveSound}
+          hint={`${challenge.release.title} — tap two songs to swap them.`}
+        />
+      );
+    case "RELEASE_TIMELINE":
+      return (
+        <OrderList
+          items={challenge.options.map((o) => ({ key: o.id, label: o.title, imageUrl: o.coverImageUrl }))}
+          order={challenge.order}
+          interactive={interactive}
+          onProgress={onProgress}
+          onComplete={(swaps) => onComplete({ kind: "RELEASE_TIMELINE", swaps })}
+          playMoveSound={playMoveSound}
+          hint="Oldest at the top, newest at the bottom."
+        />
+      );
+  }
+
   if (!artwork) {
     return (
       <p className="font-body text-sm text-white/50 text-center py-12" role="alert">
-        The artwork for this game is unavailable.
+        The cover for this game is unavailable.
       </p>
     );
   }
@@ -476,7 +515,7 @@ function GameCanvas({
       if (!secondaryArtwork) {
         return (
           <p className="font-body text-sm text-white/50 text-center py-12" role="alert">
-            The altered artwork for this game is unavailable.
+            The altered cover for this game is unavailable.
           </p>
         );
       }

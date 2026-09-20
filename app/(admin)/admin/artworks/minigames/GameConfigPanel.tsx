@@ -33,6 +33,7 @@ import {
 } from "@/lib/minigames/types";
 import { GameIcon } from "@/components/public/minigames/GameIcon";
 import { ArtworkPicker } from "./ArtworkPicker";
+import { ImageField } from "@/app/(admin)/admin/site-design/fields";
 import { DifferenceEditor } from "./DifferenceEditor";
 import type { ArtworkOption } from "./MiniGamesClient";
 import { UnsavedChangesBar } from "@/components/admin/UnsavedChangesBar";
@@ -40,6 +41,7 @@ import { UnsavedChangesBar } from "@/components/admin/UnsavedChangesBar";
 interface GameConfigPanelProps {
   game: AdminGameConfig;
   artworks: ArtworkOption[];
+  releases: ArtworkOption[];
   onSaved: () => void;
 }
 
@@ -49,6 +51,8 @@ interface Draft {
   difficulty: Difficulty;
   artworkId: string | null;
   secondaryArtworkId: string | null;
+  releaseId: string | null;
+  secondaryImageUrl: string | null;
   timeLimitSec: number;
   scoreMultiplier: number;
   leaderboardEnabled: boolean;
@@ -66,6 +70,8 @@ function draftFrom(game: AdminGameConfig): Draft {
     difficulty: game.difficulty,
     artworkId: game.artworkId,
     secondaryArtworkId: game.secondaryArtworkId,
+    releaseId: game.releaseId,
+    secondaryImageUrl: game.secondaryImageUrl,
     timeLimitSec: game.timeLimitSec,
     scoreMultiplier: game.scoreMultiplier,
     leaderboardEnabled: game.leaderboardEnabled,
@@ -81,6 +87,7 @@ function draftFrom(game: AdminGameConfig): Draft {
 export function GameConfigPanel({
   game,
   artworks,
+  releases,
   onSaved,
 }: GameConfigPanelProps) {
   const initial = draftFrom(game);
@@ -93,14 +100,19 @@ export function GameConfigPanel({
   const update = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
 
-  const primaryArtwork =
+  const isCatalog = game.subject === "catalog";
+  // The subject: the picked release's cover, else (a game still configured
+  // the gallery way) the picked artwork.
+  const pickedRelease = releases.find((r) => r.id === draft.releaseId) ?? null;
+  const legacyArtwork =
     artworks.find((artwork) => artwork.id === draft.artworkId) ??
     (draft.artworkId === game.artworkId ? game.artwork : null);
-  const secondaryArtwork =
-    artworks.find((artwork) => artwork.id === draft.secondaryArtworkId) ??
-    (draft.secondaryArtworkId === game.secondaryArtworkId
-      ? game.secondaryArtwork
-      : null);
+  const primaryArtwork = pickedRelease ?? (draft.releaseId ? null : legacyArtwork);
+  // Find the Difference's altered image: an upload, else the legacy artwork.
+  const secondaryArtwork = draft.secondaryImageUrl
+    ? { id: "upload", title: "Altered cover", imageUrl: draft.secondaryImageUrl }
+    : artworks.find((artwork) => artwork.id === draft.secondaryArtworkId) ??
+      (draft.secondaryArtworkId === game.secondaryArtworkId ? game.secondaryArtwork : null);
 
   // Recomputed live from the same function the server scores with, so the
   // multiplier slider shows its real consequence rather than an estimate.
@@ -173,34 +185,52 @@ export function GameConfigPanel({
           </p>
         )}
 
-        {/* ── Artwork ── */}
+        {/* ── Subject ── */}
         <section className="space-y-3">
-          <SectionLabel>Artwork</SectionLabel>
-          <div
-            className={cn(
-              "grid gap-3",
-              game.needsSecondaryArtwork && "sm:grid-cols-2"
-            )}
-          >
-            <ArtworkSlot
-              label={game.needsSecondaryArtwork ? "Original image" : "Artwork"}
-              artwork={primaryArtwork}
-              onPick={() => setPicking("primary")}
-              onClear={() => update("artworkId", null)}
-            />
-            {game.needsSecondaryArtwork && (
-              <ArtworkSlot
-                label="Modified image"
-                artwork={secondaryArtwork}
-                onPick={() => setPicking("secondary")}
-                onClear={() => update("secondaryArtworkId", null)}
-              />
-            )}
-          </div>
-          <p className="font-body text-xs text-ink-400 dark:text-ink-300">
-            Games use the artwork you already manage under Artworks — nothing is
-            uploaded or duplicated here.
-          </p>
+          <SectionLabel>{isCatalog ? "Releases" : "Release"}</SectionLabel>
+          {isCatalog ? (
+            <p className="rounded-xl border border-black/10 px-3 py-2.5 font-body text-xs text-ink-500 dark:border-white/10 dark:text-ink-300">
+              Built from every <strong className="font-medium">published</strong> release under Music → Releases — nothing to pick here.
+              {game.type === "RELEASE_TIMELINE" && " Releases need a release date to take part."}
+              {game.type === "NAME_THAT_TRACK" && " Releases need a tracklist to take part."}
+            </p>
+          ) : (
+            <>
+              <div className={cn("grid gap-3", game.needsSecondaryArtwork && "sm:grid-cols-2")}>
+                <ArtworkSlot
+                  label={game.needsSecondaryArtwork ? "Cover" : "Release"}
+                  artwork={primaryArtwork}
+                  onPick={() => setPicking("primary")}
+                  onClear={() => {
+                    update("releaseId", null);
+                    update("artworkId", null);
+                  }}
+                />
+                {game.needsSecondaryArtwork && (
+                  <div>
+                    <ImageField
+                      label="Altered cover"
+                      value={draft.secondaryImageUrl}
+                      onChange={(url) => {
+                        update("secondaryImageUrl", url);
+                        if (url) update("secondaryArtworkId", null);
+                      }}
+                      aspect="aspect-square"
+                      hint="Upload a copy of the cover with a few things changed, then mark each change below."
+                    />
+                  </div>
+                )}
+              </div>
+              <p className="font-body text-xs text-ink-400 dark:text-ink-300">
+                {game.type === "LYRIC_FILL"
+                  ? "Uses this release's tracks that have lyrics (Music → Releases → track → Lyrics)."
+                  : game.type === "TRACKLIST_ORDER"
+                    ? "Uses this release's tracklist — it needs at least three tracks."
+                    : "The game is played on this release's cover."}
+                {!draft.releaseId && legacyArtwork && " Currently on a gallery artwork — pick a release to switch."}
+              </p>
+            </>
+          )}
         </section>
 
         {/* ── Difficulty ── */}
@@ -513,20 +543,12 @@ export function GameConfigPanel({
 
       {picking && (
         <ArtworkPicker
-          artworks={artworks}
-          title={
-            picking === "primary"
-              ? "Choose artwork"
-              : "Choose the modified image"
-          }
-          selectedId={
-            picking === "primary" ? draft.artworkId : draft.secondaryArtworkId
-          }
+          artworks={releases}
+          title="Choose a release"
+          selectedId={draft.releaseId}
           onSelect={(id) => {
-            update(
-              picking === "primary" ? "artworkId" : "secondaryArtworkId",
-              id
-            );
+            update("releaseId", id);
+            update("artworkId", null);
             setPicking(null);
           }}
           onClose={() => setPicking(null)}
@@ -628,7 +650,7 @@ function ArtworkSlot({
           className="w-full flex items-center justify-center gap-2 py-5 rounded-xl border border-dashed border-black/15 dark:border-white/15 text-ink-400 dark:text-ink-300 hover:border-sepia/50 hover:text-sepia transition-colors font-body text-sm"
         >
           <ImagePlus size={16} />
-          Select artwork
+          Select release
         </button>
       )}
     </div>

@@ -16,12 +16,17 @@ const PADDING = {
 export function GlassPanel({
   as: Tag = "div",
   padding = "card",
+  blur = true,
   className,
   children,
   ...rest
 }: {
   as?: ElementType;
   padding?: keyof typeof PADDING;
+  /** `backdrop-filter` makes the panel the containing block for any
+   *  `position: fixed` descendant — pass false for a panel that hosts a
+   *  full-screen overlay (the Mini Games launcher), or it gets clipped. */
+  blur?: boolean;
   className?: string;
   children: ReactNode;
 } & HTMLAttributes<HTMLElement>) {
@@ -31,7 +36,8 @@ export function GlassPanel({
     Tag,
     {
       className: cn(
-        "relative rounded-2xl border border-white/5 bg-black/30 shadow-2xl backdrop-blur-sm dark:bg-black/45",
+        "relative rounded-2xl border border-white/5 bg-black/30 shadow-2xl dark:bg-black/45",
+        blur && "backdrop-blur-sm",
         PADDING[padding],
         className
       ),

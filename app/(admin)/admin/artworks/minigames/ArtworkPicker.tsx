@@ -74,8 +74,8 @@ export function ArtworkPicker({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search artworks…"
-              aria-label="Search artworks"
+              placeholder="Search…"
+              aria-label="Search"
               className="w-full pl-9 pr-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
             />
           </div>
@@ -86,7 +86,7 @@ export function ArtworkPicker({
             <p className="font-body text-sm text-ink-400 dark:text-ink-300 text-center py-12">
               {artworks.length === 0
                 ? "No artworks yet — add one under Artworks first."
-                : "No artworks match that search."}
+                : "Nothing matches that search."}
             </p>
           ) : (
             <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

@@ -1,7 +1,6 @@
 // lib/minigames/registry.ts
 //
-// The one place a mini-game is declared. Adding a sixth game (ART_TRIVIA,
-// COLOR_MEMORY, …) means:
+// The one place a mini-game is declared. Adding a game means:
 //   1. add the value to enum MiniGameType in prisma/schema.prisma
 //   2. add it to GameType/GAME_TYPES in ./types.ts
 //   3. add an entry here (metadata + a preset per difficulty)
@@ -52,10 +51,21 @@ export interface GameDefinition {
   howToPlay: string;
   /** Key into GAME_ICONS in components/public/minigames/GameIcon.tsx. */
   icon: string;
-  /** True when the game needs a second (altered) artwork configured. */
+  /** True when the game needs a second (altered) image configured. */
   needsSecondaryArtwork: boolean;
+  /**
+   * What the game is built on: one release's cover ("release" — the admin
+   * picks it), or the whole published catalogue ("catalog" — no pick; the
+   * game needs `catalogMin` releases before it can be played).
+   */
+  subject: "release" | "catalog";
+  catalogMin: number;
   presets: Record<Difficulty, GamePreset>;
 }
+
+/** Music-game presets reuse the grid fields loosely: `grid` = options shown
+ *  (Guess the Cover, Name That Track) or blanks (Lyric Fill), `pairs` =
+ *  reveal stages (Guess the Cover) or items ordered (Timeline). */
 
 /**
  * Shared skeleton for the four grid puzzles — they differ only in grid size,
@@ -80,12 +90,14 @@ function preset(
 export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
   ART_PUZZLE: {
     type: "ART_PUZZLE",
-    name: "Art Puzzle",
-    description: "Reconstruct the artwork by arranging its scattered pieces.",
+    name: "Cover Puzzle",
+    description: "Reconstruct the record cover by arranging its scattered pieces.",
     howToPlay:
       "Tap or click one piece, then another, to swap them. Put every piece back where it belongs.",
     icon: "puzzle",
     needsSecondaryArtwork: false,
+    subject: "release",
+    catalogMin: 0,
     presets: {
       EASY: preset({
         grid: 3,
@@ -109,11 +121,13 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
     type: "ROTATE_SOLVE",
     name: "Rotate & Solve",
     description:
-      "Every tile has been turned. Spin them back until the artwork stands upright.",
+      "Every tile has been turned. Spin them back until the cover stands upright.",
     howToPlay:
-      "Tap a tile to rotate it 90°. The artwork is solved when every tile is upright.",
+      "Tap a tile to rotate it 90°. The cover is solved when every tile is upright.",
     icon: "rotate",
     needsSecondaryArtwork: false,
+    subject: "release",
+    catalogMin: 0,
     presets: {
       EASY: preset({
         grid: 3,
@@ -135,12 +149,14 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
 
   SLIDING_PUZZLE: {
     type: "SLIDING_PUZZLE",
-    name: "Art Sliding Puzzle",
-    description: "The classic sliding tile puzzle, played on a single artwork.",
+    name: "Sliding Cover",
+    description: "The classic sliding tile puzzle, played on a record cover.",
     howToPlay:
-      "Tap (or swipe) a tile next to the gap to slide it in. Rebuild the artwork with the gap back in the corner.",
+      "Tap (or swipe) a tile next to the gap to slide it in. Rebuild the cover with the gap back in the corner.",
     icon: "sliding",
     needsSecondaryArtwork: false,
+    subject: "release",
+    catalogMin: 0,
     presets: {
       // Grid stays 3×3 for the two lower difficulties — this is the classic
       // 8-puzzle; difficulty is how far the scrambler walks from solved.
@@ -166,15 +182,17 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
 
   MEMORY_CARDS: {
     type: "MEMORY_CARDS",
-    name: "Art Memory Cards",
+    name: "Cover Memory",
     // Faces are crops of the configured artwork rather than separate uploads,
     // which is what keeps every game on the same one-artwork configuration.
     description:
-      "Flip cards two at a time and match every detail of the artwork.",
+      "Flip cards two at a time and match every detail of the cover.",
     howToPlay:
       "Flip two cards a turn. Matching details stay face up; the rest flip back.",
     icon: "memory",
     needsSecondaryArtwork: false,
+    subject: "release",
+    catalogMin: 0,
     presets: {
       EASY: preset({
         grid: 3,
@@ -199,11 +217,13 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
   FIND_DIFFERENCE: {
     type: "FIND_DIFFERENCE",
     name: "Find the Difference",
-    description: "Two versions of one artwork. Spot everything that changed.",
+    description: "Two versions of one cover. Spot everything that changed.",
     howToPlay:
       "Compare the two images and click each difference you spot. Wrong guesses cost points.",
     icon: "difference",
     needsSecondaryArtwork: true,
+    subject: "release",
+    catalogMin: 0,
     presets: {
       EASY: preset({
         parSeconds: 90,
@@ -222,9 +242,95 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
       }),
     },
   },
+
+  GUESS_THE_COVER: {
+    type: "GUESS_THE_COVER",
+    name: "Guess the Cover",
+    description: "A record cover comes into focus a step at a time. Name it before it's sharp.",
+    howToPlay:
+      "The cover starts blurred. Reveal a little more each step, or guess early — fewer reveals, more points. Wrong guesses cost points.",
+    icon: "cover",
+    needsSecondaryArtwork: false,
+    subject: "catalog",
+    catalogMin: 4,
+    presets: {
+      EASY: preset({ grid: 3, pairs: 5, parSeconds: 30, timeWeight: 6, movePenalty: 60, baseScore: 500 }),
+      MEDIUM: preset({ grid: 4, pairs: 5, parSeconds: 25, timeWeight: 10, movePenalty: 90, baseScore: 1000 }),
+      HARD: preset({ grid: 6, pairs: 6, parSeconds: 20, timeWeight: 14, movePenalty: 120, baseScore: 1500 }),
+    },
+  },
+
+  NAME_THAT_TRACK: {
+    type: "NAME_THAT_TRACK",
+    name: "Name That Track",
+    description: "A song title — which record is it on?",
+    howToPlay: "Pick the cover the track belongs to. The round ends on the right answer; wrong picks cost points.",
+    icon: "track",
+    needsSecondaryArtwork: false,
+    subject: "catalog",
+    catalogMin: 2,
+    presets: {
+      EASY: preset({ grid: 3, parSeconds: 20, timeWeight: 8, movePenalty: 80, baseScore: 500 }),
+      MEDIUM: preset({ grid: 4, parSeconds: 15, timeWeight: 12, movePenalty: 120, baseScore: 1000 }),
+      HARD: preset({ grid: 6, parSeconds: 12, timeWeight: 16, movePenalty: 160, baseScore: 1500 }),
+    },
+  },
+
+  LYRIC_FILL: {
+    type: "LYRIC_FILL",
+    name: "Fill the Lyric",
+    description: "A few lines from a song with words missing. Put them back.",
+    howToPlay: "Drop the right word into each blank from the choices below, then check.",
+    icon: "lyric",
+    needsSecondaryArtwork: false,
+    subject: "release",
+    catalogMin: 0,
+    presets: {
+      EASY: preset({ grid: 2, parSeconds: 45, timeWeight: 6, movePenalty: 100, baseScore: 500 }),
+      MEDIUM: preset({ grid: 3, parSeconds: 40, timeWeight: 10, movePenalty: 150, baseScore: 1000 }),
+      HARD: preset({ grid: 4, parSeconds: 35, timeWeight: 14, movePenalty: 200, baseScore: 1500 }),
+    },
+  },
+
+  TRACKLIST_ORDER: {
+    type: "TRACKLIST_ORDER",
+    name: "Tracklist Order",
+    description: "The songs of a record, shuffled. Put them back in running order.",
+    howToPlay: "Tap two songs to swap them. Done when the tracklist runs the way the record does.",
+    icon: "tracklist",
+    needsSecondaryArtwork: false,
+    subject: "release",
+    catalogMin: 0,
+    presets: {
+      EASY: preset({ parSeconds: 60, timeWeight: 6, movePenalty: 15, baseScore: 500 }),
+      MEDIUM: preset({ parSeconds: 45, timeWeight: 10, movePenalty: 25, baseScore: 1000 }),
+      HARD: preset({ parSeconds: 35, timeWeight: 14, movePenalty: 35, baseScore: 1500 }),
+    },
+  },
+
+  RELEASE_TIMELINE: {
+    type: "RELEASE_TIMELINE",
+    name: "Release Timeline",
+    description: "The band's records, out of order. Line them up oldest to newest.",
+    howToPlay: "Tap two covers to swap them. Done when they run from the first release to the latest.",
+    icon: "timeline",
+    needsSecondaryArtwork: false,
+    subject: "catalog",
+    catalogMin: 4,
+    presets: {
+      EASY: preset({ pairs: 4, parSeconds: 45, timeWeight: 6, movePenalty: 15, baseScore: 500 }),
+      MEDIUM: preset({ pairs: 5, parSeconds: 40, timeWeight: 10, movePenalty: 25, baseScore: 1000 }),
+      HARD: preset({ pairs: 6, parSeconds: 35, timeWeight: 14, movePenalty: 35, baseScore: 1500 }),
+    },
+  },
 };
 
 export const GAME_DEFINITIONS: GameDefinition[] = [
+  GAME_REGISTRY.GUESS_THE_COVER,
+  GAME_REGISTRY.NAME_THAT_TRACK,
+  GAME_REGISTRY.LYRIC_FILL,
+  GAME_REGISTRY.TRACKLIST_ORDER,
+  GAME_REGISTRY.RELEASE_TIMELINE,
   GAME_REGISTRY.ART_PUZZLE,
   GAME_REGISTRY.ROTATE_SOLVE,
   GAME_REGISTRY.SLIDING_PUZZLE,
@@ -254,5 +360,15 @@ export function describePreset(type: GameType, difficulty: Difficulty): string {
       return `${p.pairs} pairs (${p.pairs * 2} cards)`;
     case "FIND_DIFFERENCE":
       return `${Math.round(p.hitTolerance * 100)}% click tolerance`;
+    case "GUESS_THE_COVER":
+      return `${p.grid} covers to choose from, ${p.pairs} reveal steps`;
+    case "NAME_THAT_TRACK":
+      return `${p.grid} covers to choose from`;
+    case "LYRIC_FILL":
+      return `${p.grid} missing word${p.grid === 1 ? "" : "s"}`;
+    case "TRACKLIST_ORDER":
+      return "the whole tracklist";
+    case "RELEASE_TIMELINE":
+      return `${p.pairs} releases to order`;
   }
 }

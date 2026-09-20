@@ -20,6 +20,13 @@ const PAR_MOVE_FACTOR: Record<GameType, number> = {
   SLIDING_PUZZLE: 2.2,
   MEMORY_CARDS: 1.8,
   FIND_DIFFERENCE: 1.5,
+  // Quiz games: par is exactly the right answer; every extra pick is a
+  // wrong one and is charged through wrongPicks instead.
+  GUESS_THE_COVER: 1,
+  NAME_THAT_TRACK: 1,
+  LYRIC_FILL: 1,
+  TRACKLIST_ORDER: 1.5,
+  RELEASE_TIMELINE: 1.5,
 };
 
 /**
@@ -34,6 +41,11 @@ const MIN_MS_PER_MOVE: Record<GameType, number> = {
   SLIDING_PUZZLE: 100,
   MEMORY_CARDS: 350,
   FIND_DIFFERENCE: 400,
+  GUESS_THE_COVER: 800,
+  NAME_THAT_TRACK: 800,
+  LYRIC_FILL: 600,
+  TRACKLIST_ORDER: 200,
+  RELEASE_TIMELINE: 200,
 };
 
 /** No round, however small, may be completed faster than this. */
@@ -77,10 +89,22 @@ export function computeScore(input: ScoreInput): ScoreResult {
     Math.max(0, input.moves - parMoves) * preset.movePenalty
   );
   const accuracyPenalty = Math.round(
-    (input.stats.wrongClicks ?? 0) * WRONG_CLICK_PENALTY
+    (input.stats.wrongClicks ?? 0) * WRONG_CLICK_PENALTY +
+      // Quiz games: each wrong pick costs the preset's movePenalty.
+      (input.stats.wrongPicks ?? 0) * preset.movePenalty
   );
 
-  const raw = preset.baseScore + timeBonus - movePenalty - accuracyPenalty;
+  // Guess the Cover: the base is worth less the more of the cover was
+  // revealed; Lyric Fill: the base scales with the share of blanks right.
+  let base = preset.baseScore;
+  if (input.stats.stages !== undefined && input.stats.stages > 0) {
+    base = Math.round(base * (1 - (input.stats.stageUsed ?? 0) / input.stats.stages));
+  }
+  if (input.stats.blanks !== undefined && input.stats.blanks > 0) {
+    base = Math.round(base * ((input.stats.correct ?? 0) / input.stats.blanks));
+  }
+
+  const raw = base + timeBonus - movePenalty - accuracyPenalty;
   const maxScore = maxPossibleScore(
     input.type,
     input.difficulty,

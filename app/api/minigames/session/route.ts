@@ -9,7 +9,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { MiniGameDifficulty, MiniGameType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createChallenge } from "@/lib/minigames/challenge";
+import { createChallenge, redactChallenge } from "@/lib/minigames/challenge";
+import { loadCatalog } from "@/lib/minigames/catalog";
+import { GAME_REGISTRY } from "@/lib/minigames/registry";
 import { ensurePlayerId } from "@/lib/minigames/player";
 import {
   clientIp,
@@ -20,6 +22,8 @@ import {
 import {
   getGame,
   readDifferences,
+  resolveSecondary,
+  resolveSubject,
   unavailableReason,
 } from "@/lib/minigames/server";
 import { isGameType } from "@/lib/minigames/registry";
@@ -70,11 +74,23 @@ export async function POST(request: NextRequest) {
 
     const playerId = await ensurePlayerId();
     const difficulty = game.difficulty as Difficulty;
+    // Music games draw on the release catalogue — read once per round.
+    const definition = GAME_REGISTRY[type];
+    const needsCatalog = definition.subject === "catalog" || type === "LYRIC_FILL" || type === "TRACKLIST_ORDER";
+    const catalog = needsCatalog ? await loadCatalog() : undefined;
+    const release = catalog && game.releaseId ? catalog.find((r) => r.id === game.releaseId) ?? null : null;
+    if ((type === "LYRIC_FILL" || type === "TRACKLIST_ORDER") && !release) {
+      return NextResponse.json({ error: "The release for this game is not available." }, { status: 409 });
+    }
     const challenge = createChallenge({
       type,
       difficulty,
       regions: readDifferences(game),
+      catalog,
+      release,
     });
+    const subject = resolveSubject(game);
+    const secondary = resolveSecondary(game);
 
     const now = Date.now();
     const ttlMs =
@@ -103,21 +119,10 @@ export async function POST(request: NextRequest) {
       difficulty,
       timeLimitSec: game.timeLimitSec,
       expiresAt: session.expiresAt.toISOString(),
-      challenge,
-      artwork: game.artwork
-        ? {
-            id: game.artwork.id,
-            title: game.artwork.title,
-            imageUrl: game.artwork.imageUrl,
-          }
-        : null,
-      secondaryArtwork: game.secondaryArtwork
-        ? {
-            id: game.secondaryArtwork.id,
-            title: game.secondaryArtwork.title,
-            imageUrl: game.secondaryArtwork.imageUrl,
-          }
-        : null,
+      // The browser's copy never carries a quiz's answer key.
+      challenge: redactChallenge(challenge),
+      artwork: subject ? { id: subject.id, title: subject.title, imageUrl: subject.imageUrl } : null,
+      secondaryArtwork: secondary ? { id: secondary.id, title: secondary.title, imageUrl: secondary.imageUrl } : null,
     };
 
     return NextResponse.json(payload, { status: 201 });

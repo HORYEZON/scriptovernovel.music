@@ -16,7 +16,12 @@ export type GameType =
   | "ROTATE_SOLVE"
   | "SLIDING_PUZZLE"
   | "MEMORY_CARDS"
-  | "FIND_DIFFERENCE";
+  | "FIND_DIFFERENCE"
+  | "GUESS_THE_COVER"
+  | "TRACKLIST_ORDER"
+  | "LYRIC_FILL"
+  | "NAME_THAT_TRACK"
+  | "RELEASE_TIMELINE";
 
 export const GAME_TYPES: GameType[] = [
   "ART_PUZZLE",
@@ -24,7 +29,23 @@ export const GAME_TYPES: GameType[] = [
   "SLIDING_PUZZLE",
   "MEMORY_CARDS",
   "FIND_DIFFERENCE",
+  "GUESS_THE_COVER",
+  "TRACKLIST_ORDER",
+  "LYRIC_FILL",
+  "NAME_THAT_TRACK",
+  "RELEASE_TIMELINE",
 ];
+
+/**
+ * A release as the music games see it — the same shape the catalog games'
+ * options carry to the browser. `year` rather than a full date so Release
+ * Timeline can't be solved by reading the payload.
+ */
+export interface GameReleaseOption {
+  id: string;
+  title: string;
+  coverImageUrl: string;
+}
 
 export type Difficulty = "EASY" | "MEDIUM" | "HARD";
 
@@ -101,12 +122,74 @@ export interface FindDifferenceChallenge {
   regions: DifferenceRegion[];
 }
 
+// ── Music games ────────────────────────────────────────────────────────
+//
+// Unlike the spatial puzzles above, these have an *answer* the browser must
+// not see. Fields marked "server only" are stripped by redactChallenge()
+// (challenge.ts) before the challenge leaves the session route; the stored
+// row keeps them for verification. They are typed optional for that reason.
+
+export interface GuessTheCoverChallenge {
+  kind: "GUESS_THE_COVER";
+  /** The cover being revealed, blurred in `stages` steps. */
+  coverImageUrl: string;
+  options: GameReleaseOption[];
+  /** How many reveal steps the visitor may take before guessing. */
+  stages: number;
+  /** Server only. */
+  answerId?: string;
+}
+
+export interface TracklistOrderChallenge {
+  kind: "TRACKLIST_ORDER";
+  release: GameReleaseOption;
+  /** Track titles in the shuffled order shown; slot i holds `order[i]`. */
+  titles: string[];
+  /** order[slot] = index of the track sitting in that slot (0 = first on the record). */
+  order: number[];
+}
+
+export interface LyricFillChallenge {
+  kind: "LYRIC_FILL";
+  release: GameReleaseOption;
+  trackTitle: string;
+  /** The lines shown, with each blanked word replaced by "____". */
+  lines: string[];
+  /** Word choices, blanks' answers shuffled in with decoys. */
+  choices: string[];
+  /** How many blanks there are — the visitor submits this many answers, in order. */
+  blanks: number;
+  /** Server only: the right word for each blank, in order. */
+  answers?: string[];
+}
+
+export interface NameThatTrackChallenge {
+  kind: "NAME_THAT_TRACK";
+  trackTitle: string;
+  options: GameReleaseOption[];
+  /** Server only. */
+  answerId?: string;
+}
+
+export interface ReleaseTimelineChallenge {
+  kind: "RELEASE_TIMELINE";
+  /** Releases in the shuffled order shown; slot i holds `order[i]`. */
+  options: GameReleaseOption[];
+  /** order[slot] = chronological index (0 = earliest) of the release in that slot. */
+  order: number[];
+}
+
 export type GameChallenge =
   | ArtPuzzleChallenge
   | RotateSolveChallenge
   | SlidingPuzzleChallenge
   | MemoryCardsChallenge
-  | FindDifferenceChallenge;
+  | FindDifferenceChallenge
+  | GuessTheCoverChallenge
+  | TracklistOrderChallenge
+  | LyricFillChallenge
+  | NameThatTrackChallenge
+  | ReleaseTimelineChallenge;
 
 // ── Move logs: client-submitted, replayed server-side ───────────────────
 
@@ -140,12 +223,46 @@ export interface FindDifferenceMoves {
   clicks: { x: number; y: number }[];
 }
 
+export interface GuessTheCoverMoves {
+  kind: "GUESS_THE_COVER";
+  /** Every guess, with the reveal stage (0-based) it was made at. */
+  picks: { stage: number; releaseId: string }[];
+}
+
+export interface TracklistOrderMoves {
+  kind: "TRACKLIST_ORDER";
+  /** Each entry swaps the contents of two slots. */
+  swaps: [number, number][];
+}
+
+export interface LyricFillMoves {
+  kind: "LYRIC_FILL";
+  /** One chosen word per blank, in order. */
+  answers: string[];
+}
+
+export interface NameThatTrackMoves {
+  kind: "NAME_THAT_TRACK";
+  /** Every guess, in order — the round ends on the right one. */
+  picks: string[];
+}
+
+export interface ReleaseTimelineMoves {
+  kind: "RELEASE_TIMELINE";
+  swaps: [number, number][];
+}
+
 export type GameMoves =
   | ArtPuzzleMoves
   | RotateSolveMoves
   | SlidingPuzzleMoves
   | MemoryCardsMoves
-  | FindDifferenceMoves;
+  | FindDifferenceMoves
+  | GuessTheCoverMoves
+  | TracklistOrderMoves
+  | LyricFillMoves
+  | NameThatTrackMoves
+  | ReleaseTimelineMoves;
 
 /** Outcome of replaying a move log against a stored challenge. */
 export interface VerificationResult {
@@ -184,11 +301,18 @@ export interface PublicGame {
   unavailableReason: string | null;
 }
 
-export interface PublicGameArtwork {
+/**
+ * The game's subject as the browser sees it: a release cover today, an
+ * artwork for a game still configured on one. Still called `artwork` on the
+ * payloads so the Digital Museum's Arcade Room (which reads
+ * `game.artwork?.imageUrl` for its cabinet screens) keeps working untouched.
+ */
+export interface GameSubject {
   id: string;
   title: string;
   imageUrl: string;
 }
+export type PublicGameArtwork = GameSubject;
 
 export interface PublicLeaderboardRow {
   id: string;
@@ -214,6 +338,12 @@ export interface AdminGameConfig {
   difficulty: Difficulty;
   artworkId: string | null;
   secondaryArtworkId: string | null;
+  /** The release whose cover the game is built on (the current subject). */
+  releaseId: string | null;
+  /** Find the Difference's uploaded altered cover. */
+  secondaryImageUrl: string | null;
+  /** "release": one release's cover; "catalog": every published release. */
+  subject: "release" | "catalog";
   timeLimitSec: number;
   scoreMultiplier: number;
   leaderboardEnabled: boolean;
@@ -226,6 +356,8 @@ export interface AdminGameConfig {
 
   artwork: PublicGameArtwork | null;
   secondaryArtwork: PublicGameArtwork | null;
+  /** The release picked for this game, whatever its published state. */
+  release: GameReleaseOption | null;
   /** Set when the game is enabled but cannot actually be played. */
   unavailableReason: string | null;
   stats: AdminGameStats;

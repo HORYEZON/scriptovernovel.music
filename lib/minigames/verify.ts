@@ -25,7 +25,34 @@ const MOVE_LIMITS: Record<GameMoves["kind"], number> = {
   SLIDING_PUZZLE: 5000,
   MEMORY_CARDS: 1000,
   FIND_DIFFERENCE: 300,
+  GUESS_THE_COVER: 20,
+  TRACKLIST_ORDER: 500,
+  LYRIC_FILL: 20,
+  NAME_THAT_TRACK: 20,
+  RELEASE_TIMELINE: 500,
 };
+
+/** Case-, accent- and punctuation-insensitive word match for Lyric Fill. */
+function sameWord(a: string, b: string): boolean {
+  const norm = (w: string) => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+  return norm(a) === norm(b);
+}
+
+/** Replay swaps over a shuffled `order` and report whether it ended sorted. */
+function replaySwaps(order: number[], swaps: unknown, limit: number, kindLabel: string): VerificationResult {
+  if (!Array.isArray(swaps)) return fail("Malformed result.");
+  if (swaps.length > limit) return fail("Too many moves submitted.");
+  const board = [...order];
+  const minMoves = minimumSwaps(order);
+  for (const swap of swaps) {
+    if (!Array.isArray(swap) || swap.length !== 2) return fail("Malformed move.");
+    const [a, b] = swap;
+    if (!isSlot(a, board.length) || !isSlot(b, board.length) || a === b) return fail("Invalid move.");
+    [board[a], board[b]] = [board[b], board[a]];
+  }
+  if (!board.every((v, i) => v === i)) return fail(`The ${kindLabel} isn't in order yet.`);
+  return { ok: true, moves: swaps.length, stats: { minMoves } };
+}
 
 function fail(reason: string): VerificationResult {
   return { ok: false, reason, moves: 0, stats: {} };
@@ -198,6 +225,57 @@ export function verifySolution(
         },
       };
     }
+
+    case "GUESS_THE_COVER": {
+      const picks = (moves as { picks: unknown }).picks;
+      if (!Array.isArray(picks)) return fail("Malformed result.");
+      if (picks.length === 0) return fail("No guess was made.");
+      if (picks.length > MOVE_LIMITS.GUESS_THE_COVER) return fail("Too many moves submitted.");
+      const optionIds = new Set(challenge.options.map((o) => o.id));
+      let stage = 0;
+      for (const pick of picks) {
+        if (!pick || typeof pick !== "object") return fail("Malformed move.");
+        const { stage: s, releaseId } = pick as { stage: unknown; releaseId: unknown };
+        if (!Number.isInteger(s) || (s as number) < stage || (s as number) >= challenge.stages) return fail("Invalid move.");
+        if (typeof releaseId !== "string" || !optionIds.has(releaseId)) return fail("Invalid move.");
+        stage = s as number;
+      }
+      const last = picks[picks.length - 1] as { stage: number; releaseId: string };
+      if (last.releaseId !== challenge.answerId) return fail("That wasn't the right cover.");
+      // Every guess before the last was wrong (the round ends on a right one).
+      return { ok: true, moves: picks.length, stats: { minMoves: 1, wrongPicks: picks.length - 1, stageUsed: last.stage, stages: challenge.stages } };
+    }
+
+    case "NAME_THAT_TRACK": {
+      const picks = (moves as { picks: unknown }).picks;
+      if (!Array.isArray(picks) || picks.length === 0) return fail("No guess was made.");
+      if (picks.length > MOVE_LIMITS.NAME_THAT_TRACK) return fail("Too many moves submitted.");
+      const optionIds = new Set(challenge.options.map((o) => o.id));
+      for (const pick of picks) if (typeof pick !== "string" || !optionIds.has(pick)) return fail("Invalid move.");
+      if (picks[picks.length - 1] !== challenge.answerId) return fail("That wasn't the right record.");
+      return { ok: true, moves: picks.length, stats: { minMoves: 1, wrongPicks: picks.length - 1 } };
+    }
+
+    case "LYRIC_FILL": {
+      const answers = (moves as { answers: unknown }).answers;
+      if (!Array.isArray(answers)) return fail("Malformed result.");
+      if (answers.length > MOVE_LIMITS.LYRIC_FILL) return fail("Too many moves submitted.");
+      const key = challenge.answers ?? [];
+      if (answers.length !== key.length) return fail("Fill every blank before checking.");
+      let correct = 0;
+      for (let i = 0; i < key.length; i++) {
+        if (typeof answers[i] !== "string") return fail("Malformed move.");
+        if (sameWord(answers[i] as string, key[i])) correct += 1;
+      }
+      if (correct === 0) return fail("None of the words were right.");
+      return { ok: true, moves: key.length, stats: { minMoves: key.length, correct, blanks: key.length } };
+    }
+
+    case "TRACKLIST_ORDER":
+      return replaySwaps(challenge.order, (moves as { swaps: unknown }).swaps, MOVE_LIMITS.TRACKLIST_ORDER, "tracklist");
+
+    case "RELEASE_TIMELINE":
+      return replaySwaps(challenge.order, (moves as { swaps: unknown }).swaps, MOVE_LIMITS.RELEASE_TIMELINE, "timeline");
   }
 }
 

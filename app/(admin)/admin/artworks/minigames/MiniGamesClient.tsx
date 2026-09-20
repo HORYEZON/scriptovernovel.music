@@ -22,6 +22,8 @@ export interface ArtworkOption {
 interface MiniGamesClientProps {
   initialGames: AdminGameConfig[];
   artworks: ArtworkOption[];
+  /** Releases, shaped like ArtworkOption (imageUrl = cover) for the picker. */
+  releases: ArtworkOption[];
 }
 
 type Tab = "games" | "leaderboard" | "rewards";
@@ -43,6 +45,7 @@ const TABS: { id: Tab; label: string; icon: typeof Gamepad2 }[] = [
 export function MiniGamesClient({
   initialGames,
   artworks,
+  releases,
 }: MiniGamesClientProps) {
   const [games, setGames] = useState<AdminGameConfig[]>(initialGames);
   const [tab, setTab] = useState<Tab>("games");
@@ -204,6 +207,7 @@ export function MiniGamesClient({
               key={selectedGame.type}
               game={selectedGame}
               artworks={artworks}
+              releases={releases}
               onSaved={reload}
             />
           ) : (

@@ -185,3 +185,27 @@ not a release of its own.
   sortOrder and `artworkId` becomes optional (migration
   `20260920190000_merch_products`); `scripts/backfill-products-from-artwork.ts`
   copied the existing artwork-backed products' names and pictures across
+
+---
+
+## September 20, 2026 — v0.7
+
+### Admin Side
+
+- **Minigames are built on releases**: each game picks a release (its cover
+  is the puzzle); Find the Difference takes an uploaded altered cover. Three
+  new games draw on the whole catalogue and need nothing picked — the panel
+  says what they need (e.g. four published releases)
+
+### Public Side
+
+- **Five music games**: Guess the Cover (a cover sharpens step by step —
+  guess early for more points), Name That Track, Fill the Lyric, Tracklist
+  Order and Release Timeline. The five picture puzzles play on record covers
+  now. Quiz answers never reach the browser — the server judges every round
+- Fixed: the games overlay was being clipped to the homepage's Arcade block
+
+### Infra / DB
+
+- `MiniGame.releaseId` + `secondaryImageUrl`, five new `MiniGameType` values
+  (migration `20260920200000_music_minigames`)
