@@ -53,6 +53,7 @@ import {
   LayoutTemplate,
   Disc3,
   Clapperboard,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { SafeImg } from "@/components/ui/SafeImage";
@@ -215,6 +216,13 @@ const ADMIN_PAGES: AdminPage[] = [
     href: "/admin/about",
     icon: User,
     keywords: "about artist bio profile",
+    group: "Site",
+  },
+  {
+    label: "Band Members",
+    href: "/admin/band-members",
+    icon: Users,
+    keywords: "band members lineup who plays roles vocals guitar drums bass",
     group: "Site",
   },
   {

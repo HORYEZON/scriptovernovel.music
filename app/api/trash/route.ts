@@ -25,6 +25,7 @@ export async function GET() {
       releaseNotes,
       releases,
       videos,
+      bandMembers,
     ] =
       await Promise.all([
         prisma.announcement.findMany({
@@ -113,6 +114,7 @@ export async function GET() {
           include: { release: { select: { id: true, title: true } } },
           orderBy: { deletedAt: "desc" },
         }),
+        prisma.bandMember.findMany({ where: { deletedAt: { not: null } }, orderBy: { deletedAt: "desc" } }),
       ]);
 
     return NextResponse.json({
@@ -131,6 +133,7 @@ export async function GET() {
       releaseNotes,
       releases,
       videos,
+      bandMembers,
     });
   } catch {
     return NextResponse.json({ error: "Failed to fetch trash" }, { status: 500 });

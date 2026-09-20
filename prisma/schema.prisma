@@ -660,6 +660,25 @@ model Video {
   @@index([releaseId])
 }
 
+// One member of the band, as the About page's members grid shows them:
+// name, what they play, a photo, a line or two. Same conventions as the
+// other band-site models — published / sortOrder / soft delete.
+model BandMember {
+  id        String    @id @default(cuid())
+  name      String
+  role      String
+  photoUrl  String?
+  blurb     String?
+  published Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([published, sortOrder])
+  @@index([deletedAt])
+}
+
 enum VideoKind {
   MUSIC_VIDEO
   LIVE

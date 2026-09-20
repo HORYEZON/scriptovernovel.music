@@ -305,6 +305,20 @@ export const openApiSpec: OpenAPIV3.Document = {
           updatedAt: { type: "string", format: "date-time" },
         },
       },
+      BandMember: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          role: { type: "string", description: "What they play." },
+          photoUrl: { type: "string", nullable: true },
+          blurb: { type: "string", nullable: true },
+          published: { type: "boolean" },
+          sortOrder: { type: "integer" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
       Video: {
         type: "object",
         properties: {
@@ -1646,6 +1660,47 @@ export const openApiSpec: OpenAPIV3.Document = {
       delete: {
         tags: ["Releases"],
         summary: "Move a release to Trash",
+        security: adminSecurity,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": SuccessResponse, "401": ErrorResponse },
+      },
+    },
+    "/band-members": {
+      get: {
+        tags: ["Band Members"],
+        summary: "List live band members (admin)",
+        security: adminSecurity,
+        responses: { "200": { description: "Members", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/BandMember" } } } } }, "401": ErrorResponse },
+      },
+      post: {
+        tags: ["Band Members"],
+        summary: "Add a band member",
+        security: adminSecurity,
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["name", "role"], properties: { name: { type: "string" }, role: { type: "string" }, photoUrl: { type: "string", nullable: true }, blurb: { type: "string", nullable: true }, published: { type: "boolean" } } } } } },
+        responses: { "201": { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/BandMember" } } } }, "400": ErrorResponse, "401": ErrorResponse },
+      },
+    },
+    "/band-members/reorder": {
+      put: {
+        tags: ["Band Members"],
+        summary: "Reorder band members",
+        security: adminSecurity,
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { order: { type: "array", items: { type: "object", properties: { id: { type: "string" }, sortOrder: { type: "integer" } } } } } } } } },
+        responses: { "200": { description: "Members in new order" }, "400": ErrorResponse, "401": ErrorResponse },
+      },
+    },
+    "/band-members/{id}": {
+      patch: {
+        tags: ["Band Members"],
+        summary: "Update a band member (partial)",
+        security: adminSecurity,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: { content: { "application/json": { schema: { type: "object" } } } },
+        responses: { "200": { description: "Updated", content: { "application/json": { schema: { $ref: "#/components/schemas/BandMember" } } } }, "400": ErrorResponse, "401": ErrorResponse, "404": ErrorResponse },
+      },
+      delete: {
+        tags: ["Band Members"],
+        summary: "Move a band member to Trash",
         security: adminSecurity,
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
         responses: { "200": SuccessResponse, "401": ErrorResponse },
@@ -4182,6 +4237,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Orders", description: "Customer orders (admin + public lookup)" },
     { name: "Releases", description: "The band's singles, EPs and albums — covers, tracklists, lyrics, streaming links" },
     { name: "Videos", description: "YouTube videos on the Videos page — music videos, live, behind the scenes" },
+    { name: "Band Members", description: "Who's in the band — the About page's members grid" },
     { name: "Checkout", description: "PayMongo checkout session and webhook" },
     { name: "Announcements", description: "Timed site announcements" },
     { name: "Marquees", description: "Scrolling marquee announcements" },

@@ -14,9 +14,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 4. [Preferences — Site Background Effects](#4-preferences--site-background-effects)
 5. [Releases (Music page)](#5-releases-music-page)
 6. [Videos](#6-videos)
-7. [Homepage](#7-homepage)
-8. [Glossary — Confusing Terms Explained](#8-glossary--confusing-terms-explained)
-9. [Quick Troubleshooting](#9-quick-troubleshooting)
+7. [About & Band Members](#7-about--band-members)
+8. [Homepage](#8-homepage)
+9. [Glossary — Confusing Terms Explained](#9-glossary--confusing-terms-explained)
+10. [Quick Troubleshooting](#10-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -141,7 +142,27 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 7. Homepage
+## 7. About & Band Members
+
+**What this is for:** the public **About** page — the band's story, who's in it, photos, and every show you've played (with the map).
+
+### 7.1 The band's story (About)
+
+**About** (sidebar → Band) is the old profile form with band labels: **Band Name**, **Tagline** (the line under the name on About and the homepage hero), **Bio** (paragraphs separated by a blank line), **Based in**, **Playing since**, **Email** (shown as "Booking & press"). **Genres / Tags** are the chips under the bio *and* the genre line on the homepage hero. **Band Photos** (Media tab, up to 5) are the photo grid on About — the first one is also the About hero backdrop.
+
+### 7.2 Members
+
+1. **Band Members → Add member.**
+2. Upload a **Photo** (portrait), **Name**, **Role** (what they play), an optional **Blurb**.
+3. **Add member**. Drag order with ↑ ↓; **Shown / Hidden** pill; 🗑 to Trash (Trash → Band).
+
+### 7.3 Shows
+
+**Shows / Events** is unchanged — every enabled event shows on About under **Shows**: upcoming ones first, then past ones by year, with the map under them. The next three upcoming also appear on the homepage.
+
+---
+
+## 8. Homepage
 
 **What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
 
@@ -157,7 +178,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 8. Glossary — Confusing Terms Explained
+## 9. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -167,7 +188,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 9. Quick Troubleshooting
+## 10. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

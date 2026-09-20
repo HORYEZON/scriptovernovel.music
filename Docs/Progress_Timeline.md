@@ -134,3 +134,26 @@ not a release of its own.
 ### Infra / DB
 
 - New table `Video` (migration `20260920170000_videos`)
+
+---
+
+## September 20, 2026 — v0.5
+
+### Admin Side
+
+- **Band Members** (sidebar → Band): photo, name, role, blurb; show/hide,
+  reorder, trash
+- **About** form relabelled for a band — Band Name, Tagline, Playing since,
+  Genres / Tags, Band Photos, Booking (the fields are the same, only the
+  words changed)
+
+### Public Side
+
+- **About page rebuilt**: a hazy hero over the first band photo, the story
+  with genres and a Book us button, the members grid, the band photos (tap
+  to open), and **Shows** — upcoming first, then past shows by year, with the
+  map under them. Awards stay as an optional block
+
+### Infra / DB
+
+- New table `BandMember` (migration `20260920180000_band_members`)

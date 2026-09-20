@@ -33,7 +33,8 @@ export type TrashType =
   | "freedom-wall-events"
   | "release-notes"
   | "releases"
-  | "videos";
+  | "videos"
+  | "band-members";
 
 export const TRASH_TYPES: TrashType[] = [
   "announcements",
@@ -51,6 +52,7 @@ export const TRASH_TYPES: TrashType[] = [
   "release-notes",
   "releases",
   "videos",
+  "band-members",
 ];
 
 export function isTrashType(value: string): value is TrashType {
@@ -80,6 +82,7 @@ export async function listTrashedIds(type: TrashType): Promise<string[]> {
       case "release-notes": return prisma.releaseNote.findMany(opts);
       case "releases": return prisma.release.findMany(opts);
       case "videos": return prisma.video.findMany(opts);
+      case "band-members": return prisma.bandMember.findMany(opts);
     }
   })();
   return rows.map((r) => r.id);
@@ -112,6 +115,7 @@ const REVALIDATE_PATHS: Record<TrashType, string[]> = {
   "release-notes": ["/admin/settings/release-notes"],
   releases: ["/admin/releases", "/music"],
   videos: ["/admin/videos", "/videos"],
+  "band-members": ["/admin/band-members", "/about"],
 };
 
 /** Invalidate everything one type's rows show up on, plus the shell and the
@@ -202,6 +206,9 @@ export async function restoreTrashItem(type: TrashType, id: string): Promise<voi
         break;
       case "videos":
         await prisma.video.update({ where: { id }, data: { deletedAt: null } });
+        break;
+      case "band-members":
+        await prisma.bandMember.update({ where: { id }, data: { deletedAt: null } });
         break;
   }
 }
@@ -357,5 +364,11 @@ export async function purgeTrashItem(type: TrashType, id: string): Promise<void>
         // A YouTube link — nothing of ours in storage.
         await prisma.video.delete({ where: { id } });
         break;
+      case "band-members": {
+        const member = await prisma.bandMember.findUnique({ where: { id }, select: { photoUrl: true } });
+        await prisma.bandMember.delete({ where: { id } });
+        if (member?.photoUrl) deleteArtworkImage(member.photoUrl).catch(() => {});
+        break;
+      }
   }
 }

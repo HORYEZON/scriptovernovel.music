@@ -1414,7 +1414,7 @@ export function AboutClient({
                   </p>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">Display Name</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">Band Name</label>
                     <input
                       type="text"
                       value={form.displayName}
@@ -1422,7 +1422,7 @@ export function AboutClient({
                         setForm({ ...form, displayName: e.target.value })
                       }
                       className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
-                      placeholder="Kyla Marie Zuñiga"
+                      placeholder="ScriptOverNovel"
                     />
                     <p className="font-body text-xs text-ink-400 dark:text-ink-300 mt-1">
                       Name shown below the profile photo on the About page.
@@ -1430,7 +1430,7 @@ export function AboutClient({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">Headline / Title</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">Tagline</label>
                     <input
                       type="text"
                       value={form.headline}
@@ -1438,7 +1438,7 @@ export function AboutClient({
                         setForm({ ...form, headline: e.target.value })
                       }
                       className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
-                      placeholder="House of Arts"
+                      placeholder="Where every melody remembers something"
                     />
                   </div>
 
@@ -1456,7 +1456,7 @@ export function AboutClient({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">Experience</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">Playing since</label>
                       <input
                         type="text"
                         value={form.experience}
@@ -1491,7 +1491,7 @@ export function AboutClient({
                         setForm({ ...form, bio: e.target.value })
                       }
                       className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm resize-y"
-                      placeholder="Write your artist bio here. Separate paragraphs with a blank line."
+                      placeholder="The band's story. Separate paragraphs with a blank line."
                     />
                     <p className="font-body text-xs text-ink-400 dark:text-ink-300 mt-1">
                       {form.bio.length} characters. Use double line breaks for
@@ -1590,14 +1590,14 @@ export function AboutClient({
               <div className="space-y-5">
                 <div className="admin-card border rounded-2xl backdrop-blur-md shadow-sm p-4 sm:p-6 space-y-6">
                   <p className="font-body text-xs tracking-widest uppercase text-ink-400 dark:text-ink-300 border-b border-black/10 dark:border-white/10 pb-4">
-                    Profile Images
+                    Band Photos
                   </p>
 
                   {/* Profile Images */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300">
-                        Profile Images
+                        Band Photos
                         <span className="font-body text-[10px] normal-case tracking-normal text-ink-400 dark:text-ink-300 ml-1.5">
                           (up to {MAX_PROFILE_IMAGES})
                         </span>
@@ -2368,7 +2368,7 @@ export function AboutClient({
                   <div className="space-y-3 pt-2 border-t border-black/10 dark:border-white/10">
                     <div>
                       <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
-                        Commission Inquiries Heading
+                        Booking Heading
                       </label>
                       <input
                         type="text"
@@ -2380,11 +2380,11 @@ export function AboutClient({
                           })
                         }
                         className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
-                        placeholder="Commission Inquiries"
+                        placeholder="Booking"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">Commission Inquiries Text</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">Booking Text</label>
                       <textarea
                         rows={3}
                         value={form.commissionIntro}
@@ -2392,7 +2392,7 @@ export function AboutClient({
                           setForm({ ...form, commissionIntro: e.target.value })
                         }
                         className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm resize-y"
-                        placeholder="Commission turnaround is typically 1-2 weeks depending on size and complexity. All commissions include a preliminary sketch and progress updates."
+                        placeholder="For gigs, festivals and private shows, tell us the date, the venue and the set length you have in mind."
                       />
                     </div>
                   </div>
@@ -2403,7 +2403,7 @@ export function AboutClient({
 
                 {/* Artist Skills */}
                 <AdminAccordion
-                  title="Artist Skills"
+                  title="Genres / Tags"
                   icon={<Sparkles size={14} />}
                   badge={artistSkills.length}
                   open={linkSections.open.skills}
@@ -2676,7 +2676,7 @@ export function AboutClient({
                     ) : (
                       <>
                         <Save size={16} />
-                        Save Artist Skills
+                        Save Genres / Tags
                       </>
                     )}
                   </button>

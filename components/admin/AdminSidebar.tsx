@@ -34,6 +34,7 @@ import {
   LayoutTemplate,
   Disc3,
   Clapperboard,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -133,6 +134,7 @@ const NAV: NavEntry[] = [
     icon: CircleUser,
     children: [
       { href: "/admin/about", label: "About", icon: User },
+      { href: "/admin/band-members", label: "Band Members", icon: Users },
       { href: "/admin/events", label: "Shows / Events", icon: MapPin },
     ],
   },
