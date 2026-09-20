@@ -25,15 +25,17 @@ export function Footer({
           {/* Brand */}
           <div>
             <FooterWordmark icon={footerIcon} />
+            {/* "Ambience" is the unmarked door to the admin — same trick as
+                kalamari's "Calamares". */}
             <p className="mt-4 font-body text-sm text-ink-300 leading-relaxed max-w-xs">
-              The only squid here is the flexibility. &apos;Di po ako nag-ooffer ng{" "}
+              We make{" "}
               <Link
                 href="/admin/dashboard"
                 className="hover:text-ink-100 hover:underline transition-colors cursor-pointer"
               >
-                Calamares
-              </Link>
-              .
+                Ambience
+              </Link>{" "}
+              in Valenzuela City, PH — where every intricate melody sounds like it remembers something.
             </p>
             <div className="mt-4">
               <FooterVisitorCount />
