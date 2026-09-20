@@ -4,6 +4,7 @@
 // Orders in the sidebar's Sales group. The main /admin/dashboard answers "what
 // is happening today"; this answers "how are we selling, and what sells".
 import { orderItemTitle, orderItemImage } from "@/lib/orders/item-display";
+import { productCategoryLabel } from "@/lib/store/categories";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -42,6 +43,10 @@ export default async function AdminSalesPage() {
             price: true,
             product: {
               select: {
+                id: true,
+                title: true,
+                images: true,
+                category: true,
                 artwork: {
                   select: {
                     id: true,
@@ -69,10 +74,12 @@ export default async function AdminSalesPage() {
       o: order.id,
       d: dayKey(order.createdAt),
       // A product purged from Trash leaves the line with its snapshot only
-      // (lib/orders/item-display.ts): grouped under that title, no section.
-      a: item.product?.artwork.id ?? `removed:${orderItemTitle(item)}`,
+      // (lib/orders/item-display.ts): grouped under that title, no group.
+      // Grouped by product; the "section" column is the merch category, or a
+      // legacy product's gallery section.
+      a: item.product?.id ?? `removed:${orderItemTitle(item)}`,
       t: orderItemTitle(item),
-      s: item.product?.artwork.section?.name ?? null,
+      s: productCategoryLabel(item.product?.category) ?? item.product?.artwork?.section?.name ?? null,
       q: item.quantity,
       r: item.price * item.quantity,
       p: orderItemImage(item) ?? "",

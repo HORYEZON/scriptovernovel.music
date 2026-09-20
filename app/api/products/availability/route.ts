@@ -13,6 +13,7 @@
 // order time regardless of what the client believes) — this endpoint only
 // drives what CartClient shows before a visitor ever reaches checkout.
 import { NextRequest, NextResponse } from "next/server";
+import { LIVE_PRODUCT_WHERE } from "@/lib/store/queries";
 import { prisma } from "@/lib/prisma";
 
 // A cart holds a handful of items, not a catalog — capped well above any
@@ -31,12 +32,7 @@ export async function GET(request: NextRequest) {
 
   const rows = await prisma.product
     .findMany({
-      where: {
-        id: { in: ids },
-        available: true,
-        deletedAt: null,
-        artwork: { deletedAt: null },
-      },
+      where: { id: { in: ids }, ...LIVE_PRODUCT_WHERE },
       select: { id: true },
     })
     .catch(() => []);

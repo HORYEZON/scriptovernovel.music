@@ -41,11 +41,11 @@ export interface SalesLine {
   o: string;
   /** Order date as a local `YYYY-MM-DD` day key. */
   d: string;
-  /** Artwork id — the grouping key for "top-selling artworks". */
+  /** Product id — the grouping key for "top sellers". */
   a: string;
-  /** Artwork title. */
+  /** Product title. */
   t: string;
-  /** Section name, or null for artworks not filed under one. */
+  /** Merch category (or a legacy product's section), or null. */
   s: string | null;
   /** Units sold on this line. */
   q: number;

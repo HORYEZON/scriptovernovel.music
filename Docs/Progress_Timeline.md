@@ -157,3 +157,31 @@ not a release of its own.
 ### Infra / DB
 
 - New table `BandMember` (migration `20260920180000_band_members`)
+
+---
+
+## September 20, 2026 — v0.6
+
+### Admin Side
+
+- **Products are merch now**: their own title, description, up to 8 photos,
+  a category, sizes/formats with per-size price and stock, In store / Paused,
+  Featured, ordering. "Create from artwork" remains as the shortcut that also
+  hangs the item in the museum's Services Room
+- Sales dashboard groups by product (category as the group column); Trash →
+  Store shows product titles and covers
+
+### Public Side
+
+- **Store rebuilt**: a hazy hero, category chips, product cards, and a page
+  for every item (`/shop/<name>`) with photos, size picker, Add to cart and
+  Share. Cart, checkout and order lookup are unchanged underneath; order
+  emails and the success page say "order" instead of "artwork"
+- Order reference numbers now start with `SON-`
+
+### Infra / DB
+
+- `Product` gains title / description / images / category / slug / featured /
+  sortOrder and `artworkId` becomes optional (migration
+  `20260920190000_merch_products`); `scripts/backfill-products-from-artwork.ts`
+  copied the existing artwork-backed products' names and pictures across

@@ -2,12 +2,9 @@
 //
 // How a product is shown — title, image(s), link — behind one helper so
 // every surface (shop, cart, checkout, order history, the homepage merch
-// strip) reads the same fields the same way. Written ahead of the Store
-// decoupling (Phase 5 of the band-site plan): today a Product carries no
-// title or images of its own and borrows its Artwork's, so these fall
-// through to `artwork`. Once Product has `title`/`images`/`slug` columns,
-// those win and the artwork fallback stays for legacy rows — a schema
-// change then, not a call-site hunt.
+// strip) reads the same fields the same way. A merch product's own
+// title/description/images win; a legacy product from the gallery days
+// has none and falls through to its Artwork's.
 //
 // Client-safe: plain functions over a structural type.
 
@@ -46,10 +43,15 @@ export function productImage(p: ProductDisplayLike | null | undefined): string |
   return productImages(p)[0] ?? null;
 }
 
-/** The product's own page once it has one (Phase 5's /shop/[slug]); until
- *  then the artwork page it borrows everything else from, or the shop. */
+/** The product's own page (/shop/[slug]); a legacy product without a slug
+ *  goes to the artwork page it borrows everything else from, or the shop. */
 export function productHref(p: ProductDisplayLike | null | undefined): string {
   if (p?.slug) return `/shop/${p.slug}`;
   if (p?.artwork?.slug) return `/artwork/${p.artwork.slug}`;
   return "/shop";
+}
+
+/** Whether the product still stands on an artwork (gallery-era row). */
+export function isLegacyProduct(p: ProductDisplayLike | null | undefined): boolean {
+  return Boolean(p?.artwork) && !p?.title?.trim();
 }

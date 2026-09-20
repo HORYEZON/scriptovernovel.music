@@ -1,98 +1,80 @@
-// app/api/products/[id]/route.ts
+// app/api/products/[id]/route.ts — partial update and soft delete.
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/api-auth";
 import { logContentChange, changedFields } from "@/lib/activity-log-server";
 import { prisma } from "@/lib/prisma";
 import { getErrorCode } from "@/lib/utils";
+import { productTitle } from "@/lib/store/product-display";
+import { PRODUCT_ARTWORK_SELECT } from "@/lib/store/queries";
+import { parseVariants, sanitizeMerchFields } from "@/lib/store/sanitize";
+import { revalidateStorePaths } from "@/lib/store/revalidate";
 
-type VariantInput = { label?: string; price?: number | string; stock?: number | string };
+const EDITABLE = ["title", "description", "images", "category", "featured", "price", "stock", "available", "variants", "sortOrder"];
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const denied = await requireAdmin();
   if (denied) return denied;
 
   try {
     const { id } = await params;
-    const { price, stock, available, variants } = await request.json();
+    const body = await request.json();
+    const { price, stock, available, variants, sortOrder } = body;
+    const merch = sanitizeMerchFields(body);
+    if ("error" in merch) return NextResponse.json({ error: merch.error }, { status: 400 });
+    if (price !== undefined && !Number.isFinite(parseFloat(price))) return NextResponse.json({ error: "Invalid price" }, { status: 400 });
+    if (stock !== undefined && !Number.isFinite(parseInt(stock))) return NextResponse.json({ error: "Invalid stock" }, { status: 400 });
+    if (available !== undefined && typeof available !== "boolean") return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    if (sortOrder !== undefined && !Number.isInteger(sortOrder)) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
 
     // Variant list is treated as a full replace when sent — simpler than
     // diffing against what's stored, at the cost of variant ids changing on
     // every edit. Fine here: OrderItem keeps its own variantLabel snapshot
     // and variantId SetNulls on delete, so past orders are unaffected.
-    const validVariants = Array.isArray(variants)
-      ? variants.filter((v: VariantInput) => v.label?.trim() && v.price !== undefined && v.price !== "")
-      : null;
+    const validVariants = parseVariants(variants);
 
     const product = await prisma.$transaction(async (tx) => {
-      if (validVariants !== null) {
-        await tx.productVariant.deleteMany({ where: { productId: id } });
-      }
+      if (validVariants !== null) await tx.productVariant.deleteMany({ where: { productId: id } });
       return tx.product.update({
         where: { id },
         data: {
-          ...(price !== undefined && { price: parseFloat(price) }),
-          ...(stock !== undefined && { stock: parseInt(stock) }),
+          ...merch.data,
+          ...(price !== undefined && { price: Math.max(0, parseFloat(price)) }),
+          ...(stock !== undefined && { stock: Math.max(0, parseInt(stock)) }),
           ...(available !== undefined && { available }),
-          ...(validVariants !== null &&
-            validVariants.length > 0 && {
-              variants: {
-                create: validVariants.map((v: VariantInput, i: number) => ({
-                  label: v.label!.trim(),
-                  price: parseFloat(String(v.price)),
-                  stock: parseInt(String(v.stock)) || 0,
-                  sortOrder: i,
-                })),
-              },
-            }),
+          ...(sortOrder !== undefined && { sortOrder }),
+          ...(validVariants !== null && validVariants.length > 0 && { variants: { create: validVariants } }),
         },
-        include: { artwork: true, variants: { orderBy: { sortOrder: "asc" } } },
+        include: { artwork: PRODUCT_ARTWORK_SELECT, variants: { orderBy: { sortOrder: "asc" } } },
       });
     });
 
-    logContentChange("updated", "product", { id: product.id, name: product.artwork?.title }, {
-      request,
-      // This route destructures the body straight into locals rather than
-      // keeping it around, so the changed-field list is built from those.
-      changed: changedFields({ price, stock, available, variants }, [
-        "price", "stock", "available", "variants",
-      ]),
-    });
-
+    revalidateStorePaths();
+    if (product.slug) revalidatePath(`/shop/${product.slug}`);
+    logContentChange("updated", "product", { id: product.id, name: productTitle(product) }, { request, changed: changedFields(body, EDITABLE) });
     return NextResponse.json(product);
   } catch (error) {
-    if (getErrorCode(error) === "P2025") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
+    if (getErrorCode(error) === "P2025") return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const denied = await requireAdmin();
   if (denied) return denied;
-
   try {
     const { id } = await params;
-
     const deleted = await prisma.product.update({
       where: { id },
       data: { deletedAt: new Date() },
-      include: { artwork: { select: { title: true } } },
+      include: { artwork: { select: { title: true, imageUrl: true } } },
     });
-
-    logContentChange("deleted", "product", { id, name: deleted.artwork?.title }, { request });
-
+    revalidateStorePaths();
+    revalidatePath("/admin/trash");
+    logContentChange("deleted", "product", { id, name: productTitle(deleted) }, { request });
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (getErrorCode(error) === "P2025") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
+    if (getErrorCode(error) === "P2025") return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }

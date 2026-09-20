@@ -65,7 +65,7 @@ export default function OrderConfirmationEmail({
       </Section>
 
       <Text style={styles.muted}>
-        Your artwork will be carefully packaged and shipped within 5–7
+        Your order will be packed and shipped within 5–7
         business days.
       </Text>
     </EmailLayout>

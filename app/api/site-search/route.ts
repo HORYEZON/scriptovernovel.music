@@ -9,6 +9,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { productHref, productImage, productTitle } from "@/lib/store/product-display";
+import { productCategoryLabel } from "@/lib/store/categories";
+import { LIVE_PRODUCT_WHERE, PRODUCT_ARTWORK_SELECT, PUBLIC_PRODUCT_ORDER } from "@/lib/store/queries";
 import { getPublicReleases } from "@/lib/releases-server";
 import { getPublicVideos } from "@/lib/videos-server";
 import { VIDEO_KIND_LABELS, youtubeThumbnail } from "@/lib/videos";
@@ -20,9 +22,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const products = await prisma.product
     .findMany({
-      where: { available: true, deletedAt: null, artwork: { deletedAt: null } },
-      include: { artwork: { select: { title: true, imageUrl: true, slug: true, tags: true, medium: true } } },
-      orderBy: { createdAt: "desc" },
+      where: LIVE_PRODUCT_WHERE,
+      include: { artwork: PRODUCT_ARTWORK_SELECT },
+      orderBy: PUBLIC_PRODUCT_ORDER,
     })
     .catch(() => []);
 
@@ -58,7 +60,7 @@ export async function GET() {
       id: `product:${p.id}`,
       kind: "merch",
       title,
-      subtitle: p.artwork?.medium ?? null,
+      subtitle: productCategoryLabel(p.category) ?? p.artwork?.medium ?? null,
       keywords: p.artwork?.tags ?? [],
       imageUrl: productImage(p),
       href: productHref(p),

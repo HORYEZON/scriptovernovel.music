@@ -104,7 +104,8 @@ export interface ProductVariantData {
 
 export interface ProductData {
   id: string;
-  artworkId: string;
+  /** Null for merch; set on gallery-era products that stand on an artwork. */
+  artworkId: string | null;
   price: number;
   stock: number;
   available: boolean;
@@ -113,7 +114,8 @@ export interface ProductData {
 
 export interface CartItem {
   productId: string;
-  artworkId: string;
+  /** Null for merch — only legacy artwork-backed products carry one. */
+  artworkId?: string | null;
   title: string;
   imageUrl: string;
   price: number;

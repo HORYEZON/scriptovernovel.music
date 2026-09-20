@@ -16,7 +16,9 @@ interface LookupOrderItem {
   variantLabel: string | null;
   /** Null once the product was permanently deleted — see lib/orders/item-display.ts. */
   product: {
-    artwork: { title: string; imageUrl: string };
+    title?: string | null;
+    images?: string[];
+    artwork: { title: string; imageUrl: string } | null;
   } | null;
   titleSnapshot?: string | null;
   imageSnapshot?: string | null;

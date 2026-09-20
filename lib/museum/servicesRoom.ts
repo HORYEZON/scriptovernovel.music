@@ -80,8 +80,10 @@ export async function ensureServicesRoom() {
  */
 export async function syncServicesRoomProducts(roomId: string) {
   const [liveProducts, existing] = await Promise.all([
+    // Only artwork-backed products can hang in a room — merch (no
+    // artworkId, since the Store decoupling) is simply not mirrored here.
     prisma.product.findMany({
-      where: { available: true, deletedAt: null, artwork: { deletedAt: null } },
+      where: { available: true, deletedAt: null, artworkId: { not: null }, artwork: { deletedAt: null } },
       orderBy: { createdAt: "desc" },
       select: { artworkId: true },
     }),
@@ -92,10 +94,11 @@ export async function syncServicesRoomProducts(roomId: string) {
     }),
   ]);
 
-  const liveIds = new Set(liveProducts.map((p) => p.artworkId));
+  const liveArtworks = liveProducts.map((p) => ({ artworkId: p.artworkId as string }));
+  const liveIds = new Set(liveArtworks.map((p) => p.artworkId));
   const hungIds = new Set(existing.map((e) => e.artworkId));
 
-  const toAdd = liveProducts.filter((p) => !hungIds.has(p.artworkId));
+  const toAdd = liveArtworks.filter((p) => !hungIds.has(p.artworkId));
   const toRemove = existing.filter((e) => !liveIds.has(e.artworkId));
 
   if (toAdd.length > 0) {

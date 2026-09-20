@@ -37,7 +37,7 @@ export default async function OrderSuccessPage({
               email shortly.
             </p>
             <p className="font-body text-xs text-white/50 mb-10">
-              Your artwork will be carefully packaged and shipped within 5–7
+              Your order will be packed and shipped within 5–7
               business days.
             </p>
             {params.session_id && (

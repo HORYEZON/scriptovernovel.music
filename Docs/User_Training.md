@@ -15,9 +15,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 5. [Releases (Music page)](#5-releases-music-page)
 6. [Videos](#6-videos)
 7. [About & Band Members](#7-about--band-members)
-8. [Homepage](#8-homepage)
-9. [Glossary — Confusing Terms Explained](#9-glossary--confusing-terms-explained)
-10. [Quick Troubleshooting](#10-quick-troubleshooting)
+8. [Store (Products)](#8-store-products)
+9. [Homepage](#9-homepage)
+10. [Glossary — Confusing Terms Explained](#10-glossary--confusing-terms-explained)
+11. [Quick Troubleshooting](#11-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -162,7 +163,28 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 8. Homepage
+## 8. Store (Products)
+
+**What this is for:** the merch on **/shop** — each product has its own page (`/shop/<slug>`), and the cart / checkout / orders flow is unchanged (PayMongo).
+
+### 8.1 Adding a product
+
+1. **Products → + New product.**
+2. **Photos** — upload up to 8; the first is the cover (↑ ↓ reorder on hover).
+3. **Title**, **Category** (Shirts / Vinyl / CDs & cassettes / Posters & prints / Accessories / Other), **Price**, **Stock**, **Description**.
+4. **Sizes / formats** — optional. Add a row per size (S / M / L, or 12″ vinyl / cassette) with its own price and stock. With sizes, the product's own stock box is ignored.
+5. **In store** (paused products stay in the admin but leave the Store), **Featured** (first in the Store and on the homepage strip). **Add product**.
+
+> 💡 **Create from artwork** — an optional shortcut that starts a product from a gallery piece (title, description, picture) and also hangs it in the Digital Museum's Services Room. Plain merch doesn't appear in the museum.
+
+### 8.2 Editing, ordering, removing
+
+- ↑ ↓ set the Store order (after featured ones). ★ toggles featured; the **In store / Paused** pill hides a product without deleting it.
+- 🗑 moves it to **Trash** (Trash → Store). Past orders keep the product's name and picture.
+
+---
+
+## 9. Homepage
 
 **What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
 
@@ -170,7 +192,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 - **Latest release** — the same release in full (player, tracklist, links), right under the hero.
 - **Upcoming shows** — Shows / Events with a date in the future (up to three). Hidden when there are none.
 - **Videos** — the four newest videos, featured first. Hidden when there are none.
-- **Merch** — the four newest available products. Hidden when the store is empty.
+- **Merch** — four products, featured first. Hidden when the store is empty.
 - **Fan wall** — the three newest notes, when the Freedom Wall is active.
 - **Digital Museum + Mini games** — shown when the museum is enabled with published artworks, and when at least one game is playable.
 
@@ -178,7 +200,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 9. Glossary — Confusing Terms Explained
+## 10. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -188,7 +210,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 10. Quick Troubleshooting
+## 11. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

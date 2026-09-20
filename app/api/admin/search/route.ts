@@ -105,12 +105,14 @@ export async function GET(request: NextRequest) {
         prisma.product.findMany({
           where: {
             deletedAt: null,
-            artwork: { title: insensitive },
+            OR: [{ title: insensitive }, { artwork: { title: insensitive } }],
           },
           select: {
             id: true,
             price: true,
             available: true,
+            title: true,
+            images: true,
             artwork: { select: { title: true, imageUrl: true } },
           },
           take: MAX_PER_GROUP,

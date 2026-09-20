@@ -183,9 +183,18 @@ export const openApiSpec: OpenAPIV3.Document = {
       },
       Product: {
         type: "object",
+        description:
+          "A Store product — merch with its own title/description/images/category. `artworkId` is the gallery-era link (optional): such a product borrows the artwork's title and image where its own are empty (lib/store/product-display.ts) and hangs in the Digital Museum's Services Room.",
         properties: {
           id: { type: "string" },
-          artworkId: { type: "string" },
+          artworkId: { type: "string", nullable: true },
+          title: { type: "string", nullable: true },
+          description: { type: "string", nullable: true },
+          images: { type: "array", items: { type: "string" } },
+          category: { type: "string", nullable: true, description: "One of shirt | vinyl | cd | poster | accessory | other." },
+          slug: { type: "string", nullable: true, description: "Write-once; the /shop/{slug} address." },
+          featured: { type: "boolean" },
+          sortOrder: { type: "integer" },
           price: { type: "number" },
           stock: { type: "integer" },
           available: { type: "boolean" },
@@ -1106,7 +1115,8 @@ export const openApiSpec: OpenAPIV3.Document = {
       },
       post: {
         tags: ["Products"],
-        summary: "Create product for an artwork",
+        summary: "Create a product",
+        description: "Requires `price` and either a `title` or an `artworkId` (the gallery-era shortcut). Images are URLs from POST /upload. The slug is generated once from the title.",
         security: adminSecurity,
         requestBody: {
           required: true,
@@ -1114,9 +1124,15 @@ export const openApiSpec: OpenAPIV3.Document = {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["artworkId", "price"],
+                required: ["price"],
                 properties: {
-                  artworkId: { type: "string" },
+                  title: { type: "string", nullable: true },
+                  description: { type: "string", nullable: true },
+                  images: { type: "array", items: { type: "string" } },
+                  category: { type: "string", nullable: true },
+                  featured: { type: "boolean" },
+                  available: { type: "boolean" },
+                  artworkId: { type: "string", nullable: true },
                   price: { type: "number" },
                   stock: { type: "integer" },
                   variants: {
@@ -1134,10 +1150,20 @@ export const openApiSpec: OpenAPIV3.Document = {
         responses: { "201": { description: "Created product" }, "400": ErrorResponse, "401": ErrorResponse, "409": ErrorResponse },
       },
     },
+    "/products/reorder": {
+      put: {
+        tags: ["Products"],
+        summary: "Reorder products",
+        security: adminSecurity,
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { order: { type: "array", items: { type: "object", properties: { id: { type: "string" }, sortOrder: { type: "integer" } } } } } } } } },
+        responses: { "200": { description: "Products in new order" }, "400": ErrorResponse, "401": ErrorResponse },
+      },
+    },
     "/products/{id}": {
       patch: {
         tags: ["Products"],
-        summary: "Update product price/stock/variants",
+        summary: "Update a product (partial)",
+        description: "Any merch field (title, description, images, category, featured), price, stock, available, sortOrder; `variants` replaces the whole list.",
         security: adminSecurity,
         parameters: [IdParam],
         requestBody: {
@@ -4233,7 +4259,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Tales", description: "Books, novels, comics & manga (the Tales module; routes keep their /stories paths) — CRUD plus their page images" },
     { name: "Cosplays", description: "Costume photography \u2014 each a standee in the museum's Cosplay Room" },
     { name: "Sections", description: "Gallery section groupings" },
-    { name: "Products", description: "Shop product listings tied to artworks" },
+    { name: "Products", description: "Store merch — title, photos, category, price, sizes, stock (optionally created from an artwork)" },
     { name: "Orders", description: "Customer orders (admin + public lookup)" },
     { name: "Releases", description: "The band's singles, EPs and albums — covers, tracklists, lyrics, streaming links" },
     { name: "Videos", description: "YouTube videos on the Videos page — music videos, live, behind the scenes" },

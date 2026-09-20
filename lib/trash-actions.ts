@@ -15,6 +15,7 @@
 // Both functions throw on a bad id (Prisma P2025) — callers decide whether
 // that is a 404 or, in a bulk pass, a row to skip.
 import { revalidatePath } from "next/cache";
+import { productImage, productTitle } from "@/lib/store/product-display";
 import { prisma } from "@/lib/prisma";
 import { deleteArtworkImage } from "@/lib/storage/server";
 
@@ -224,12 +225,14 @@ export async function restoreTrashItem(type: TrashType, id: string): Promise<voi
 async function snapshotOrderLinesForProduct(productId: string): Promise<void> {
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    select: { artwork: { select: { title: true, imageUrl: true } } },
+    select: { title: true, images: true, artwork: { select: { title: true, imageUrl: true } } },
   });
   if (!product) return;
+  const title = productTitle(product);
+  if (!title) return;
   await prisma.orderItem.updateMany({
     where: { productId, titleSnapshot: null },
-    data: { titleSnapshot: product.artwork.title, imageSnapshot: product.artwork.imageUrl },
+    data: { titleSnapshot: title, imageSnapshot: productImage(product) },
   });
 }
 
@@ -312,7 +315,11 @@ export async function purgeTrashItem(type: TrashType, id: string): Promise<void>
         // foreign key, and the bulk purge reported the row as "already
         // gone" while it sat in Trash for good.
         await snapshotOrderLinesForProduct(id);
+        const merch = await prisma.product.findUnique({ where: { id }, select: { images: true } });
         await prisma.product.delete({ where: { id } });
+        // A merch product's own uploads go with it; a legacy product's
+        // picture belongs to its artwork and stays.
+        merch?.images.forEach((url) => deleteArtworkImage(url).catch(() => {}));
         break;
       case "sections": {
         const artworks = await prisma.artwork.findMany({

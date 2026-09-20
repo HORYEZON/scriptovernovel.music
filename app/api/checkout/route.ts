@@ -1,5 +1,7 @@
 // app/api/checkout/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { LIVE_PRODUCT_WHERE, PRODUCT_ARTWORK_SELECT } from "@/lib/store/queries";
+import { productImage, productTitle } from "@/lib/store/product-display";
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession, tocentavos } from "@/lib/paymongo";
 import { randomUUID } from "crypto";
@@ -35,22 +37,16 @@ export async function POST(request: NextRequest) {
     // from the request body — so a tampered `item.price` in the request
     // can't change what the customer is actually charged or what gets
     // recorded on the order.
-    // available/deletedAt/artwork.deletedAt — the exact filter the Shop
-    // listing itself uses (app/(public)/shop/page.tsx's getProducts) — so a
+    // LIVE_PRODUCT_WHERE — the exact filter the Shop listing itself uses — so a
     // product an admin has deleted or paused can't be bought just because a
     // visitor's cart is a localStorage snapshot from before that happened.
     // Without this, the query below found the row regardless (Prisma has no
     // implicit soft-delete filtering), stock still passed, and a deleted
-    // artwork could be paid for.
+    // merch item could be paid for.
     const productIds = items.map((i: { productId: string }) => i.productId);
     const products = await prisma.product.findMany({
-      where: {
-        id: { in: productIds },
-        available: true,
-        deletedAt: null,
-        artwork: { deletedAt: null },
-      },
-      include: { artwork: true, variants: true },
+      where: { id: { in: productIds }, ...LIVE_PRODUCT_WHERE },
+      include: { artwork: PRODUCT_ARTWORK_SELECT, variants: true },
     });
 
     const lineItems: {
@@ -70,6 +66,8 @@ export async function POST(request: NextRequest) {
       }
 
       const product = products.find((p) => p.id === item.productId);
+      const title = productTitle(product) ?? "this item";
+      const imageUrl = productImage(product) ?? "";
       if (!product) {
         // Covers a genuinely unknown id and a deleted/paused one alike —
         // the filtered query above can't tell them apart, and a visitor
@@ -84,13 +82,13 @@ export async function POST(request: NextRequest) {
         const variant = product.variants.find((v) => v.id === item.variantId);
         if (!variant) {
           return NextResponse.json(
-            { error: `Variant not found for "${product.artwork.title}"` },
+            { error: `Variant not found for "${title}"` },
             { status: 400 }
           );
         }
         if (variant.stock < quantity) {
           return NextResponse.json(
-            { error: `Insufficient stock for "${product.artwork.title}" (${variant.label})` },
+            { error: `Insufficient stock for "${title}" (${variant.label})` },
             { status: 400 }
           );
         }
@@ -99,14 +97,14 @@ export async function POST(request: NextRequest) {
           variantId: variant.id,
           variantLabel: variant.label,
           quantity,
-          title: product.artwork.title,
-          imageUrl: product.artwork.imageUrl,
+          title,
+          imageUrl,
           unitPrice: variant.price,
         });
       } else {
         if (product.stock < quantity) {
           return NextResponse.json(
-            { error: `Insufficient stock for "${product.artwork.title}"` },
+            { error: `Insufficient stock for "${title}"` },
             { status: 400 }
           );
         }
@@ -115,8 +113,8 @@ export async function POST(request: NextRequest) {
           variantId: null,
           variantLabel: null,
           quantity,
-          title: product.artwork.title,
-          imageUrl: product.artwork.imageUrl,
+          title,
+          imageUrl,
           unitPrice: product.price,
         });
       }
@@ -124,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     const total = lineItems.reduce((sum, li) => sum + li.unitPrice * li.quantity, 0);
 
-    const referenceNumber = `KAL-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const referenceNumber = `SON-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     // Create PayMongo checkout session
@@ -139,7 +137,7 @@ export async function POST(request: NextRequest) {
       successUrl: `${baseUrl}/order/success?session_id=${referenceNumber}`,
       cancelUrl: `${baseUrl}/order/cancel`,
       referenceNumber,
-      description: `ScriptOverNovel Art Order - ${referenceNumber}`,
+      description: `ScriptOverNovel Merch Order - ${referenceNumber}`,
       customerEmail,
       customerName,
     });

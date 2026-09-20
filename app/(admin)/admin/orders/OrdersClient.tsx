@@ -64,7 +64,9 @@ interface OrderItem {
    *  reads from its snapshots (lib/orders/item-display.ts). */
   product: {
     id: string;
-    artwork: { title: string; imageUrl: string };
+    title?: string | null;
+    images?: string[];
+    artwork: { title: string; imageUrl: string } | null;
   } | null;
   titleSnapshot?: string | null;
   imageSnapshot?: string | null;

@@ -1,23 +1,23 @@
 // components/public/home/MerchStrip.tsx
 //
-// A row of the newest merch, linking into the Store. Reads products through
-// lib/store/product-display.ts, so it keeps working across the Store
-// decoupling (today a product borrows its Artwork's title and image).
-// Hidden when the store has nothing available.
+// A row of merch (featured first), linking into the Store. Reads products
+// through lib/store/product-display.ts. Hidden when the store has nothing
+// available.
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPriceRange } from "@/lib/utils";
 import { imageVariantUrl } from "@/lib/images/variants";
 import { productHref, productImage, productTitle } from "@/lib/store/product-display";
+import { LIVE_PRODUCT_WHERE, PRODUCT_ARTWORK_SELECT, PUBLIC_PRODUCT_ORDER } from "@/lib/store/queries";
 import { SectionHeading } from "@/components/public/system/SectionHeading";
 import { Reveal } from "@/components/public/system/Reveal";
 
 export async function MerchStrip() {
   const products = await prisma.product
     .findMany({
-      where: { available: true, deletedAt: null, artwork: { deletedAt: null } },
-      include: { artwork: { select: { title: true, imageUrl: true, slug: true, description: true } }, variants: true },
-      orderBy: { createdAt: "desc" },
+      where: LIVE_PRODUCT_WHERE,
+      include: { artwork: PRODUCT_ARTWORK_SELECT, variants: true },
+      orderBy: PUBLIC_PRODUCT_ORDER,
       take: 4,
     })
     .catch(() => []);

@@ -4,11 +4,8 @@ import { ShoppingBag } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminGoToMenu } from "@/components/admin/AdminGoToMenu";
-import {
-  getMuseumRoomStatus,
-  museumEditorLink,
-  museumRoomLink,
-} from "@/lib/museum/roomStatus";
+import { getMuseumRoomStatus, museumEditorLink, museumRoomLink } from "@/lib/museum/roomStatus";
+import { PRODUCT_ARTWORK_SELECT } from "@/lib/store/queries";
 import { ProductsClient } from "./ProductsClient";
 
 export const metadata: Metadata = { title: "Products" };
@@ -18,11 +15,14 @@ export default async function AdminProductsPage() {
   const [products, artworksWithoutProduct, museumRooms] = await Promise.all([
     prisma.product.findMany({
       where: { deletedAt: null },
-      include: { artwork: true, variants: { orderBy: { sortOrder: "asc" } } },
-      orderBy: { createdAt: "desc" },
+      include: { artwork: PRODUCT_ARTWORK_SELECT, variants: { orderBy: { sortOrder: "asc" } } },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     }),
+    // The "Create from artwork" shortcut — gallery pieces that don't have a
+    // listing yet. Their products hang in the Museum's Services Room.
     prisma.artwork.findMany({
       where: { product: null, deletedAt: null },
+      select: { id: true, title: true, imageUrl: true, description: true },
       orderBy: { title: "asc" },
     }),
     getMuseumRoomStatus(),
@@ -32,22 +32,19 @@ export default async function AdminProductsPage() {
     <div>
       <AdminPageHeader
         title="Products"
-        description="Manage pricing and stock for the artworks listed in the Shop and the Digital Museum's Services Room."
+        description="Merch in the Store — shirts, records, posters — with photos, sizes and stock. A product created from an artwork also hangs in the Digital Museum's Services Room."
         action={
           <AdminGoToMenu
             icon={<ShoppingBag size={16} />}
             links={[
-              { label: "Shop Page", href: "/shop" },
+              { label: "Store", href: "/shop" },
               museumRoomLink(museumRooms, "services", "Digital Museum / Services Room"),
               museumEditorLink(museumRooms, "services", "Scene Editor / Services Room"),
             ]}
           />
         }
       />
-      <ProductsClient
-        initialProducts={products}
-        artworksWithoutProduct={artworksWithoutProduct}
-      />
+      <ProductsClient initialProducts={JSON.parse(JSON.stringify(products))} artworksWithoutProduct={artworksWithoutProduct} />
     </div>
   );
 }

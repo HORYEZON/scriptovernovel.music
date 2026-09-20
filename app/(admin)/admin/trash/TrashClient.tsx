@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { productImage, productTitle } from "@/lib/store/product-display";
+import { formatPrice } from "@/lib/utils";
 import type { ReactNode } from "react";
 import Image from "@/components/ui/SafeImage";
 import {
@@ -110,7 +112,10 @@ interface TrashedCosplay {
 
 interface TrashedProduct {
   id: string;
-  artworkId: string;
+  artworkId: string | null;
+  title: string | null;
+  images: string[];
+  category: string | null;
   price: number;
   stock: number;
   available: boolean;
@@ -327,7 +332,7 @@ const CATEGORY_GROUPS: { label: string; keys: Category[] }[] = [
   { label: "Digital Museum", keys: ["rooms"] },
   { label: "Freedom Wall", keys: ["freedom-wall-events", "freedom-wall-notes"] },
   { label: "Announcements", keys: ["announcements", "marquees"] },
-  { label: "Sales", keys: ["products"] },
+  { label: "Store", keys: ["products"] },
   { label: "Band", keys: ["band-members", "events"] },
   { label: "Settings", keys: ["release-notes"] },
 ];
@@ -373,7 +378,7 @@ function getItemName(item: AnyTrashedItem, cat: Category): string {
       return c.character || c.title;
     }
     case "products":
-      return (item as TrashedProduct).artwork?.title ?? "Unknown Artwork";
+      return productTitle(item as TrashedProduct) ?? "Untitled product";
     case "sections":
       return (item as TrashedSection).name;
     case "notifications":
@@ -425,7 +430,7 @@ function getItemSubtext(item: AnyTrashedItem, cat: Category): string {
     }
     case "products": {
       const p = item as TrashedProduct;
-      return `$${p.price.toFixed(2)} · Stock: ${p.stock}`;
+      return `${formatPrice(p.price)} · Stock: ${p.stock}${p.artwork ? " · from artwork" : ""}`;
     }
     case "sections": {
       const s = item as TrashedSection;
@@ -489,7 +494,7 @@ function getItemImage(item: AnyTrashedItem, cat: Category): string | null {
     case "cosplays":
       return (item as TrashedCosplay).standeeImageUrl || null;
     case "products":
-      return (item as TrashedProduct).artwork?.imageUrl || null;
+      return productImage(item as TrashedProduct);
     case "sections":
       return (item as TrashedSection).coverImageUrl;
     case "events":

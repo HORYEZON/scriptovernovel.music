@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
             titleSnapshot: true,
             imageSnapshot: true,
             product: {
-              select: { artwork: { select: { title: true, imageUrl: true } } },
+              select: { title: true, images: true, artwork: { select: { title: true, imageUrl: true } } },
             },
           },
         },

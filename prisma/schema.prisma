@@ -1364,18 +1364,36 @@ model MuseumRoomCosplay {
   @@index([cosplayId])
 }
 
+// A product in the Store — merch (shirt, vinyl, CD, poster…) with its own
+// title, description and images. `artworkId` is a legacy link from the
+// site's gallery days, when a product *was* an artwork's listing and
+// borrowed its title and image: now optional, kept so those rows and the
+// Digital Museum's Services Room (which only mirrors artwork-backed
+// products) keep working. lib/store/product-display.ts is the one place
+// that decides which of the two names a product — its own fields win,
+// the artwork's are the fallback.
 model Product {
-  id         String           @id @default(cuid())
-  artworkId  String           @unique
-  price      Float
-  stock      Int              @default(1)
-  available  Boolean          @default(true)
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  deletedAt  DateTime?
-  orderItems OrderItem[]
-  artwork    Artwork          @relation(fields: [artworkId], references: [id], onDelete: Cascade)
-  variants   ProductVariant[]
+  id          String           @id @default(cuid())
+  artworkId   String?          @unique
+  title       String?
+  description String?
+  images      String[]         @default([])
+  // One of lib/store/categories.ts's PRODUCT_CATEGORIES — a string, not an
+  // enum, so adding a category is not a migration.
+  category    String?
+  // Write-once, the /shop/[slug] address.
+  slug        String?          @unique
+  featured    Boolean          @default(false)
+  sortOrder   Int              @default(0)
+  price       Float
+  stock       Int              @default(1)
+  available   Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+  orderItems  OrderItem[]
+  artwork     Artwork?         @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  variants    ProductVariant[]
 }
 
 model ProductVariant {
