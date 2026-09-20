@@ -10,6 +10,7 @@ import { BackToTop } from "@/components/public/BackToTop";
 import { VisitorCounterWidget } from "@/components/public/VisitorCounterWidget";
 import { PublicThemeStyle } from "@/components/public/PublicThemeStyle";
 import { CursorGlow } from "@/components/public/CursorGlow";
+import { BackgroundParallax } from "@/components/public/BackgroundParallax";
 import { NoImageDrag } from "@/components/NoImageDrag";
 import { BackgroundMusicPlayer } from "@/components/public/BackgroundMusicPlayer";
 import { MaintenancePage } from "@/components/public/MaintenancePage";
@@ -147,6 +148,7 @@ export default async function PublicLayout({
     <PublicThemeStyle theme={theme} />
     <NoImageDrag />
     <CursorGlow enabled={resolvedTheme.cursorGlowEnabled} />
+    <BackgroundParallax enabled={resolvedTheme.bgEffect === "parallax"} />
     <CartProvider>
       <div className="min-h-screen flex flex-col">
         <SiteHeader

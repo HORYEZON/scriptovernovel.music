@@ -291,6 +291,13 @@ model SiteTheme {
   // reuses isValidThemeLength rather than needing its own validator. Default
   // "10px" matches .page-glass's previously-hardcoded blur(10px).
   bgBlur               String   @default("10px")
+  // Site Background Effects — motion on that same public background photo
+  // (html::before): one of lib/theme.ts's BG_EFFECTS ("none" | "zoom" |
+  // "drift" | "breathe" | "parallax") and the loop length in ms for the
+  // looping ones. "none" keeps an existing site's photo exactly as still as
+  // it has always been.
+  bgEffect             String   @default("none")
+  bgEffectSpeedMs      Int      @default(20000)
   adminBackgroundImage String?
   // Same idea as bgBlur but for .admin-shell's own background photo
   // (adminBackgroundImage above) — no blur/glass overlay existed for it

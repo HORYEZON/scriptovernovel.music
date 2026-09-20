@@ -68,6 +68,8 @@ export default async function AdminPreferencesPage() {
         initialFaviconIconColors={profile?.faviconIconColors || []}
         initialBackgroundImage={profile?.backgroundImage || ""}
         initialBgBlur={resolvedTheme.bgBlur}
+        initialBgEffect={resolvedTheme.bgEffect}
+        initialBgEffectSpeedMs={resolvedTheme.bgEffectSpeedMs}
         initialAdminBackgroundImage={theme?.adminBackgroundImage || ""}
         initialAdminBgBlur={resolvedTheme.adminBgBlur}
         initialCarouselMode={sanitizeCarouselMode(profile?.carouselMode)}

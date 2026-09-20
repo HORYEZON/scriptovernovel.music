@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "SiteTheme" ADD COLUMN     "bgEffect" TEXT NOT NULL DEFAULT 'none',
+ADD COLUMN     "bgEffectSpeedMs" INTEGER NOT NULL DEFAULT 20000;

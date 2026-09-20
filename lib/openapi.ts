@@ -3140,6 +3140,8 @@ export const openApiSpec: OpenAPIV3.Document = {
       put: {
         tags: ["Artist Profile"],
         summary: "Update site theme (admin)",
+        description:
+          "Partial update — only the fields sent are changed. Includes the Site Background Effect: `bgEffect` is one of none|zoom|drift|breathe|parallax and `bgEffectSpeedMs` (5000–60000) is one loop of a looping effect.",
         security: adminSecurity,
         requestBody: { content: { "application/json": { schema: { type: "object" } } } },
         responses: { "200": { description: "Updated theme" }, "400": ErrorResponse, "401": ErrorResponse },

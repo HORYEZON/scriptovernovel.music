@@ -9,7 +9,7 @@
 // Values are re-validated here (in addition to app/api/theme's own
 // validation) since they're interpolated into a raw <style> tag — this is
 // a defense-in-depth check against a theme row edited directly in the DB.
-import { resolveSiteTheme, buildWashDeclarations, type SiteThemeSettings } from "@/lib/theme";
+import { resolveSiteTheme, buildWashDeclarations, bgEffectCss, type SiteThemeSettings } from "@/lib/theme";
 
 // Single-value, mode-independent fields — cursorGlowColors is an array and
 // gets its own handling below (one --cursor-glow-N var per slot),
@@ -31,6 +31,8 @@ type SingleValueField = Exclude<
   | "darkWashScope"
   | "lightWashScope"
   | "bgBlur"
+  | "bgEffect"
+  | "bgEffectSpeedMs"
   | "adminBgBlur"
   | "adminCardBgLight"
   | "adminCardBgDark"
@@ -80,12 +82,21 @@ export function PublicThemeStyle({
   // logic lives, shared between the two components.
   const { root: lightWashVars, dark: darkWashVars } = buildWashDeclarations(resolved, "public");
 
+  // Site Background Effect — a rule of its own on the photo layer rather than
+  // a var, since which *property* animates depends on the effect. Unlayered,
+  // so it beats globals.css's @layer base html::before regardless of order;
+  // the reduced-motion override there is !important for the same reason.
+  const effect = bgEffectCss(resolved.bgEffect, resolved.bgEffectSpeedMs);
+  const bgEffectRule = Object.keys(effect).length
+    ? `html::before{${effect.animation ? `animation:${effect.animation};` : ""}${effect.transform ? `transform:${effect.transform};` : ""}${effect.willChange ? `will-change:${effect.willChange};` : ""}}`
+    : "";
+
   return (
     <style
       id="public-theme-vars"
       // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{
-        __html: `:root{${declarations}${bgBlurDeclaration}${cursorGlowVars}${lightWashVars}}${darkWashVars ? `.dark{${darkWashVars}}` : ""}`,
+        __html: `:root{${declarations}${bgBlurDeclaration}${cursorGlowVars}${lightWashVars}}${darkWashVars ? `.dark{${darkWashVars}}` : ""}${bgEffectRule}`,
       }}
     />
   );

@@ -193,6 +193,40 @@ img {
     color: var(--ink);
   }
 
+  /* Site Background Effects (Preferences → Branding → Site Background
+     Effects; SiteTheme.bgEffect). The `animation:` / `transform:` that plays
+     one of these on html::before is emitted by PublicThemeStyle (public
+     routes only) from lib/theme.ts's bgEffectCss — the keyframes just live
+     here so the admin's live preview can play the very same ones on a div.
+     Every looping effect runs `alternate`, so it never has to jump back to
+     its start. Drift and the parallax transform in bgEffectCss overscale the
+     photo so its edges never pull into view. Breathe multiplies the mode's
+     own brightness (--theme-bg-brightness) rather than replacing it. */
+  @keyframes bg-effect-zoom {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(1.12);
+    }
+  }
+  @keyframes bg-effect-drift {
+    from {
+      transform: scale(1.15) translate(-2.5%, -1.5%);
+    }
+    to {
+      transform: scale(1.15) translate(2.5%, 1.5%);
+    }
+  }
+  @keyframes bg-effect-breathe {
+    from {
+      filter: brightness(calc(var(--theme-bg-brightness, 0.9) * 0.8));
+    }
+    to {
+      filter: brightness(calc(var(--theme-bg-brightness, 0.9) * 1.1));
+    }
+  }
+
   .dark body {
     color: var(--cream);
   }
@@ -747,5 +781,17 @@ img {
     );
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
+  }
+}
+
+/* Site Background Effects honour the visitor's reduced-motion setting.
+   Unlayered and !important on purpose: PublicThemeStyle's rule is a <style>
+   in the body, later in the document than this file, so it would otherwise
+   win the tie. BackgroundParallax.tsx makes the same check before it
+   attaches its scroll listener. */
+@media (prefers-reduced-motion: reduce) {
+  html::before {
+    animation: none !important;
+    transform: none !important;
   }
 }

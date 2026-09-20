@@ -12,6 +12,7 @@ import { IconPicker } from "./IconPicker";
 import { DEFAULT_HOVER_COLORS } from "./IconHoverColorsEditor";
 import { BackgroundUploader } from "./BackgroundUploader";
 import { IntroSplashSection } from "./IntroSplashSection";
+import { BackgroundEffectSection } from "./BackgroundEffectSection";
 import { SettingsAccordion, useAccordionSections } from "./SettingsAccordion";
 import {
   CAROUSEL_MODES,
@@ -45,6 +46,8 @@ import {
   MAX_BG_BLUR,
   parseBlurPx,
   formatBlurPx,
+  DEFAULT_SITE_THEME,
+  type BgEffect,
 } from "@/lib/theme";
 
 interface BrandingForm {
@@ -73,6 +76,10 @@ interface BrandingForm {
   // (a "Npx" length string, see lib/theme.ts). Saved via the same /api/theme
   // PUT as adminBackgroundImage below, for the same reason.
   bgBlur: string;
+  // SiteTheme.bgEffect / bgEffectSpeedMs — motion on that same public
+  // background photo (see BackgroundEffectSection). Same /api/theme PUT.
+  bgEffect: BgEffect;
+  bgEffectSpeedMs: number;
   // SiteTheme.adminBackgroundImage, not a Profile column — saved via a
   // separate /api/theme PUT in save() below, kept in this same form purely
   // so BackgroundUploader's dirty/reset handling works like every other
@@ -299,6 +306,8 @@ export function BrandingSection({
   initialFaviconIconColors,
   initialBackgroundImage,
   initialBgBlur,
+  initialBgEffect,
+  initialBgEffectSpeedMs,
   initialAdminBackgroundImage,
   initialAdminBgBlur,
   initialCarouselMode,
@@ -345,6 +354,8 @@ export function BrandingSection({
   initialFaviconIconColors?: string[];
   initialBackgroundImage: string;
   initialBgBlur?: string;
+  initialBgEffect?: BgEffect;
+  initialBgEffectSpeedMs?: number;
   initialAdminBackgroundImage?: string;
   initialAdminBgBlur?: string;
   initialCarouselMode?: CarouselMode;
@@ -412,6 +423,8 @@ export function BrandingSection({
         : DEFAULT_HOVER_COLORS,
     backgroundImage: initialBackgroundImage,
     bgBlur: initialBgBlur ?? "10px",
+    bgEffect: initialBgEffect ?? DEFAULT_SITE_THEME.bgEffect,
+    bgEffectSpeedMs: initialBgEffectSpeedMs ?? DEFAULT_SITE_THEME.bgEffectSpeedMs,
     adminBackgroundImage: initialAdminBackgroundImage ?? "",
     adminBgBlur: initialAdminBgBlur ?? "0px",
     carouselMode: initialCarouselMode ?? CAROUSEL_DEFAULTS.carouselMode,
@@ -452,6 +465,7 @@ export function BrandingSection({
   // accordions existed until an admin folds one — same choice RoomsTab made.
   const sections = useAccordionSections("admin_preferences_branding_sections", {
     branding: true,
+    bgEffect: true,
     icons: true,
     carousels: true,
     shimmer: true,
@@ -475,7 +489,7 @@ export function BrandingSection({
       // comment on why that one's handled as its own passthrough there.
       // bgBlur/adminBgBlur go through the same call since they're proper
       // SiteThemeSettings fields (sanitizeThemeInput validates them).
-      const { adminBackgroundImage, bgBlur, adminBgBlur, ...profileForm } = form;
+      const { adminBackgroundImage, bgBlur, adminBgBlur, bgEffect, bgEffectSpeedMs, ...profileForm } = form;
       const [profileRes, themeRes] = await Promise.all([
         fetch("/api/profile", {
           method: "PUT",
@@ -485,7 +499,7 @@ export function BrandingSection({
         fetch("/api/theme", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ adminBackgroundImage, bgBlur, adminBgBlur }),
+          body: JSON.stringify({ adminBackgroundImage, bgBlur, adminBgBlur, bgEffect, bgEffectSpeedMs }),
         }),
       ]);
       if (!profileRes.ok || !themeRes.ok) throw new Error();
@@ -617,6 +631,14 @@ export function BrandingSection({
           </div>
         </div>
       </SettingsAccordion>
+
+      <BackgroundEffectSection
+        value={{ bgEffect: form.bgEffect, bgEffectSpeedMs: form.bgEffectSpeedMs }}
+        onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+        imageUrl={form.backgroundImage || undefined}
+        open={sections.open.bgEffect}
+        onToggle={() => sections.toggle("bgEffect")}
+      />
 
       <SettingsAccordion
         title="Icons"

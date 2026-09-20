@@ -24,6 +24,9 @@ not a release of its own.
   site's ink/cream, so a header can't end up as a cream slab over a dark page
 - The "Light / dark toggle" switch under Header icons is gone: the toggle is
   a permanent part of the header now
+- **Preferences → Branding → Site Background Effects**: an effect picker,
+  speed slider and live preview (with Replay) in the same arrangement as the
+  Entrance Splash card, played on your own uploaded background photo
 
 ### Public Side
 
@@ -33,3 +36,11 @@ not a release of its own.
 - The light/dark switch sits to the right of **MENU** on every page. The site
   opens in dark mode for a first-time visitor; the switch is remembered per
   device. On phones the pill is a size smaller so it fits beside MENU
+- **The menu now opens as two panels meeting in the middle**, and its links
+  fade up one by one once the sheet has landed — before, the link entrance
+  started together with the sheet and was lost inside its motion, whichever
+  effect was picked
+- **Site Background Effects** — the background photo can now move: Slow
+  Zoom, Drift, Breathe or Parallax (with the visitor's scrolling), each with
+  its own speed. Off by default; visitors with reduced motion turned on
+  always get the still photo

@@ -11,6 +11,7 @@ import type { SiteThemeSettings } from "@/lib/theme";
 import type { CarouselMode } from "@/lib/gallery-carousel";
 import type { HoverShimmerSettings } from "@/lib/hover-shimmer";
 import type { IntroEffect, IntroLetterColors } from "@/lib/intro-splash";
+import type { BgEffect } from "@/lib/theme";
 import type { AdminSoundEffect } from "@/lib/sound/server";
 
 type TabId = "branding" | "theme" | "music" | "sound";
@@ -39,6 +40,8 @@ export function PreferencesClient({
   initialFaviconIconColors,
   initialBackgroundImage,
   initialBgBlur,
+  initialBgEffect,
+  initialBgEffectSpeedMs,
   initialAdminBackgroundImage,
   initialAdminBgBlur,
   initialCarouselMode,
@@ -90,6 +93,8 @@ export function PreferencesClient({
   initialFaviconIconColors: string[];
   initialBackgroundImage: string;
   initialBgBlur: string;
+  initialBgEffect: BgEffect;
+  initialBgEffectSpeedMs: number;
   initialAdminBackgroundImage: string;
   initialAdminBgBlur: string;
   initialCarouselMode: CarouselMode;
@@ -187,6 +192,8 @@ export function PreferencesClient({
           initialFaviconIconColors={initialFaviconIconColors}
           initialBackgroundImage={initialBackgroundImage}
           initialBgBlur={initialBgBlur}
+          initialBgEffect={initialBgEffect}
+          initialBgEffectSpeedMs={initialBgEffectSpeedMs}
           initialAdminBackgroundImage={initialAdminBackgroundImage}
           initialAdminBgBlur={initialAdminBgBlur}
           initialCarouselMode={initialCarouselMode}

@@ -46,6 +46,13 @@ export interface SiteThemeSettings {
   // not mode-conditional like the wash color/brightness since blur strength
   // doesn't need a separate light/dark value.
   bgBlur: string;
+  // Motion on the public background photo itself (html::before) — one of
+  // BG_EFFECTS below, plus the loop length for the ones that loop. Applied by
+  // PublicThemeStyle as a plain `animation:` on that pseudo-element (and, for
+  // "parallax", a scroll-driven transform fed by BackgroundParallax.tsx), so
+  // like bgBlur it is mode-independent and public-only.
+  bgEffect: BgEffect;
+  bgEffectSpeedMs: number;
   // Same idea, for the admin dashboard's own background photo
   // (adminBackgroundImage below, on .admin-shell) — independent knob since
   // an admin may want their own dashboard crisp while the public site is
@@ -66,6 +73,64 @@ export interface SiteThemeSettings {
 }
 
 export type WashScope = "public" | "admin" | "both";
+
+// Site Background Effects — what the background photo does behind the page.
+// Same card-picker language as the Entrance Splash's INTRO_EFFECTS
+// (lib/intro-splash.ts); the CSS for each lives under `html::before` in
+// app/globals.css, keyed by the value here.
+export const BG_EFFECTS = [
+  { value: "none", label: "Still", description: "The photo just sits there — no motion at all." },
+  { value: "zoom", label: "Slow Zoom", description: "A gentle Ken Burns push in and back out, on a loop." },
+  { value: "drift", label: "Drift", description: "Pans slowly across the photo and back, like a slow camera slide." },
+  { value: "breathe", label: "Breathe", description: "The photo's brightness swells and fades, like slow breathing." },
+  { value: "parallax", label: "Parallax", description: "Moves with the page as the visitor scrolls, a little slower than the content." },
+] as const;
+export type BgEffect = (typeof BG_EFFECTS)[number]["value"];
+const BG_EFFECT_VALUES = BG_EFFECTS.map((e) => e.value);
+
+/** Whether an effect's speed slider means anything — "none" has no motion
+ *  and "parallax" is driven by the visitor's own scrolling, not a clock. */
+export function bgEffectLoops(effect: BgEffect): boolean {
+  return effect === "zoom" || effect === "drift" || effect === "breathe";
+}
+
+/**
+ * The CSS that plays a background effect on a full-bleed photo layer —
+ * html::before on the public site (PublicThemeStyle turns this into a rule),
+ * the preview's own image div in the admin (applied as inline style). The
+ * @keyframes named here are in app/globals.css. Parallax reads
+ * `--bg-parallax` (0 at the top of the page, 1 at the bottom — set by
+ * BackgroundParallax.tsx, or by the preview from its own scroll box): the
+ * photo is overscaled by 25% and slides from its top edge to its bottom edge
+ * across that range, so it always covers the viewport however long the page.
+ * The slide is in % of the layer's own height (not vh) so the same rule is
+ * right on the full-viewport html::before and inside the admin's preview box.
+ */
+export function bgEffectCss(
+  effect: BgEffect,
+  speedMs: number
+): { animation?: string; transform?: string; willChange?: string } {
+  if (effect === "parallax") {
+    return {
+      transform: "translateY(calc(12.5% - var(--bg-parallax, 0) * 25%)) scale(1.25)",
+      willChange: "transform",
+    };
+  }
+  if (!bgEffectLoops(effect)) return {};
+  return {
+    animation: `bg-effect-${effect} ${speedMs}ms ease-in-out infinite alternate`,
+    willChange: effect === "breathe" ? "filter" : "transform",
+  };
+}
+
+/** Milliseconds one full loop of a looping effect takes. */
+export const BG_EFFECT_SPEED_PRESETS = [
+  { label: "Slow", value: 30000 },
+  { label: "Normal", value: 20000 },
+  { label: "Fast", value: 10000 },
+] as const;
+export const MIN_BG_EFFECT_SPEED = 5000;
+export const MAX_BG_EFFECT_SPEED = 60000;
 
 // Matches the current hard-coded look of app/(public) exactly, so a site
 // with no SiteTheme row yet (or an admin who hasn't customized anything)
@@ -97,6 +162,10 @@ export const DEFAULT_SITE_THEME: SiteThemeSettings = {
   lightWashScope: "public",
   // Mirrors .page-glass's previously-hardcoded blur(10px) exactly.
   bgBlur: "10px",
+  // Still by default — an existing site's background doesn't start moving
+  // until an admin picks an effect.
+  bgEffect: "none",
+  bgEffectSpeedMs: 20000,
   // No admin background blur/glass existed before this field — "0px" keeps
   // an unconfigured (or pre-existing) admin background exactly as sharp as
   // it's always been.
@@ -229,6 +298,19 @@ export function isValidWashBrightness(value: unknown): value is number {
   );
 }
 
+export function isValidBgEffect(value: unknown): value is BgEffect {
+  return typeof value === "string" && (BG_EFFECT_VALUES as readonly string[]).includes(value);
+}
+
+export function isValidBgEffectSpeed(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= MIN_BG_EFFECT_SPEED &&
+    value <= MAX_BG_EFFECT_SPEED
+  );
+}
+
 const WASH_SCOPES: WashScope[] = ["public", "admin", "both"];
 
 export function isValidWashScope(value: unknown): value is WashScope {
@@ -323,6 +405,12 @@ export function sanitizeThemeInput(
   }
   if ("cursorGlowColors" in input && isValidCursorGlowColors(input.cursorGlowColors)) {
     out.cursorGlowColors = input.cursorGlowColors;
+  }
+  if ("bgEffect" in input && isValidBgEffect(input.bgEffect)) {
+    out.bgEffect = input.bgEffect;
+  }
+  if ("bgEffectSpeedMs" in input && isValidBgEffectSpeed(input.bgEffectSpeedMs)) {
+    out.bgEffectSpeedMs = input.bgEffectSpeedMs;
   }
   return out;
 }

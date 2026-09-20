@@ -10,8 +10,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 
 1. [Logging In](#1-logging-in)
 2. [Site Design — Header](#2-site-design--header)
-3. [Glossary — Confusing Terms Explained](#3-glossary--confusing-terms-explained)
-4. [Quick Troubleshooting](#4-quick-troubleshooting)
+3. [Site Design — Menu animation](#3-site-design--menu-animation)
+4. [Preferences — Site Background Effects](#4-preferences--site-background-effects)
+5. [Glossary — Confusing Terms Explained](#5-glossary--confusing-terms-explained)
+6. [Quick Troubleshooting](#6-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -75,7 +77,44 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 3. Glossary — Confusing Terms Explained
+## 3. Site Design — Menu animation
+
+**What this is for:** how the full-screen menu arrives when a visitor presses **MENU**, how it leaves when they press ×, and how the links inside it appear.
+
+### 3.1 Picking the effects
+
+1. **Site Design → Menu → Open & close animation.**
+2. **Open effect** — pick a card. *Split — meet in the middle* slides the colour panel in from the left and the photo in from the right so they meet at the centre.
+3. **Close effect** — its own card; *Split — part to the edges* is the matching exit.
+4. **Link entrance** — how the words (Music, Store, …) appear once the sheet has landed. *Rise one by one* fades each link up in turn; *Rise together* lifts them all at once.
+5. Each has its own speed slider. **Save**.
+
+> 💡 The preview at the top of the tab replays automatically whenever you change an effect or a speed — or press **Play open** / **Play close**. The link entrance only starts once the sheet has fully arrived, on the live site and in the preview alike.
+
+---
+
+## 4. Preferences — Site Background Effects
+
+**What this is for:** the photo behind every public page (uploaded under **Preferences → Branding → Site Background Image**) can move. Off ("Still") until you switch it on.
+
+### 4.1 Choosing an effect
+
+1. **Preferences → Branding → Site Background Effects.**
+2. Pick a card:
+   - **Still** — no motion.
+   - **Slow Zoom** — a gentle push in and back out, looping.
+   - **Drift** — a slow pan across the photo and back.
+   - **Breathe** — the photo's brightness swells and fades.
+   - **Parallax** — the photo moves with the page as the visitor scrolls, a little slower than the content.
+3. **Speed** sets how long one loop takes (Slow / Normal / Fast, or drag). Parallax has no speed — it follows the visitor's scrolling.
+4. Check the **Preview** (press **Replay** to restart it; for Parallax, scroll the preview box itself).
+5. **Save Branding** at the bottom of the tab.
+
+> 💡 Slower reads as calmer — the photo is on screen the whole visit. Visitors who have turned on *reduce motion* on their device always get the still photo, whatever you pick here.
+
+---
+
+## 5. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -85,7 +124,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 4. Quick Troubleshooting
+## 6. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |
