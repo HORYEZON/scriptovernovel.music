@@ -1,7 +1,7 @@
 // lib/system-health.ts
 //
 // Server-only infrastructure snapshot behind Dashboard ▸ System Health —
-// what Vercel and Supabase are doing underneath the app, plus what the app
+// what Vercel, Supabase Postgres and Cloudflare R2 are doing underneath the app, plus what the app
 // can measure about itself.
 //
 // It reuses the credentials that already exist (VERCEL_ANALYTICS_TOKEN /
@@ -311,10 +311,10 @@ export async function getDatabaseHealth(): Promise<DatabaseHealth> {
 }
 
 /**
- * Supabase Storage usage for the app's own bucket, via the service-role key
- * that already uploads to it.
+ * Cloudflare R2 usage for the app's own bucket, via the S3 credentials
+ * that already upload to it.
  *
- * Storage has no "how big is this bucket" endpoint — the only way to a total
+ * R2 has no "how big is this bucket" endpoint — the only way to a total
  * is to list objects and add up their sizes. That is unbounded work for an
  * unbounded bucket, so this walks at most STORAGE_PAGE_CAP pages and reports
  * `truncated: true` if it runs out. A floor with an honest "at least" beats

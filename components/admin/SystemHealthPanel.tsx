@@ -1,7 +1,7 @@
 // components/admin/SystemHealthPanel.tsx
 "use client";
 
-// Dashboard ▸ System Health — what Vercel, Supabase and the running instance
+// Dashboard ▸ System Health — what Vercel, Supabase Postgres, Cloudflare R2 and the running instance
 // are doing underneath the app. Reads the snapshot assembled by
 // lib/system-health.ts.
 //
@@ -353,7 +353,7 @@ export function SystemHealthPanel({
       </Card>
 
       {/* ── Storage ──────────────────────────────────────────────────────── */}
-      <Card icon={HardDrive} title="Storage (Supabase)" status={storage.status}>
+      <Card icon={HardDrive} title="Storage (Cloudflare R2)" status={storage.status}>
         {storage.status !== "ok" ? (
           <StatusNote
             status={storage.status}
