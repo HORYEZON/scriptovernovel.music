@@ -12,9 +12,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 2. [Site Design — Header](#2-site-design--header)
 3. [Site Design — Menu animation](#3-site-design--menu-animation)
 4. [Preferences — Site Background Effects](#4-preferences--site-background-effects)
-5. [Homepage](#5-homepage)
-6. [Glossary — Confusing Terms Explained](#6-glossary--confusing-terms-explained)
-7. [Quick Troubleshooting](#7-quick-troubleshooting)
+5. [Releases (Music page)](#5-releases-music-page)
+6. [Homepage](#6-homepage)
+7. [Glossary — Confusing Terms Explained](#7-glossary--confusing-terms-explained)
+8. [Quick Troubleshooting](#8-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -95,11 +96,36 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 5. Homepage
+## 5. Releases (Music page)
+
+**What this is for:** everything on the public **Music** page — singles, EPs, albums — and the release that fronts the homepage.
+
+### 5.1 Adding a release
+
+1. **Releases → + New release.**
+2. Upload the **Cover** (square works best — it's also the blurred backdrop of the homepage hero).
+3. **Title**, **Type** (Single / EP / Album / Live / Compilation), **Release date** (optional), a short **Description** (the first line becomes the hero's subtitle).
+4. **Where it streams** — paste the release's link on Spotify, Bandcamp, YouTube, SoundCloud and/or Apple Music. Under each box it tells you whether that link gives visitors an embedded player or just a link. **Player shown on the site** picks which one plays on the page; the rest become "Listen on" pills.
+5. **Tracklist** — one row per track: title, duration (`3:42`), an optional link, and **+ Add lyrics** (visitors can fold lyrics open under the track).
+6. **Add release**.
+
+> 💡 **Bandcamp:** a normal release-page URL is link-only. For a Bandcamp player, open the release on Bandcamp → Share / Embed → copy the *EmbeddedPlayer* URL and paste that instead.
+
+### 5.2 Featured, hidden, order
+
+- **★ Featured** — that release fronts the homepage ("Out now"). Un-star it and the newest published release takes over.
+- **Published / Hidden** pill — hidden releases are off the site but stay in the admin.
+- ↑ ↓ arrows set the order used when two releases share a date (or have none).
+- 🗑 moves it to **Trash** (Trash → Music) where it can be restored.
+
+---
+
+## 6. Homepage
 
 **What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
 
-- **Hero** — the band's name (Site Design → Header → Wordmark), the genres (About → Skills, relabelled Genres / tags; falls back to the band's four), the tagline (About → Headline) and LISTEN / WATCH buttons over the site background photo. If **Site Design → Homepage Hero** is switched on, your custom hero shows instead. Once Releases ship, a featured release takes over the hero.
+- **Hero** — the featured release (else the newest published one): its cover blurred behind the title, LISTEN into its player, WATCH to Videos. With no releases yet: the band's name (Site Design → Header → Wordmark), the genres (About → Skills, relabelled Genres / tags; falls back to the band's four), the tagline (About → Headline) — or, if **Site Design → Homepage Hero** is switched on, your custom hero.
+- **Latest release** — the same release in full (player, tracklist, links), right under the hero.
 - **Upcoming shows** — Shows / Events with a date in the future (up to three). Hidden when there are none.
 - **Merch** — the four newest available products. Hidden when the store is empty.
 - **Fan wall** — the three newest notes, when the Freedom Wall is active.
@@ -109,7 +135,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 6. Glossary — Confusing Terms Explained
+## 7. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -119,7 +145,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 7. Quick Troubleshooting
+## 8. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

@@ -1,7 +1,7 @@
 // app/(public)/page.tsx
 //
 // The band's homepage: a release-led hero, then one section per thing the
-// band has going — the latest release (Phase 2), upcoming shows, videos
+// band has going — the latest release, upcoming shows, videos
 // (Phase 3), merch, the fan wall, the Digital Museum with the arcade beside
 // it. Every section is a server component that renders nothing when it
 // has no data (see components/public/home/*), so the page is only ever as
@@ -16,6 +16,7 @@ import { getSocialLinks } from "@/lib/public-data";
 import { JsonLd } from "@/components/public/JsonLd";
 import { SITE_URL } from "@/lib/site-url";
 import { ReleaseHero } from "@/components/public/home/ReleaseHero";
+import { LatestRelease } from "@/components/public/home/LatestRelease";
 import { UpcomingShows } from "@/components/public/home/UpcomingShows";
 import { MerchStrip } from "@/components/public/home/MerchStrip";
 import { FanWallTeaser } from "@/components/public/home/FanWallTeaser";
@@ -52,6 +53,9 @@ export default async function HomePage() {
       {/* Sections stream in independently — a slow query in one never holds
           the hero back, and each hides itself when it has nothing. */}
       <div className="mt-16 space-y-16 md:mt-24 md:space-y-24">
+        <Suspense>
+          <LatestRelease />
+        </Suspense>
         <Suspense>
           <UpcomingShows />
         </Suspense>

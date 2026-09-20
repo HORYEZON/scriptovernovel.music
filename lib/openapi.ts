@@ -270,6 +270,41 @@ export const openApiSpec: OpenAPIV3.Document = {
           createdAt: { type: "string", format: "date-time" },
         },
       },
+      ReleaseTrack: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          trackNumber: { type: "integer" },
+          title: { type: "string" },
+          durationSec: { type: "integer", nullable: true },
+          url: { type: "string", nullable: true, description: "Optional per-track streaming link (any provider lib/embeds.ts parses)." },
+          lyrics: { type: "string", nullable: true },
+        },
+      },
+      Release: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          title: { type: "string" },
+          slug: { type: "string", nullable: true, description: "Write-once; the /music#slug anchor." },
+          type: { type: "string", enum: ["SINGLE", "EP", "ALBUM", "LIVE", "COMPILATION"] },
+          coverImageUrl: { type: "string" },
+          releaseDate: { type: "string", format: "date-time", nullable: true },
+          description: { type: "string", nullable: true },
+          featured: { type: "boolean", description: "Fronts the homepage hero." },
+          published: { type: "boolean" },
+          sortOrder: { type: "integer" },
+          spotifyUrl: { type: "string", nullable: true },
+          bandcampUrl: { type: "string", nullable: true },
+          youtubeUrl: { type: "string", nullable: true },
+          soundcloudUrl: { type: "string", nullable: true },
+          appleMusicUrl: { type: "string", nullable: true },
+          primaryPlayer: { type: "string", nullable: true, enum: ["spotify", "bandcamp", "youtube", "soundcloud", "applemusic", null], description: "Which platform's embedded player the site shows; null = first that can embed." },
+          tracks: { type: "array", items: { $ref: "#/components/schemas/ReleaseTrack" } },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
       Event: {
         type: "object",
         properties: {
@@ -1520,6 +1555,84 @@ export const openApiSpec: OpenAPIV3.Document = {
     // ═══════════════════════════════════════════════════════
     // TIMELINE / EVENTS (public Gigs map on the About page)
     // ═══════════════════════════════════════════════════════
+    "/releases": {
+      get: {
+        tags: ["Releases"],
+        summary: "List live releases (admin)",
+        security: adminSecurity,
+        responses: { "200": { description: "Releases", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Release" } } } } }, "401": ErrorResponse },
+      },
+      post: {
+        tags: ["Releases"],
+        summary: "Create a release",
+        description:
+          "Platform links are validated by lib/embeds.ts (host allow-list) and rejected with 400 when they don't parse. `tracks` is the full tracklist in order; blank titles are dropped. The slug is generated once from the title.",
+        security: adminSecurity,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["title", "coverImageUrl"],
+                properties: {
+                  title: { type: "string" },
+                  type: { type: "string", enum: ["SINGLE", "EP", "ALBUM", "LIVE", "COMPILATION"] },
+                  coverImageUrl: { type: "string" },
+                  releaseDate: { type: "string", format: "date", nullable: true },
+                  description: { type: "string", nullable: true },
+                  featured: { type: "boolean" },
+                  published: { type: "boolean" },
+                  spotifyUrl: { type: "string", nullable: true },
+                  bandcampUrl: { type: "string", nullable: true },
+                  youtubeUrl: { type: "string", nullable: true },
+                  soundcloudUrl: { type: "string", nullable: true },
+                  appleMusicUrl: { type: "string", nullable: true },
+                  primaryPlayer: { type: "string", nullable: true },
+                  tracks: { type: "array", items: { type: "object", properties: { title: { type: "string" }, durationSec: { type: "integer", nullable: true }, url: { type: "string", nullable: true }, lyrics: { type: "string", nullable: true } } } },
+                },
+              },
+            },
+          },
+        },
+        responses: { "201": { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Release" } } } }, "400": ErrorResponse, "401": ErrorResponse },
+      },
+    },
+    "/releases/public": {
+      get: {
+        tags: ["Releases"],
+        summary: "Published releases (public)",
+        description: "What /music shows: published, not trashed, newest release date first.",
+        responses: { "200": { description: "Releases", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Release" } } } } } },
+      },
+    },
+    "/releases/reorder": {
+      put: {
+        tags: ["Releases"],
+        summary: "Reorder releases",
+        security: adminSecurity,
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { order: { type: "array", items: { type: "object", properties: { id: { type: "string" }, sortOrder: { type: "integer" } } } } } } } } },
+        responses: { "200": { description: "Releases in new order" }, "400": ErrorResponse, "401": ErrorResponse },
+      },
+    },
+    "/releases/{id}": {
+      patch: {
+        tags: ["Releases"],
+        summary: "Update a release (partial)",
+        description: "Any Release field except id/slug. `tracks`, when present, replaces the whole tracklist. Platform link fields accept null to clear.",
+        security: adminSecurity,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: { content: { "application/json": { schema: { type: "object" } } } },
+        responses: { "200": { description: "Updated", content: { "application/json": { schema: { $ref: "#/components/schemas/Release" } } } }, "400": ErrorResponse, "401": ErrorResponse, "404": ErrorResponse },
+      },
+      delete: {
+        tags: ["Releases"],
+        summary: "Move a release to Trash",
+        security: adminSecurity,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": SuccessResponse, "401": ErrorResponse },
+      },
+    },
     "/events": {
       get: {
         tags: ["Events"],
@@ -3997,6 +4110,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Sections", description: "Gallery section groupings" },
     { name: "Products", description: "Shop product listings tied to artworks" },
     { name: "Orders", description: "Customer orders (admin + public lookup)" },
+    { name: "Releases", description: "The band's singles, EPs and albums — covers, tracklists, lyrics, streaming links" },
     { name: "Checkout", description: "PayMongo checkout session and webhook" },
     { name: "Announcements", description: "Timed site announcements" },
     { name: "Marquees", description: "Scrolling marquee announcements" },

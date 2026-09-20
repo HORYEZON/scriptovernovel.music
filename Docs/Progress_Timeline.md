@@ -88,3 +88,28 @@ not a release of its own.
   Spotify / Bandcamp / SoundCloud / Apple Music link parsing + `EmbedFrame`
   player), `lib/store/product-display.ts` (product title/image fallback chain
   ahead of the merch decoupling), `/api/site-search`
+
+---
+
+## September 20, 2026 — v0.3
+
+### Admin Side
+
+- **Releases** (sidebar → Music): singles / EPs / albums with cover, type,
+  date, description, tracklist (durations, per-track links, lyrics) and
+  streaming links for Spotify, Bandcamp, YouTube, SoundCloud and Apple Music,
+  each checked as you paste. Pick which platform's player the site shows.
+  Feature one to front the homepage; hide, reorder, trash and restore
+
+### Public Side
+
+- **Music page** — every release with its embedded player, tracklist with
+  fold-out lyrics, and "Listen on" links for the other platforms. Filter by
+  type when there's more than one
+- **The homepage leads with a release** — the featured (or newest) one's cover
+  as the hero backdrop, then the release in full right under it
+- Header search now finds releases and tracks
+
+### Infra / DB
+
+- New tables `Release` and `ReleaseTrack` (migration `20260920160000_releases`)

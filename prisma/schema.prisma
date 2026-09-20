@@ -7,21 +7,21 @@ datasource db {
 }
 
 model User {
-  id                  String               @id @default(cuid())
-  name                String?
-  email               String               @unique
-  emailVerified       DateTime?
-  image               String?
-  password            String?
-  role                Role                 @default(ADMIN)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  lastLoginAt         DateTime?
-  lastLoginIp         String?
-  lastLoginUserAgent  String?
-  totpEnabled         Boolean              @default(false)
-  totpRecoveryCodes   String[]             @default([])
-  totpSecret          String?
+  id                      String               @id @default(cuid())
+  name                    String?
+  email                   String               @unique
+  emailVerified           DateTime?
+  image                   String?
+  password                String?
+  role                    Role                 @default(ADMIN)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  lastLoginAt             DateTime?
+  lastLoginIp             String?
+  lastLoginUserAgent      String?
+  totpEnabled             Boolean              @default(false)
+  totpRecoveryCodes       String[]             @default([])
+  totpSecret              String?
   // Auto sign-out after a stretch of no interaction with the admin panel —
   // Settings ▸ Security. Off by default: this account is the artist's own
   // laptop far more often than a shared machine, and silently ending a
@@ -31,15 +31,15 @@ model User {
   // Per-user rather than a site-wide setting, and deliberately so: it is a
   // statement about the machine this person signs in from, not about the
   // site. Two admins on the same site can reasonably want different answers.
-  inactivityLogoutEnabled Boolean          @default(false)
+  inactivityLogoutEnabled Boolean              @default(false)
   // How many idle minutes before the sign-out. Constrained to the choices in
   // lib/inactivity.ts (10 / 30 / 60) by the API, not by the database — an
   // Int leaves room to offer another interval later without a migration.
   // Ignored while inactivityLogoutEnabled is false.
-  inactivityLogoutMinutes Int              @default(30)
-  accounts            Account[]
-  passwordResetTokens PasswordResetToken[]
-  sessions            Session[]
+  inactivityLogoutMinutes Int                  @default(30)
+  accounts                Account[]
+  passwordResetTokens     PasswordResetToken[]
+  sessions                Session[]
 }
 
 model PasswordResetToken {
@@ -88,75 +88,75 @@ model VerificationToken {
 }
 
 model Profile {
-  id                      String   @id @default(cuid())
-  bio                     String
-  profileImage            String?
-  headline                String?
-  instagram               String?
-  facebook                String?
-  twitter                 String?
-  email                   String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  backgroundImage         String?
-  profileImages           String[] @default([])
-  logoImage               String?
-  basedIn                 String?
-  displayName             String?
-  experience              String?
-  languages               String?
-  address                 String?
-  phone                   String?
-  commissionHeading       String?
-  commissionIntro         String?
-  contactHeading          String?
-  contactIntro            String?
-  iconImage               String?
-  chatIcon                String?
-  sidebarIcon             String?
-  sidebarIconColors       String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
-  carouselMode            String   @default("auto")
-  carouselSpeed           Int      @default(5)
+  id                              String   @id @default(cuid())
+  bio                             String
+  profileImage                    String?
+  headline                        String?
+  instagram                       String?
+  facebook                        String?
+  twitter                         String?
+  email                           String?
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+  backgroundImage                 String?
+  profileImages                   String[] @default([])
+  logoImage                       String?
+  basedIn                         String?
+  displayName                     String?
+  experience                      String?
+  languages                       String?
+  address                         String?
+  phone                           String?
+  commissionHeading               String?
+  commissionIntro                 String?
+  contactHeading                  String?
+  contactIntro                    String?
+  iconImage                       String?
+  chatIcon                        String?
+  sidebarIcon                     String?
+  sidebarIconColors               String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  carouselMode                    String   @default("auto")
+  carouselSpeed                   Int      @default(5)
   // The same two settings again, for the Stories shelf (/stories). Kept as
   // their own columns rather than one shared pair because the two grids hold
   // different things — a handful of sections vs a growing library — and an
   // admin who wants the homepage auto-scrolling doesn't necessarily want the
   // bookshelf doing it too. Same values, same sanitizers (lib/gallery-carousel.ts).
-  storiesCarouselMode     String   @default("auto")
-  storiesCarouselSpeed    Int      @default(5)
+  storiesCarouselMode             String   @default("auto")
+  storiesCarouselSpeed            Int      @default(5)
   // The hover light-sweep on the three public grids (Gallery section cards,
   // Tales covers, Shop product cards): per-surface colour / speed /
   // brightness. One Json column rather than nine scalars because the three
   // surfaces are always read and written together; null (every row from
   // before this existed) means the defaults in lib/hover-shimmer.ts, which
   // is also the only place the shape is validated.
-  hoverShimmer            Json?
-  maintenanceMessage      String?
-  maintenanceMode         Boolean  @default(false)
-  musicEnabled            Boolean  @default(false)
-  musicUrl                String?
-  musicVolume             Int      @default(50)
-  introEffect             String   @default("fade")
-  introEnabled            Boolean  @default(true)
-  introSpeedMs            Int      @default(1400)
-  introText               String   @default("Contemporary Filipino Art")
+  hoverShimmer                    Json?
+  maintenanceMessage              String?
+  maintenanceMode                 Boolean  @default(false)
+  musicEnabled                    Boolean  @default(false)
+  musicUrl                        String?
+  musicVolume                     Int      @default(50)
+  introEffect                     String   @default("fade")
+  introEnabled                    Boolean  @default(true)
+  introSpeedMs                    Int      @default(1400)
+  introText                       String   @default("Contemporary Filipino Art")
   // The optional second tagline, above the logo. Empty means "no line there",
   // which is the default so an existing splash is unchanged — see
   // sanitizeIntroTextAbove, which deliberately lets blank stay blank.
-  introTextAbove          String   @default("")
-  introBgColor            String   @default("#0D0D0D")
+  introTextAbove                  String   @default("")
+  introBgColor                    String   @default("#0D0D0D")
   // Tagline text styling — independent of the SiteTheme font customizer,
   // font size/family here only ever affect the splash's own tagline lines.
   // See lib/theme.ts's THEME_FONT_OPTIONS for the shared curated font list.
   // Size, color and family are all per-line — the two taglines usually play
   // different roles (a small label above, the house line below), so pairing
   // two families is a normal choice rather than a mistake.
-  introTaglineFontSize    String   @default("0.75rem")
-  introTaglineColor       String   @default("#E8D5A8")
-  introTaglineAboveFontSize String @default("0.75rem")
-  introTaglineAboveColor  String   @default("#E8D5A8")
-  introTaglineFontFamily  String   @default("var(--font-dm-sans), system-ui, sans-serif")
-  introTaglineAboveFontFamily String @default("var(--font-dm-sans), system-ui, sans-serif")
+  introTaglineFontSize            String   @default("0.75rem")
+  introTaglineColor               String   @default("#E8D5A8")
+  introTaglineAboveFontSize       String   @default("0.75rem")
+  introTaglineAboveColor          String   @default("#E8D5A8")
+  introTaglineFontFamily          String   @default("var(--font-dm-sans), system-ui, sans-serif")
+  introTaglineAboveFontFamily     String   @default("var(--font-dm-sans), system-ui, sans-serif")
   // Phone-only overrides for the two tagline sizes. Null — the default, and
   // every row from before these existed — means "use the size above", so an
   // existing splash renders exactly as it did.
@@ -173,11 +173,11 @@ model Profile {
   // at its centre, 0-100; 0 (the default) renders no layer at all. The offsets
   // move that centre off the lockup's own centre, as a percentage of the
   // lockup's box on each axis (0/0 = dead centre).
-  introGlowIntensity      Int      @default(0)
-  introGlowColor          String   @default("#E8D5A8")
-  introGlowShimmer        Boolean  @default(true)
-  introGlowOffsetX        Int      @default(0)
-  introGlowOffsetY        Int      @default(0)
+  introGlowIntensity              Int      @default(0)
+  introGlowColor                  String   @default("#E8D5A8")
+  introGlowShimmer                Boolean  @default(true)
+  introGlowOffsetX                Int      @default(0)
+  introGlowOffsetY                Int      @default(0)
   // The squid standing in for the A in KALAM(squid)RI, on the entrance splash
   // only — the footer, sidebar and maintenance-page squids keep their own
   // brand-palette cycle (squid-drift, see tailwind.config.ts).
@@ -188,7 +188,7 @@ model Profile {
   // defaults to the pink the "m" beside it already wears (INTRO_LETTER_COLORS)
   // so the lockup reads as one run of colour rather than five brand colours
   // plus a stray sixth.
-  introSquidColor         String   @default("#F5F1E8")
+  introSquidColor                 String   @default("#F5F1E8")
   // How the KALAM(squid)RI lockup's per-letter colours behave on the entrance
   // splash: "hover" (the original — each syllable takes its own colour only
   // while the pointer is over it, and the wordmark otherwise reads as one
@@ -196,22 +196,22 @@ model Profile {
   // is the default and what every existing splash keeps; it is also the only
   // one of the two a phone visitor can never trigger, which is the reason the
   // second option exists. See INTRO_LETTER_COLORS in lib/intro-splash.ts.
-  introLetterColors       String   @default("hover")
-  errorIcon               String?
-  faviconIcon             String?
-  footerIcon              String?
-  maintenanceIcon         String?
-  sidebarMobileIcon       String?
-  splashIcon              String?
-  faviconIconColors       String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
-  footerIconColors        String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
-  maintenanceIconColors   String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
-  sidebarMobileIconColors String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
-  splashIconColors        String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
-  callingCardFront        String?
-  callingCardBack         String?
-  releaseNotesEnabled     Boolean  @default(true)
-  releaseNotesLimit       Int      @default(3)
+  introLetterColors               String   @default("hover")
+  errorIcon                       String?
+  faviconIcon                     String?
+  footerIcon                      String?
+  maintenanceIcon                 String?
+  sidebarMobileIcon               String?
+  splashIcon                      String?
+  faviconIconColors               String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  footerIconColors                String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  maintenanceIconColors           String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  sidebarMobileIconColors         String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  splashIconColors                String[] @default(["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"])
+  callingCardFront                String?
+  callingCardBack                 String?
+  releaseNotesEnabled             Boolean  @default(true)
+  releaseNotesLimit               Int      @default(3)
 }
 
 /// A visitor-facing "what changed on the site" entry, shown in the navbar's
@@ -225,21 +225,21 @@ model Profile {
 /// it holds no artwork, no upload, and nothing else references it, so there's
 /// nothing to orphan by removing one.
 model ReleaseNote {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   body        String
   /// Which part of the public site the change is in — "Digital Museum",
   /// "Gallery", … Free text; RELEASE_NOTE_CATEGORIES in lib/release-notes.ts
   /// is the suggested list, not a constraint.
-  category    String   @default("General")
+  category    String    @default("General")
   /// Optional, e.g. "v6.15". A note doesn't have to name one.
   version     String?
-  isPublished Boolean  @default(true)
+  isPublished Boolean   @default(true)
   /// What the panel orders by, and what it shows as the note's date. Editable
   /// because a note is usually written after the change actually shipped.
-  publishedAt DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  publishedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   /// Soft delete, so a deleted note lands in the Trash module like every other
   /// trashable record rather than being destroyed outright. Every read path
   /// (the admin list, the public panel) filters on `deletedAt: null`.
@@ -327,78 +327,78 @@ model SiteDesign {
   // Browser-tab icon. When set it replaces the icon-catalog favicon
   // (Profile.faviconIcon + AnimatedFavicon's colour cycle) outright with
   // this static image.
-  faviconImage           String?
+  faviconImage String?
 
   // ── Header ────────────────────────────────────────────────────────────────
   // Uploaded wordmark (the handwritten-signature look). Falls back to
   // headerLogoText rendered in headerLogoFontFamily when unset.
-  headerLogoImage        String?
-  headerLogoText         String  @default("ScriptOverNovel")
-  headerLogoFontFamily   String  @default("var(--font-caveat), cursive")
-  headerLogoFontSize     String  @default("2rem")
-  headerLogoHeight       String  @default("40px")
-  headerBgColor          String  @default("#F2EFE6")
-  headerTextColor        String  @default("#0D0D0D")
-  headerMenuLabel        String  @default("MENU")
+  headerLogoImage          String?
+  headerLogoText           String  @default("ScriptOverNovel")
+  headerLogoFontFamily     String  @default("var(--font-caveat), cursive")
+  headerLogoFontSize       String  @default("2rem")
+  headerLogoHeight         String  @default("40px")
+  headerBgColor            String  @default("#F2EFE6")
+  headerTextColor          String  @default("#0D0D0D")
+  headerMenuLabel          String  @default("MENU")
   // The MENU button while hovered — same idea as the overlay's × button:
   // colours flip and it moves per CLOSE_HOVER_EFFECTS ("spin" turns the
   // dots glyph, not the word).
-  headerMenuHoverBgColor   String @default("#0D0D0D")
-  headerMenuHoverTextColor String @default("#F2EFE6")
-  headerMenuHoverEffect    String @default("spin")
-  headerShowSearch       Boolean @default(true)
+  headerMenuHoverBgColor   String  @default("#0D0D0D")
+  headerMenuHoverTextColor String  @default("#F2EFE6")
+  headerMenuHoverEffect    String  @default("spin")
+  headerShowSearch         Boolean @default(true)
   // Cart/wishlist icons additionally self-reveal whenever they hold items
   // (SiteHeader.tsx) so a shopper is never locked out of their basket by a
   // header configured to the bare search · logo · MENU look.
   // Unused since the light/dark toggle became a permanent fixture of the
   // header (SiteHeader.tsx) — kept only to avoid a drop-column migration
   // against the live DB; nothing reads or writes it.
-  headerShowThemeToggle  Boolean @default(false)
-  headerShowWishlist     Boolean @default(false)
-  headerShowCart         Boolean @default(false)
-  headerShowReleaseNotes Boolean @default(false)
+  headerShowThemeToggle    Boolean @default(false)
+  headerShowWishlist       Boolean @default(false)
+  headerShowCart           Boolean @default(false)
+  headerShowReleaseNotes   Boolean @default(false)
 
   // ── Menu overlay ──────────────────────────────────────────────────────────
   // How the overlay enters when MENU is pressed and how it leaves when × is
   // pressed — each its own effect (lib/site-design.ts's MENU_OPEN_EFFECTS /
   // MENU_CLOSE_EFFECTS) and duration.
-  menuOpenEffect      String  @default("drop")
-  menuOpenSpeedMs     Int     @default(500)
-  menuCloseEffect     String  @default("drop")
-  menuCloseSpeedMs    Int     @default(500)
+  menuOpenEffect          String  @default("drop")
+  menuOpenSpeedMs         Int     @default(500)
+  menuCloseEffect         String  @default("drop")
+  menuCloseSpeedMs        Int     @default(500)
   // How the links (and the panel foot) appear once the sheet has opened —
   // one of MENU_ITEMS_EFFECTS — and how long each takes.
-  menuItemsEffect     String  @default("fade")
-  menuItemsSpeedMs    Int     @default(500)
-  menuFontFamily      String  @default("var(--font-playfair), Georgia, serif")
-  menuFontSize        String  @default("6rem")
-  menuFontSizeMobile  String  @default("3.25rem")
-  menuFontWeight      String  @default("900")
-  menuFontStyle       String  @default("normal")
-  menuTextTransform   String  @default("uppercase")
-  menuLetterSpacing   String  @default("-0.03em")
-  menuLineHeight      Float   @default(1)
+  menuItemsEffect         String  @default("fade")
+  menuItemsSpeedMs        Int     @default(500)
+  menuFontFamily          String  @default("var(--font-playfair), Georgia, serif")
+  menuFontSize            String  @default("6rem")
+  menuFontSizeMobile      String  @default("3.25rem")
+  menuFontWeight          String  @default("900")
+  menuFontStyle           String  @default("normal")
+  menuTextTransform       String  @default("uppercase")
+  menuLetterSpacing       String  @default("-0.03em")
+  menuLineHeight          Float   @default(1)
   // Resting look — before anything is hovered: a near-black panel, white
   // links, the resting photo, no underline. Hovering any link swaps in that
   // SiteMenuItem's panel colour + photo, recolours every link to
   // menuHoverTextColor, and draws that link's underline.
-  menuTextColor       String  @default("#FFFFFF")
-  menuHoverTextColor  String  @default("#141414")
-  menuBgColor         String  @default("#1C1C1C")
-  menuImage           String?
+  menuTextColor           String  @default("#FFFFFF")
+  menuHoverTextColor      String  @default("#141414")
+  menuBgColor             String  @default("#1C1C1C")
+  menuImage               String?
   // Width of the colour panel as a % of the viewport on desktop; the image
   // takes the rest. Phones always stack (panel full-width, image hidden).
-  menuPanelWidth      Int     @default(50)
-  menuCloseBgColor    String  @default("#FFFFFF")
-  menuCloseIconColor  String  @default("#0D0D0D")
+  menuPanelWidth          Int     @default(50)
+  menuCloseBgColor        String  @default("#FFFFFF")
+  menuCloseIconColor      String  @default("#0D0D0D")
   // The × button while hovered: its colours flip, and it moves per
   // lib/site-design.ts's CLOSE_HOVER_EFFECTS ("spin" turns the × a quarter).
-  menuCloseHoverBgColor   String @default("#141414")
-  menuCloseHoverIconColor String @default("#FFFFFF")
-  menuCloseHoverEffect    String @default("spin")
-  menuFooterText      String  @default("JOIN THE MAILING LIST")
-  menuFooterHref      String  @default("/contact")
-  menuShowSocialLinks Boolean @default(true)
+  menuCloseHoverBgColor   String  @default("#141414")
+  menuCloseHoverIconColor String  @default("#FFFFFF")
+  menuCloseHoverEffect    String  @default("spin")
+  menuFooterText          String  @default("JOIN THE MAILING LIST")
+  menuFooterHref          String  @default("/contact")
+  menuShowSocialLinks     Boolean @default(true)
 
   // ── Homepage hero ─────────────────────────────────────────────────────────
   heroEnabled           Boolean @default(false)
@@ -576,6 +576,68 @@ model Story {
   // Podium rows in the Digital Museum's Stories Room — see
   // lib/museum/storiesRoom.ts and docs/StoriesRoom_Spec.md.
   museumRoomEntries MuseumRoomStory[] @relation("MuseumRoomStories")
+}
+
+// ── Music ───────────────────────────────────────────────────────────────────
+//
+// A release — single, EP, album, live recording or compilation — as the band
+// site's Music page and homepage hero show it: a cover, a tracklist, and the
+// places it streams. No audio is hosted here; each *Url is a link on the
+// platform (validated by lib/embeds.ts on write, rendered as that platform's
+// embedded player by components/public/system/EmbedFrame.tsx).
+// Same conventions as Story: published/featured/sortOrder, a write-once slug
+// (it is a #anchor on /music and a hero deep link), soft delete.
+model Release {
+  id            String         @id @default(cuid())
+  title         String
+  slug          String?        @unique
+  type          ReleaseType    @default(SINGLE)
+  coverImageUrl String
+  releaseDate   DateTime?
+  description   String?
+  featured      Boolean        @default(false)
+  published     Boolean        @default(true)
+  sortOrder     Int            @default(0)
+  spotifyUrl    String?
+  bandcampUrl   String?
+  youtubeUrl    String?
+  soundcloudUrl String?
+  appleMusicUrl String?
+  // Which platform's player the site shows for this release — one of
+  // lib/embeds.ts's EmbedProvider. Null = the first that has a link, in
+  // lib/releases.ts's preference order.
+  primaryPlayer String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+  tracks        ReleaseTrack[]
+
+  @@index([published, releaseDate])
+  @@index([deletedAt])
+}
+
+// One line of a release's tracklist. `lyrics` shows on /music under the
+// track (collapsed) and feeds the lyric mini game; `url` is an optional
+// per-track link (a single's own Spotify/YouTube page).
+model ReleaseTrack {
+  id          String  @id @default(cuid())
+  releaseId   String
+  release     Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  trackNumber Int
+  title       String
+  durationSec Int?
+  url         String?
+  lyrics      String?
+
+  @@index([releaseId, trackNumber])
+}
+
+enum ReleaseType {
+  SINGLE
+  EP
+  ALBUM
+  LIVE
+  COMPILATION
 }
 
 // One cosplay in the Cosplay Room — a costume shot shown on a life-size
@@ -981,9 +1043,9 @@ model MuseumRoom {
 // discriminator so future prop types don't each need their own
 // migration.
 model MuseumSceneObject {
-  id             String     @id @default(cuid())
-  roomId         String
-  room           MuseumRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  id              String     @id @default(cuid())
+  roomId          String
+  room            MuseumRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   // "custom" | "about-photo" | "about-plaque" | "about-certs" — the last
   // three only ever exist on the About ScriptOverNovel room (see
   // lib/museum/aboutRoomBlocks.ts) and hold a *position offset* (default
@@ -995,36 +1057,36 @@ model MuseumSceneObject {
   // reads or creates that kind anymore — the Cosplay Room's standees are
   // MuseumRoomCosplay rows, not these, and its one row here is the
   // "cosplay-standee-model" config singleton (lib/museum/cosplayStandee.ts).
-  kind           String     @default("custom")
+  kind            String     @default("custom")
   // Admin-chosen display name for a "custom" .glb prop — shown in the
   // Museum Scene Editor's object list and confirm dialogs in place of the
   // generic "Decorative Object". Null (the default, and every non-custom
   // kind) falls back to that generic label. Never shown to museum visitors.
-  label          String?
-  modelUrl       String?
-  positionX      Float      @default(0)
+  label           String?
+  modelUrl        String?
+  positionX       Float      @default(0)
   // Added after positionX/positionZ — used by "about-*" kinds (vertical
   // offset) and available to custom decorative objects too (a prop no
   // longer has to sit exactly on the floor).
-  positionY      Float      @default(0)
-  positionZ      Float      @default(0)
-  rotationY      Float      @default(0)
+  positionY       Float      @default(0)
+  positionZ       Float      @default(0)
+  rotationY       Float      @default(0)
   // Uniform scale multiplier for "custom" .glb props — 1 = the model's own
   // exported size. Admin-adjustable in the Museum Scene Editor (same slider
   // as an artwork frame's). Ignored by every other kind (text labels size
   // via their JSON config, About blocks aren't scaled).
-  scale          Float      @default(1)
+  scale           Float      @default(1)
   // "custom" .glb props only: when true the museum's player collision treats
   // this as a solid floor obstacle (PlayerControls' `obstacles`) — a circular
   // footprint the visitor is pushed back out of, the same circle-collision
   // model the Stories Room podiums use. Off by default: most props (a wall
   // clock, a hanging light) are things a visitor should walk straight past.
-  solid          Boolean    @default(false)
+  solid           Boolean    @default(false)
   // Radius of that footprint in the model's own exported units (before
   // `scale`). Null = "auto" — the editor fills it from the model's bounding
   // box when `solid` is switched on; an admin can then override it. Ignored
   // unless `solid` is true.
-  colliderRadius Float?
+  colliderRadius  Float?
   // Where that circle sits, relative to the model's own origin, in the same
   // model units as `colliderRadius` (before `scale`) and in the prop's own
   // rotated frame — so a turned prop's footprint turns with it. 0/0 (the
@@ -1033,8 +1095,8 @@ model MuseumSceneObject {
   // geometry off to one side of its origin, and for those the circle sat
   // beside the model rather than under it — no radius could fix that, only
   // move it. Ignored unless `solid` is true.
-  colliderOffsetX Float   @default(0)
-  colliderOffsetZ Float   @default(0)
+  colliderOffsetX Float      @default(0)
+  colliderOffsetZ Float      @default(0)
   // How tall that footprint stands, in the same model units as
   // `colliderRadius` (before `scale`), measured up from the prop's own base
   // (its `positionY`). Null — the default, and every row from before this
@@ -1045,7 +1107,7 @@ model MuseumSceneObject {
   // height set, a visitor is only pushed out while their own body overlaps
   // that vertical span — they walk under a high one and (jumping) over a low
   // one. Ignored unless `solid` is true.
-  colliderHeight Float?
+  colliderHeight  Float?
   // Where that column *starts*, in the same model units as `colliderRadius`
   // (before `scale`), measured up from the prop's own base (`positionY`).
   // 0 — the default, and every row from before this column existed — means
@@ -1059,7 +1121,7 @@ model MuseumSceneObject {
   // a shorter obstacle still rooted to the ground. Ignored unless `solid` is
   // true and `colliderHeight` is set: with no height there is no column to
   // lift, only the floor-to-ceiling default.
-  colliderBaseY  Float   @default(0)
+  colliderBaseY   Float      @default(0)
   // Kept out of the public museum while staying in the room. Distinct from
   // `deletedAt` on purpose, and the distinction matters most for the
   // provisioned fixtures — the About room's content blocks, its Contact Desk,
@@ -1073,10 +1135,10 @@ model MuseumSceneObject {
   //
   // Not to be confused with the Scene Editor's own eye toggle, which hides an
   // object from the admin's 3D preview only and is never persisted anywhere.
-  hidden         Boolean    @default(false)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  deletedAt      DateTime?
+  hidden          Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
 
   @@index([roomId])
 }
@@ -1211,23 +1273,23 @@ model MuseumRoomMiniGame {
 // local offset the components own — so an admin drags "the cosplay", never a
 // standee and its photo separately, and the two can never drift apart.
 model MuseumRoomCosplay {
-  id           String     @id @default(cuid())
-  roomId       String
-  room         MuseumRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  cosplayId    String
-  cosplay      Cosplay    @relation("MuseumRoomCosplays", fields: [cosplayId], references: [id], onDelete: Cascade)
-  displayOrder Int        @default(0)
+  id            String     @id @default(cuid())
+  roomId        String
+  room          MuseumRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  cosplayId     String
+  cosplay       Cosplay    @relation("MuseumRoomCosplays", fields: [cosplayId], references: [id], onDelete: Cascade)
+  displayOrder  Int        @default(0)
   // Museum Scene Editor override. All null (the default) means "auto-computed"
   // — standeePlacement.ts's perimeter walk, which stands each pair against a
   // wall facing into the room, exactly as before this was ever dragged. Always
   // set together, never partially. Room-LOCAL X/Z (same space
   // MuseumSceneObject uses); positionY is a raise off this room's own floor.
-  positionX    Float?
-  positionY    Float?
-  positionZ    Float?
-  rotationY    Float?
+  positionX     Float?
+  positionY     Float?
+  positionZ     Float?
+  rotationY     Float?
   // Uniform multiplier on the whole standee+backdrop group. Null/1 = default.
-  scale        Float?
+  scale         Float?
   // Billboard lights — the ring of marquee bulbs around this standee's backdrop
   // panel (or, when the room hangs no panel, around the print itself). See
   // BillboardLights.tsx.
@@ -1239,8 +1301,8 @@ model MuseumRoomCosplay {
   // bulbs look stays room-wide, so a lit room reads as one design. The editor's
   // "Light every standee" button is how you do want all of them, and it just
   // sets this on every row.
-  lightsEnabled Boolean   @default(false)
-  createdAt    DateTime   @default(now())
+  lightsEnabled Boolean    @default(false)
+  createdAt     DateTime   @default(now())
 
   // Makes the sync's skipDuplicates a no-op instead of a 500 when two
   // concurrent requests both decide to add the same cosplay.
@@ -1307,27 +1369,27 @@ model Order {
 }
 
 model OrderItem {
-  id           String          @id @default(cuid())
-  orderId      String
+  id            String          @id @default(cuid())
+  orderId       String
   // Nullable, with the product released (SetNull) when it is permanently
   // deleted. It used to be required, which made a product that had ever
   // been ordered impossible to purge from Trash — the FK threw, the bulk
   // purge counted it as "already gone", and the row sat in Trash forever.
   // An order is a record of what was bought; it must not pin the catalogue.
-  productId    String?
-  quantity     Int
-  price        Float
-  variantId    String?
-  variantLabel String?
+  productId     String?
+  quantity      Int
+  price         Float
+  variantId     String?
+  variantLabel  String?
   // What the line was, kept on the line itself so a receipt, the admin's
   // order list and the customer's lookup still read right after the product
   // is gone. Stamped by lib/trash-actions' purge just before the delete (and
   // by nothing else — while the product exists, its own title/image win).
   titleSnapshot String?
   imageSnapshot String?
-  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product      Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
-  variant      ProductVariant? @relation(fields: [variantId], references: [id])
+  order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant       ProductVariant? @relation(fields: [variantId], references: [id])
 }
 
 model Faq {

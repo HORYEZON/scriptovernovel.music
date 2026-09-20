@@ -51,6 +51,7 @@ import {
   Sparkles,
   Trophy,
   LayoutTemplate,
+  Disc3,
   type LucideIcon,
 } from "lucide-react";
 import { SafeImg } from "@/components/ui/SafeImage";
@@ -59,7 +60,7 @@ import { cn, formatPrice, ORDER_STATUS_COLORS } from "@/lib/utils";
 import { storyTypeLabel } from "@/lib/stories";
 
 type PageGroupLabel =
-  "Overview" | "Artworks" | "Tales" | "Content" | "Shop" | "Site" | "Settings" | "Trash";
+  "Overview" | "Music" | "Artworks" | "Tales" | "Content" | "Shop" | "Site" | "Settings" | "Trash";
 type AdminPage = {
   label: string;
   href: string;
@@ -74,6 +75,7 @@ type AdminPage = {
 // a keyboard-accessible mirror of the sidebar rather than a separate layout.
 const PAGE_GROUP_ORDER: PageGroupLabel[] = [
   "Overview",    // Dashboard, Notifications
+  "Music",       // Releases (Videos next)
   "Artworks",    // Artworks + Digital Museum + Mini Games tabs
   "Tales",       // Books, novels, comics & manga
   "Content",     // Sections, Announcements, FAQ Chatbox
@@ -105,6 +107,14 @@ const ADMIN_PAGES: AdminPage[] = [
     keywords:
       "notifications gmail alerts inbox orders minigame highscores museum",
     group: "Overview",
+  },
+  // ── Music ──────────────────────────────────────────────────────────────────
+  {
+    label: "Releases",
+    href: "/admin/releases",
+    icon: Disc3,
+    keywords: "releases music singles ep album tracklist lyrics spotify bandcamp",
+    group: "Music",
   },
   // ── Artworks (main page + tab-based sub-modules) ──────────────────────────
   {
@@ -379,6 +389,13 @@ interface SearchResponse {
     enabled: boolean;
     isNextEvent: boolean;
   }[];
+  releases: {
+    id: string;
+    title: string;
+    type: string;
+    published: boolean;
+    featured: boolean;
+  }[];
 }
 
 const EMPTY_RESULTS: SearchResponse = {
@@ -392,6 +409,7 @@ const EMPTY_RESULTS: SearchResponse = {
   announcements: [],
   faqs: [],
   events: [],
+  releases: [],
 };
 
 interface ResultItem {
@@ -686,6 +704,25 @@ export function GlobalSearch() {
           badge: f.isActive
             ? { label: "Active", className: ACTIVE_BADGE }
             : { label: "Inactive", className: INACTIVE_BADGE },
+        })),
+      });
+    }
+
+    if (results.releases.length > 0) {
+      list.push({
+        key: "releases",
+        label: "Releases",
+        icon: Disc3,
+        items: results.releases.map((r) => ({
+          key: r.id,
+          title: r.title,
+          subtitle: r.type.charAt(0) + r.type.slice(1).toLowerCase(),
+          href: "/admin/releases",
+          badge: r.featured
+            ? { label: "Featured", className: DRAFT_BADGE }
+            : r.published
+              ? { label: "Published", className: ACTIVE_BADGE }
+              : { label: "Hidden", className: INACTIVE_BADGE },
         })),
       });
     }

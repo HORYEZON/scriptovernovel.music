@@ -23,6 +23,7 @@ export async function GET() {
       freedomWallNotes,
       freedomWallEvents,
       releaseNotes,
+      releases,
     ] =
       await Promise.all([
         prisma.announcement.findMany({
@@ -101,6 +102,11 @@ export async function GET() {
           where: { deletedAt: { not: null } },
           orderBy: { deletedAt: "desc" },
         }),
+        prisma.release.findMany({
+          where: { deletedAt: { not: null } },
+          include: { _count: { select: { tracks: true } } },
+          orderBy: { deletedAt: "desc" },
+        }),
       ]);
 
     return NextResponse.json({
@@ -117,6 +123,7 @@ export async function GET() {
       freedomWallNotes,
       freedomWallEvents,
       releaseNotes,
+      releases,
     });
   } catch {
     return NextResponse.json({ error: "Failed to fetch trash" }, { status: 500 });

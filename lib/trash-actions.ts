@@ -31,7 +31,8 @@ export type TrashType =
   | "events"
   | "freedom-wall-notes"
   | "freedom-wall-events"
-  | "release-notes";
+  | "release-notes"
+  | "releases";
 
 export const TRASH_TYPES: TrashType[] = [
   "announcements",
@@ -47,6 +48,7 @@ export const TRASH_TYPES: TrashType[] = [
   "freedom-wall-notes",
   "freedom-wall-events",
   "release-notes",
+  "releases",
 ];
 
 export function isTrashType(value: string): value is TrashType {
@@ -74,6 +76,7 @@ export async function listTrashedIds(type: TrashType): Promise<string[]> {
       case "freedom-wall-notes": return prisma.freedomWallNote.findMany(opts);
       case "freedom-wall-events": return prisma.freedomWallEvent.findMany(opts);
       case "release-notes": return prisma.releaseNote.findMany(opts);
+      case "releases": return prisma.release.findMany(opts);
     }
   })();
   return rows.map((r) => r.id);
@@ -104,6 +107,7 @@ const REVALIDATE_PATHS: Record<TrashType, string[]> = {
   "freedom-wall-notes": ["/admin/freedom-wall", "/gallery/freedom-wall", "/gallery/museum"],
   "freedom-wall-events": ["/admin/freedom-wall", "/gallery/freedom-wall", "/gallery/museum"],
   "release-notes": ["/admin/settings/release-notes"],
+  releases: ["/admin/releases", "/music"],
 };
 
 /** Invalidate everything one type's rows show up on, plus the shell and the
@@ -187,6 +191,10 @@ export async function restoreTrashItem(type: TrashType, id: string): Promise<voi
         // is restored. Forcing it back to draft would be a second, silent
         // decision on top of the one the admin actually made.
         await prisma.releaseNote.update({ where: { id }, data: { deletedAt: null } });
+        break;
+      case "releases":
+        // Back with its published/featured flags as they were.
+        await prisma.release.update({ where: { id }, data: { deletedAt: null } });
         break;
   }
 }
@@ -331,5 +339,12 @@ export async function purgeTrashItem(type: TrashType, id: string): Promise<void>
         // no cascade to think about and no uploaded file to clean up.
         await prisma.releaseNote.delete({ where: { id } });
         break;
+      case "releases": {
+        // Tracks cascade; the cover is the one uploaded file to clean up.
+        const release = await prisma.release.findUnique({ where: { id }, select: { coverImageUrl: true } });
+        await prisma.release.delete({ where: { id } });
+        if (release) deleteArtworkImage(release.coverImageUrl).catch(() => {});
+        break;
+      }
   }
 }

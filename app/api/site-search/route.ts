@@ -2,14 +2,15 @@
 //
 // The header search's one endpoint: everything a visitor might look for on
 // the band site, as flat `SiteSearchItem`s the overlay filters client-side.
-// Today that is the store (merch); releases and videos join here as their
-// models land (Phases 2 and 3 of the band-site plan), each contributing a
-// `kind` so the overlay can label a row. Public, read-only, no query param
+// Releases and the store (merch) today; videos join as their model lands,
+// each contributing a `kind` so the overlay can label a row. Public, read-only, no query param
 // — the catalogue is small and one fetch per open is cheaper than a round
 // trip per keystroke.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { productHref, productImage, productTitle } from "@/lib/store/product-display";
+import { getPublicReleases } from "@/lib/releases-server";
+import { RELEASE_TYPE_LABELS, formatReleaseDate } from "@/lib/releases";
 import type { SiteSearchItem } from "@/lib/site-search";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,20 @@ export async function GET() {
     })
     .catch(() => []);
 
+  const releases = await getPublicReleases().catch(() => []);
+
   const items: SiteSearchItem[] = [];
+  for (const r of releases) {
+    items.push({
+      id: `release:${r.id}`,
+      kind: "release",
+      title: r.title,
+      subtitle: `${RELEASE_TYPE_LABELS[r.type]}${r.releaseDate ? ` · ${formatReleaseDate(r.releaseDate, "year")}` : ""}`,
+      keywords: r.tracks.map((t) => t.title),
+      imageUrl: r.coverImageUrl,
+      href: `/music#${r.slug ?? r.id}`,
+    });
+  }
   for (const p of products) {
     const title = productTitle(p);
     if (!title) continue;

@@ -32,6 +32,7 @@ import {
   CircleUser,
   TrendingUp,
   LayoutTemplate,
+  Disc3,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -85,6 +86,14 @@ const NAV: NavEntry[] = [
     exact: true,
   },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
+  {
+    id: "music",
+    label: "Music",
+    icon: Disc3,
+    children: [
+      { href: "/admin/releases", label: "Releases", icon: Disc3 },
+    ],
+  },
   {
     id: "gallery",
     label: "Museum & Archive",
