@@ -3,7 +3,14 @@
 import { useState, useEffect } from "react";
 import { Sun, Moon } from "lucide-react";
 
-export function ThemeToggle() {
+export function ThemeToggle({
+  compactOnMobile = false,
+}: {
+  /** Shrinks the pill below `sm` — the public header row can't spare the
+   *  full 72px next to MENU on a 375px phone. Every other caller keeps the
+   *  original size at every width. */
+  compactOnMobile?: boolean;
+} = {}) {
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -24,8 +31,14 @@ export function ThemeToggle() {
     localStorage.setItem("theme", next ? "dark" : "light");
   }
 
+  // Compact: 56px pill, 2px padding, 24px thumb → 28px of travel.
+  // Full:    72px pill, 4px padding, 28px thumb → 36px of travel.
+  const pillSize = compactOnMobile ? "w-14 h-8 p-0.5 sm:w-[72px] sm:h-9 sm:p-1" : "w-[72px] h-9 p-1";
+  const thumbSize = compactOnMobile ? "w-6 h-6 sm:w-7 sm:h-7" : "w-7 h-7";
+  const thumbOn = compactOnMobile ? "translate-x-[28px] sm:translate-x-[36px]" : "translate-x-[36px]";
+
   if (!mounted) {
-    return <div className="w-[72px] h-9" />;
+    return <div className={compactOnMobile ? "w-14 h-8 sm:w-[72px] sm:h-9" : "w-[72px] h-9"} />;
   }
 
   return (
@@ -33,7 +46,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       className={`
-        relative w-[72px] h-9 p-1
+        relative ${pillSize}
         rounded-full
         bg-zinc-200/80 dark:bg-zinc-900/80
         border border-black/10 dark:border-white/10
@@ -70,14 +83,14 @@ export function ThemeToggle() {
       {/* Sliding Thumb na may Maangas na Animation & Glow */}
       <div
         className={`
-          relative w-7 h-7
+          relative ${thumbSize}
           rounded-full
           bg-white dark:bg-zinc-800
           shadow-[0_2px_8px_rgba(0,0,0,0.15)]
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.5)]
           flex items-center justify-center
           transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)
-          ${dark ? "translate-x-[36px]" : "translate-x-0"}
+          ${dark ? thumbOn : "translate-x-0"}
         `}
       >
         {/* Mini icon inside the thumb to make it pop more */}

@@ -9,7 +9,7 @@
 // half-finished recolour is never live.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
-import { Play, RotateCcw, Save, Search } from "lucide-react";
+import { Moon, Play, RotateCcw, Save, Search, Sun } from "lucide-react";
 import toast from "@/lib/toast";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { UnsavedChangesBar } from "@/components/admin/UnsavedChangesBar";
@@ -19,6 +19,7 @@ import { MenuOpenTransition } from "@/components/public/site-design/MenuOpenTran
 import { HomeHero } from "@/components/public/site-design/HomeHero";
 import { SafeImg } from "@/components/ui/SafeImage";
 import { isValidThemeColor, isValidThemeLength } from "@/lib/theme";
+import { withAlpha } from "@/lib/museum/minimapHud";
 import {
   DEFAULT_SITE_DESIGN,
   DEFAULT_MENU_ITEMS,
@@ -69,10 +70,14 @@ const TABS: { id: TabId; label: string }[] = [
 // ── Header preview ───────────────────────────────────────────────────────────
 // A static twin of SiteHeader's row (that component is fixed to the viewport
 // and reads the router/cart stores, so it can't sit inside a preview frame).
+// The bar is frosted glass on the live site; the tint is the admin's
+// background colour at the same opacity SiteHeader uses at the top of a
+// page, so the preview reads the way the header does over the page wash.
+// Light-mode colours only — dark mode swaps to ink/cream (see SiteHeader).
 function HeaderPreview({ settings }: { settings: SiteDesignSettings }) {
-  const style: CSSProperties = { backgroundColor: settings.headerBgColor, color: settings.headerTextColor };
+  const style: CSSProperties = { backgroundColor: withAlpha(settings.headerBgColor, 0.6), color: settings.headerTextColor };
   return (
-    <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center px-12" style={style}>
+    <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-white/20 px-12 backdrop-blur-sm" style={style}>
       <div className="justify-self-start">{settings.headerShowSearch && <Search size={18} strokeWidth={1.75} />}</div>
       <div className="justify-self-center">
         <SafeImg
@@ -90,14 +95,23 @@ function HeaderPreview({ settings }: { settings: SiteDesignSettings }) {
           }
         />
       </div>
-      <div className="flex items-center gap-2 justify-self-end font-body text-[11px] font-medium uppercase tracking-[0.12em]">
-        <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
-          <circle cx="2" cy="2" r="1.6" fill="currentColor" />
-          <circle cx="8" cy="2" r="1.6" fill="currentColor" />
-          <circle cx="2" cy="8" r="1.6" fill="currentColor" />
-          <circle cx="8" cy="8" r="1.6" fill="currentColor" />
-        </svg>
-        {settings.headerMenuLabel}
+      <div className="flex items-center gap-3 justify-self-end font-body text-[11px] font-medium uppercase tracking-[0.12em]">
+        <span className="flex items-center gap-2">
+          <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+            <circle cx="2" cy="2" r="1.6" fill="currentColor" />
+            <circle cx="8" cy="2" r="1.6" fill="currentColor" />
+            <circle cx="2" cy="8" r="1.6" fill="currentColor" />
+            <circle cx="8" cy="8" r="1.6" fill="currentColor" />
+          </svg>
+          {settings.headerMenuLabel}
+        </span>
+        {/* Static stand-in for the always-on light/dark toggle (ThemeToggle
+            would flip the admin's own theme from inside the preview). */}
+        <span aria-hidden="true" className="relative flex h-9 w-[72px] items-center justify-between rounded-full border border-black/10 bg-zinc-200/80 px-2.5">
+          <Sun size={14} strokeWidth={2} className="text-amber-500" />
+          <Moon size={14} strokeWidth={2} className="text-zinc-400 opacity-40" />
+          <span className="absolute left-1 top-1 h-7 w-7 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)]" />
+        </span>
       </div>
     </div>
   );
@@ -375,8 +389,8 @@ export function SiteDesignClient({
             onToggle={() => sections.toggle("headerColors")}
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <ColorField label="Background" value={settings.headerBgColor} onChange={(v) => set("headerBgColor", v)} hint="Match the hero background for a seamless top." />
-              <ColorField label="Text & icons" value={settings.headerTextColor} onChange={(v) => set("headerTextColor", v)} />
+              <ColorField label="Background" value={settings.headerBgColor} onChange={(v) => set("headerBgColor", v)} hint="Tints the frosted-glass bar in light mode. Dark mode uses the site's ink." />
+              <ColorField label="Text & icons" value={settings.headerTextColor} onChange={(v) => set("headerTextColor", v)} hint="Light mode only — dark mode switches to cream." />
               <TextField label="Menu button label" value={settings.headerMenuLabel} onChange={(v) => set("headerMenuLabel", v)} maxLength={MAX_LABEL_LENGTH} placeholder="MENU" />
             </div>
             <div>
@@ -399,13 +413,12 @@ export function SiteDesignClient({
 
           <SettingsAccordion
             title="Header icons"
-            description="Which utility icons sit beside the wordmark and menu button."
+            description="Which utility icons sit beside the wordmark and menu button. The light/dark toggle is always on, to the right of the menu button."
             open={sections.open.headerIcons}
             onToggle={() => sections.toggle("headerIcons")}
           >
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <ToggleRow label="Search" description="Magnifier on the left; searches published artworks." value={settings.headerShowSearch} onChange={(v) => set("headerShowSearch", v)} words={{ on: "shown", off: "hidden" }} />
-              <ToggleRow label="Light / dark toggle" value={settings.headerShowThemeToggle} onChange={(v) => set("headerShowThemeToggle", v)} words={{ on: "shown", off: "hidden" }} />
               <ToggleRow label="What's new" description="The release-notes bell." value={settings.headerShowReleaseNotes} onChange={(v) => set("headerShowReleaseNotes", v)} words={{ on: "shown", off: "hidden" }} />
               <ToggleRow label="Wishlist" description="Also appears on its own whenever the visitor has saved something." value={settings.headerShowWishlist} onChange={(v) => set("headerShowWishlist", v)} words={{ on: "shown", off: "hidden" }} />
               <ToggleRow label="Cart" description="Also appears on its own whenever the cart isn't empty." value={settings.headerShowCart} onChange={(v) => set("headerShowCart", v)} words={{ on: "shown", off: "hidden" }} />

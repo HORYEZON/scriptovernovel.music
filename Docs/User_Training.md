@@ -9,8 +9,9 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 ## Table of Contents
 
 1. [Logging In](#1-logging-in)
-2. [Glossary — Confusing Terms Explained](#2-glossary--confusing-terms-explained)
-3. [Quick Troubleshooting](#3-quick-troubleshooting)
+2. [Site Design — Header](#2-site-design--header)
+3. [Glossary — Confusing Terms Explained](#3-glossary--confusing-terms-explained)
+4. [Quick Troubleshooting](#4-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -55,7 +56,26 @@ Deleting a section moves it to Trash — **and everything inside it goes too.** 
 
 ---
 
-## 2. Glossary — Confusing Terms Explained
+## 2. Site Design — Header
+
+**What this is for:** the bar pinned to the top of every public page — search on the left, your wordmark in the middle, the **MENU** button and the light/dark switch on the right. It's frosted glass: the page shows through it, blurred, and it thickens slightly once a visitor scrolls.
+
+### 2.1 Colours
+
+1. **Site Design → Header → Colours & label.**
+2. **Background** tints the glass. Pick something close to your page colour for a subtle bar, or a contrasting one for a visible band. The colour is applied at glass opacity, so it will always read a little lighter/softer than the swatch.
+3. **Text & icons** colours the wordmark, the search icon and MENU.
+4. **Save**. The live preview above the controls shows the bar as it looks in light mode.
+
+> 💡 These two colours only apply while a visitor is in **light** mode. In **dark** mode (the default for new visitors) the bar switches to the site's near-black glass with cream text, whatever you picked — so you never have to check your colours twice.
+
+### 2.2 The light/dark switch
+
+The sun/moon pill to the right of **MENU** is always on — there's no setting to hide it. The site starts in dark mode for a first-time visitor, and the pill is how they get to light mode; their choice is remembered on that device.
+
+---
+
+## 3. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -65,7 +85,7 @@ Deleting a section moves it to Trash — **and everything inside it goes too.** 
 
 ---
 
-## 3. Quick Troubleshooting
+## 4. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

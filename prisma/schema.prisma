@@ -343,6 +343,9 @@ model SiteDesign {
   // Cart/wishlist icons additionally self-reveal whenever they hold items
   // (SiteHeader.tsx) so a shopper is never locked out of their basket by a
   // header configured to the bare search · logo · MENU look.
+  // Unused since the light/dark toggle became a permanent fixture of the
+  // header (SiteHeader.tsx) — kept only to avoid a drop-column migration
+  // against the live DB; nothing reads or writes it.
   headerShowThemeToggle  Boolean @default(false)
   headerShowWishlist     Boolean @default(false)
   headerShowCart         Boolean @default(false)

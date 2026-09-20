@@ -3,11 +3,17 @@
 // components/public/site-design/SiteHeader.tsx
 //
 // The public site's fixed header: search on the left, the wordmark centred,
-// "⠿ MENU" on the right — the bare three-part row of the reference design —
-// with the optional utility icons (theme, what's new, wishlist, cart) an
-// admin can switch on from Site Design → Header. Opens MenuOverlay and
-// SearchOverlay; the marquee ticker rides above the row inside the same
-// fixed block so the two never scroll apart.
+// "⠿ MENU" + the light/dark toggle on the right — the bare three-part row of
+// the reference design — with the optional utility icons (what's new,
+// wishlist, cart) an admin can switch on from Site Design → Header. Opens
+// MenuOverlay and SearchOverlay; the marquee ticker rides above the row
+// inside the same fixed block so the two never scroll apart.
+//
+// The bar is frosted glass, the same recipe as kalamari.arts's Navbar: a
+// translucent tint over backdrop-blur that thickens once the page scrolls.
+// In light mode the tint and text are the admin's Header colours (at glass
+// opacity); dark mode uses the site's ink/cream so the bar actually goes
+// dark with the rest of the page instead of staying a cream slab.
 //
 // Replaces the old components/public/Navbar.tsx.
 import Link from "next/link";
@@ -17,6 +23,7 @@ import { Search, ShoppingBag, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
+import { withAlpha } from "@/lib/museum/minimapHud";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { SafeImg } from "@/components/ui/SafeImage";
 import { MarqueeBanner } from "@/components/public/MarqueeBanner";
@@ -101,15 +108,23 @@ export function SiteHeader({
   const showCart = settings.headerShowCart || (mounted && totalItems > 0);
   const showWishlist = settings.headerShowWishlist || (mounted && wishlistCount > 0);
 
-  // Over the hero at the top of the homepage the bar goes transparent so
-  // the hero's colour/texture runs under it uninterrupted (the reference
-  // look); it takes its own colour back as soon as the page scrolls, and
-  // everywhere else.
+  // Over the hero at the top of the homepage the bar goes fully transparent
+  // (no tint, no blur) so the hero's colour/texture runs under it
+  // uninterrupted (the reference look); it frosts over as soon as the page
+  // scrolls, and everywhere else.
   const overHero = pathname === "/" && settings.heroEnabled && !scrolled;
-  const chrome: CSSProperties = {
-    backgroundColor: overHero ? "transparent" : settings.headerBgColor,
-    color: settings.headerTextColor,
-  };
+  // The admin's Header colours reach the light-mode utilities through CSS
+  // vars so the `dark:` classes can override them — an inline
+  // background-color/color would beat any class. Kalamari's tint opacities
+  // (white/60 at the top, white/50 once scrolled) applied to the admin's
+  // colour instead of plain white. `--logo-size` is the same trick for the
+  // wordmark: the admin's size on md+, capped by viewport width on phones.
+  const chrome = {
+    "--header-glass": withAlpha(settings.headerBgColor, 0.6),
+    "--header-glass-scrolled": withAlpha(settings.headerBgColor, 0.5),
+    "--header-text": settings.headerTextColor,
+    "--logo-size": settings.headerLogoFontSize,
+  } as CSSProperties;
   const iconBtn =
     "relative flex h-9 w-9 items-center justify-center rounded-full transition-opacity hover:opacity-60";
 
@@ -117,14 +132,26 @@ export function SiteHeader({
     <>
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow] duration-300",
-          scrolled && "shadow-[0_1px_0_0_rgba(0,0,0,0.06)]"
+          "fixed inset-x-0 top-0 z-50 transition-all duration-300 ease-in-out",
+          "text-[color:var(--header-text)] dark:text-cream",
+          overHero
+            ? "border-b border-transparent bg-transparent"
+            : scrolled
+              ? // Scrolled: full frosted glass — thinner tint, heavier blur, a hairline + shadow to lift it off the page.
+                "bg-[color:var(--header-glass-scrolled)] dark:bg-ink/50 backdrop-blur-md backdrop-saturate-150 border-b border-ink-100/30 dark:border-ink-800/40 shadow-sm"
+              : // At the top: a denser tint with a light blur.
+                "bg-[color:var(--header-glass)] dark:bg-ink/90 backdrop-blur-sm border-b border-white/20"
         )}
         style={chrome}
       >
         <MarqueeBanner items={marquees} />
 
-        <div className="section-padding grid h-14 grid-cols-[1fr_auto_1fr] items-center md:h-16">
+        {/* Phones: the side columns are only as wide as their contents and the
+            wordmark takes whatever is left (it's no longer viewport-centred,
+            but MENU + the theme toggle are ~130px and a 1fr/auto/1fr grid would
+            mirror that on the left and overflow a 375px screen). md+: equal
+            side columns so the wordmark sits dead-centre. */}
+        <div className="section-padding grid h-14 grid-cols-[auto_minmax(0,1fr)_auto] items-center md:h-16 md:grid-cols-[1fr_auto_1fr]">
           {/* Left — search */}
           <div className="flex items-center gap-1 justify-self-start">
             {settings.headerShowSearch && (
@@ -140,19 +167,16 @@ export function SiteHeader({
           </div>
 
           {/* Centre — wordmark */}
-          <Link href="/" className="flex items-center justify-self-center transition-opacity hover:opacity-70">
+          <Link href="/" className="flex min-w-0 items-center justify-center justify-self-center transition-opacity hover:opacity-70">
             <SafeImg
               src={settings.headerLogoImage ?? undefined}
               alt={settings.headerLogoText || "Home"}
-              className="w-auto max-w-[46vw] object-contain md:max-w-none"
+              className="w-auto max-w-[40vw] object-contain md:max-w-none"
               style={{ height: settings.headerLogoHeight }}
               fallback={
                 <span
-                  className="whitespace-nowrap leading-none"
-                  style={{
-                    fontFamily: settings.headerLogoFontFamily,
-                    fontSize: settings.headerLogoFontSize,
-                  }}
+                  className="whitespace-nowrap leading-none text-[length:min(var(--logo-size),7vw)] md:text-[length:var(--logo-size)]"
+                  style={{ fontFamily: settings.headerLogoFontFamily }}
                 >
                   {settings.headerLogoText}
                 </span>
@@ -160,9 +184,8 @@ export function SiteHeader({
             />
           </Link>
 
-          {/* Right — utilities + MENU */}
+          {/* Right — utilities + MENU + theme toggle */}
           <div className="flex items-center gap-1 justify-self-end">
-            {settings.headerShowThemeToggle && <ThemeToggle />}
             {settings.headerShowReleaseNotes && <ReleaseNotes initialNotes={releaseNotes} />}
             {showWishlist && (
               <Link href="/wishlist" aria-label="Wishlist" className={iconBtn}>
@@ -185,10 +208,13 @@ export function SiteHeader({
               onBlur={() => setMenuHovered(false)}
               aria-haspopup="dialog"
               aria-expanded={menuOpen}
-              className="-mr-3 flex h-9 items-center gap-2 rounded-full px-3 font-body text-[11px] font-medium uppercase tracking-[0.12em] outline-none transition-[background-color,color,transform] duration-300 ease-out"
+              className="flex h-9 items-center gap-2 rounded-full px-3 font-body text-[11px] font-medium uppercase tracking-[0.12em] outline-none transition-[background-color,color,transform] duration-300 ease-out"
               style={{
                 backgroundColor: menuHovered ? settings.headerMenuHoverBgColor : "transparent",
-                color: menuHovered ? settings.headerMenuHoverTextColor : settings.headerTextColor,
+                // Resting colour is inherited from the header (admin text
+                // colour in light mode, cream in dark) — an inline value here
+                // would pin it to the light-mode colour in both modes.
+                color: menuHovered ? settings.headerMenuHoverTextColor : undefined,
                 transform: menuHovered ? MENU_HOVER_TRANSFORM[settings.headerMenuHoverEffect].button : "none",
               }}
             >
@@ -198,6 +224,10 @@ export function SiteHeader({
               />
               {settings.headerMenuLabel}
             </button>
+            {/* Always on, and last so it hugs the right edge: the site defaults
+                to dark (app/layout.tsx's inline script) and this is the only
+                way a visitor gets back to light. */}
+            <ThemeToggle compactOnMobile />
           </div>
         </div>
       </header>

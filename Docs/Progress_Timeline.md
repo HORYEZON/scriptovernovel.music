@@ -15,35 +15,21 @@ not a release of its own.
 
 ---
 
-<!--
-SAMPLE FORMAT — copy this block for every release, keep the three sub-headings
-(drop any that have nothing in them), one bullet per user-facing change, bold
-the headline of the release. Delete this sample once the first real entry
-exists.
-
-## September 13, 2026 — v1.0
+## September 20, 2026 — v0.1
 
 ### Admin Side
 
-- **The admin dashboard exists, and it can run the site on its own.**
-  Supabase Auth signs the admin in, and `/admin/*` is closed behind a session
-  check so a bare URL isn't a way in
-- Uploads go directly to Supabase Storage rather than being pasted in as
-  links, which is what makes the site self-serve rather than developer-serve
+- **Site Design → Header** colours now tint a frosted-glass bar instead of
+  painting a solid one, and only in light mode — dark mode always uses the
+  site's ink/cream, so a header can't end up as a cream slab over a dark page
+- The "Light / dark toggle" switch under Header icons is gone: the toggle is
+  a permanent part of the header now
 
 ### Public Side
 
-- Responsive homepage grid, with skeleton loaders so a slow connection shows
-  the shape of the page instead of a blank one
-- Light/dark theme switcher, with the choice remembered between visits
-  - The SCRIPT / NOVEL wordmark in the footer is split into word spans, each
-    wearing its own brand colour — yellow gold, grey, off-white
-
-### Infra / DB
-
-- New tables with RLS policies — public read-only, admin-only write. The
-  public site therefore never needs a privileged key to render
-- Supabase Storage bucket for uploaded media
-
----
--->
+- **The header is frosted glass**, the same look as kalamari.arts's navbar:
+  the page shows through it blurred, and it thickens with a hairline and
+  shadow once you scroll
+- The light/dark switch sits to the right of **MENU** on every page. The site
+  opens in dark mode for a first-time visitor; the switch is remembered per
+  device. On phones the pill is a size smaller so it fits beside MENU

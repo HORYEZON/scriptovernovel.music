@@ -29,7 +29,6 @@ export interface SiteDesignSettings {
   headerMenuHoverTextColor: string;
   headerMenuHoverEffect: CloseHoverEffect;
   headerShowSearch: boolean;
-  headerShowThemeToggle: boolean;
   headerShowWishlist: boolean;
   headerShowCart: boolean;
   headerShowReleaseNotes: boolean;
@@ -207,7 +206,6 @@ export const DEFAULT_SITE_DESIGN: SiteDesignSettings = {
   headerMenuHoverTextColor: "#F2EFE6",
   headerMenuHoverEffect: "spin",
   headerShowSearch: true,
-  headerShowThemeToggle: false,
   headerShowWishlist: false,
   headerShowCart: false,
   headerShowReleaseNotes: false,
@@ -433,7 +431,6 @@ const IMAGE_FIELDS = ["faviconImage", "headerLogoImage", "menuImage", "heroBgIma
 
 const BOOLEAN_FIELDS = [
   "headerShowSearch",
-  "headerShowThemeToggle",
   "headerShowWishlist",
   "headerShowCart",
   "headerShowReleaseNotes",
