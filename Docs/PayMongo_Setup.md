@@ -86,9 +86,9 @@ The webhook is how PayMongo tells this app "the customer actually paid" — it's
 6. Also set (if not already, for correct success/cancel/webhook URLs and checkout emails):
    ```
    NEXT_PUBLIC_APP_URL=https://<your-production-domain>
-   GMAIL_USER=kylamarie.zuniga@gmail.com
+   GMAIL_USER=scriptovernovel.music@gmail.com
    GMAIL_APP_PASSWORD=<gmail app password>
-   ORDER_ALERT_EMAIL=kylamarie.zuniga@gmail.com   # optional, defaults to GMAIL_USER
+   ORDER_ALERT_EMAIL=scriptovernovel.music@gmail.com   # optional, defaults to GMAIL_USER
    ```
 
 ---

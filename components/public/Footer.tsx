@@ -81,10 +81,10 @@ export function Footer({
                 ))}
               </div>
               <a
-                href="mailto:kylamarie.zuniga@gmail.com"
+                href="mailto:scriptovernovel.music@gmail.com"
                 className="font-body text-sm text-ink-300 hover:text-cream transition-colors"
               >
-                kylamarie.zuniga@gmail.com
+                scriptovernovel.music@gmail.com
               </a>
               <span className="font-body text-sm text-ink-300">NCR, Philippines</span>
             </div>

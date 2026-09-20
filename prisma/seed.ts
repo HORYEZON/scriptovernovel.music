@@ -25,13 +25,13 @@ async function main() {
   console.log("✨ Existing data cleaned without dropping tables!");
 
   // Seed admin user
-  const hashedPassword = await bcrypt.hash("k4l4m4r1.4rts!", 10);
+  const hashedPassword = await bcrypt.hash("scr1pt0v3r.n0v3l!", 10);
   const admin = await prisma.user.upsert({
-    where: { email: "kylamarie.zuniga@gmail.com" },
+    where: { email: "scriptovernovel.music@gmail.com" },
     update: {},
     create: {
-      email: "kylamarie.zuniga@gmail.com",
-      name: "ScriptOverNovel Admin",
+      email: "scriptovernovel.music@gmail.com",
+      name: "S/N",
       password: hashedPassword,
       role: "ADMIN",
     },
@@ -65,8 +65,7 @@ async function main() {
     },
     {
       title: "Artworks 2",
-      description:
-        "Description 2",
+      description: "Description 2",
       imageUrl: "https://picsum.photos/seed/bahay/800/600",
       tags: ["tag 1", "tag 2", "tag 3", "featured"],
       medium: "Mixed Media",
@@ -76,8 +75,7 @@ async function main() {
     },
     {
       title: "Artworks 3",
-      description:
-        "Description 3",
+      description: "Description 3",
       imageUrl: "https://picsum.photos/seed/likhang/800/600",
       tags: ["tag 1", "tag 2", "tag 3"],
       medium: "Medium 3",
@@ -86,8 +84,7 @@ async function main() {
     },
     {
       title: "Artworks 4",
-      description:
-        "Description 4",
+      description: "Description 4",
       imageUrl: "https://picsum.photos/seed/archipelago/800/600",
       tags: ["tag 1", "tag 2", "tag 3", "featured"],
       medium: "Medium 4",
@@ -97,8 +94,7 @@ async function main() {
     },
     {
       title: "Artworks 5",
-      description:
-        "Description 5",
+      description: "Description 5",
       imageUrl: "https://picsum.photos/seed/sintang/800/600",
       tags: ["tag 1", "tag 2", "tag 3", "featured"],
       medium: "Medium 5",
@@ -107,8 +103,7 @@ async function main() {
     },
     {
       title: "Artworks 6",
-      description:
-        "Description 6",
+      description: "Description 6",
       imageUrl: "https://picsum.photos/seed/bulalakaw/800/600",
       tags: ["tag 1", "tag 2", "tag 3", "featured"],
       medium: "Medium 6",

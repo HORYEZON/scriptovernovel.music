@@ -12,7 +12,7 @@ export default async function ContactPage() {
   return (
     <ContactClient
       phone={profile?.phone || "0945 350 0983"}
-      email={profile?.email || "kylamarie.zuniga@gmail.com"}
+      email={profile?.email || "scriptovernovel.music@gmail.com"}
       address={profile?.address || "NCR, Philippines"}
       contactHeading={profile?.contactHeading || "Get in Touch"}
       contactIntro={
