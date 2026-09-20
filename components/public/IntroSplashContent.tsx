@@ -1,6 +1,6 @@
 // components/public/IntroSplashContent.tsx
-// Pure presentational visual for the entrance splash — the SCRIPT/N(squid)VEL
-// lockup + tagline, plus the phase-driven transition treatment. No timing
+// Pure presentational visual for the entrance splash — the band's wordmark
+// (Site Design → Header) under its icon seal, plus taglines, plus the phase-driven transition treatment. No timing
 // or session logic here; that's IntroSplash.tsx's job. Kept separate so the
 // admin Preferences → Branding live preview can render the *exact* same
 // visual/animation the public site uses, just inside a bounded box instead
@@ -10,26 +10,17 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import nextDynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
-import { SquidIcon } from "@/components/ui/SquidIcon";
-import { parseIconValue } from "@/components/ui/icon-values";
+import { Wordmark as BandWordmark } from "@/components/public/system/Wordmark";
+import { DEFAULT_SITE_DESIGN } from "@/lib/site-design";
 import {
   introTransitionClasses,
   introSplitOrientation,
   INTRO_DEFAULTS,
-  INTRO_LETTER_COLORS,
   type IntroEffect,
   type IntroLetterColors,
 } from "@/lib/intro-splash";
 
-// Dynamic-imported like AdminSidebar.tsx/FaqChatbox.tsx — this mounts on
-// every homepage visit, so the ~3,000-entry icon maps should only load if
-// splashIcon is actually set, not ship as part of the always-mounted splash.
-const DynamicIcon = nextDynamic(
-  () => import("@/components/ui/DynamicIcon").then((m) => m.DynamicIcon),
-  { ssr: false }
-);
 
 /**
  * How the two tagline sizes resolve.
@@ -94,38 +85,11 @@ function taglineClass(viewport: IntroViewport): string {
  * "auto" keeps the exact responsive ladder the public splash has always had.
  */
 function lockupClass(viewport: IntroViewport): string {
-  const base =
-    "relative z-10 inline-flex items-center font-badaboom uppercase text-cream";
-  if (viewport === "mobile") return `${base} tracking-[0.2em] text-4xl`;
-  if (viewport === "desktop") return `${base} tracking-[0.25em] text-6xl`;
-  return `${base} tracking-[0.2em] sm:tracking-[0.25em] text-4xl sm:text-5xl md:text-6xl`;
+  if (viewport === "mobile") return "text-4xl";
+  if (viewport === "desktop") return "text-6xl";
+  return "text-4xl sm:text-5xl md:text-6xl";
 }
 
-/**
- * The squid's trailing gap, which tracks the lockup's letter-spacing above.
- *
- * `squid-bob`, not `squid-drift`, and that is the whole reason the admin's
- * Squid Color setting works. `squid-drift` is `squidBob + squidCycle`, and
- * squidCycle *animates* `--squid-glow` through the four brand colours — on
- * this same span, which is where the chosen colour is set as an inline style.
- * A running animation outranks any normal author declaration in the cascade,
- * inline styles included, so the cycle simply overwrote the setting several
- * times a second and the squid went on running yellow -> green -> blue -> pink.
- * (Under Reduce Motion the `motion-safe:` animation never applied, so the
- * colour did show — which is the tell.)
- *
- * Dropping to `squid-bob` keeps the idle motion and leaves `--squid-glow`
- * alone, which is what the splash wants now that its colour is a setting
- * rather than a cycle. The footer, sidebar and maintenance-page squids are
- * untouched and keep drifting through the palette.
- */
-function squidSpacerClass(viewport: IntroViewport): string {
-  const base =
-    "relative inline-flex items-center justify-center motion-safe:animate-squid-bob";
-  if (viewport === "mobile") return `${base} mr-[0.2em]`;
-  if (viewport === "desktop") return `${base} mr-[0.25em]`;
-  return `${base} mr-[0.2em] sm:mr-[0.25em]`;
-}
 
 function taglineStyle(
   viewport: IntroViewport,
@@ -133,7 +97,7 @@ function taglineStyle(
   mobile: string | null,
   fontFamily: string,
   color: string
-): React.CSSProperties {
+): CSSProperties {
   if (viewport === "auto") {
     return {
       fontFamily,
@@ -169,12 +133,18 @@ function Wordmark({
   glowShimmer,
   glowOffsetX,
   glowOffsetY,
-  letterColors,
   squidColor,
+  logoText,
+  logoFontFamily,
+  logoImage,
 }: {
   text: string;
   textAbove: string;
   icon?: string | null;
+  /** Site Design → Header → Wordmark: the band's lockup, same as the header. */
+  logoText: string;
+  logoFontFamily: string;
+  logoImage: string | null;
   taglineFontSize: string;
   taglineFontFamily: string;
   taglineColor: string;
@@ -189,19 +159,9 @@ function Wordmark({
   glowShimmer: boolean;
   glowOffsetX: number;
   glowOffsetY: number;
-  letterColors: IntroLetterColors;
-  /** Profile.introSquidColor — the squid standing in for the A. */
+  /** Profile.introSquidColor — the colour of the icon seal above the lockup. */
   squidColor: string;
 }) {
-  const parsedIcon = parseIconValue(icon);
-  // "always" paints each syllable outright; "hover" leaves the lockup cream
-  // and lets the pointer bring one colour up at a time, which is what it has
-  // always done. Written as an inline style rather than a second set of
-  // classes because the colours live in one place now (INTRO_LETTER_COLORS)
-  // and Tailwind can't read them at build time.
-  const always = letterColors === "always";
-  const letterStyle = (color: string): CSSProperties | undefined =>
-    always ? { color } : undefined;
   return (
     // `w-full` is load-bearing, and its absence was the real cause of the
     // reported phone wrap. This is a flex *item* in a centring parent, and a
@@ -272,74 +232,18 @@ function Wordmark({
           {textAbove}
         </span>
       )}
-      {/* Same SCRIPT/N(squid)VEL lockup as the Footer wordmark, sized up and
-          responsively here instead — FooterWordmark's text-5xl is fixed to
-          fit the footer column, not a full-bleed splash. */}
-      <span className={lockupClass(viewport)}>
-        <span
-          className="transition-colors duration-200 hover:text-[#FFD700]"
-          style={letterStyle(INTRO_LETTER_COLORS[0].color)}
-        >
-          Script
-        </span>
-        <span
-          className="transition-colors duration-200 hover:text-[#9A9A9A]"
-          style={letterStyle(INTRO_LETTER_COLORS[1].color)}
-        >
-          /
-        </span>
-        <span
-          className="transition-colors duration-200 hover:text-[#F5F1E8]"
-          style={letterStyle(INTRO_LETTER_COLORS[2].color)}
-        >
-          N
-        </span>
-        {/* --squid-glow is set here, on the wrapper, rather than on the icon:
-            it is a registered custom property with `inherits: true`, so one
-            declaration tints the glyph *and* the halo behind it, which read as
-            one light and would otherwise need the colour written twice.
-            Safe against the pulse on the icon — `animate-squid-glow` only
-            animates `filter`, and reads this for its tint — but NOT against
-            anything that animates the property itself, which is why this span
-            must never carry `squid-drift`. See squidSpacerClass. */}
-        <span
-          className={squidSpacerClass(viewport)}
-          style={{ "--squid-glow": squidColor } as CSSProperties}
-        >
-          <span
-            aria-hidden="true"
-            style={{
-              backgroundColor: "color-mix(in srgb, var(--squid-glow) 40%, transparent)",
-            }}
-            className="pointer-events-none absolute inset-0 scale-150 rounded-full blur-2xl"
-          />
-          {parsedIcon ? (
-            <DynamicIcon
-              platform={parsedIcon.platform}
-              name={parsedIcon.name}
-              style={{ color: "var(--squid-glow)" } as CSSProperties}
-              className="relative w-[1em] h-[1em] shrink-0 motion-safe:animate-squid-glow"
-              fallback={
-                <SquidIcon
-                  style={{ color: "var(--squid-glow)" } as CSSProperties}
-                  className="relative w-[1em] h-[1em] shrink-0 motion-safe:animate-squid-glow"
-                />
-              }
-            />
-          ) : (
-            <SquidIcon
-              style={{ color: "var(--squid-glow)" } as CSSProperties}
-              className="relative w-[1em] h-[1em] shrink-0 motion-safe:animate-squid-glow"
-            />
-          )}
-        </span>
-        <span
-          className="transition-colors duration-200 hover:text-[#F5F1E8]"
-          style={letterStyle(INTRO_LETTER_COLORS[2].color)}
-        >
-          vel
-        </span>
-      </span>
+      {/* The band's lockup — the header's own logo text/image (Site Design →
+          Header → Wordmark) with the splash icon as a seal above it, in the
+          admin's chosen icon colour. Sized per viewport by lockupClass. */}
+      <BandWordmark
+        text={logoText}
+        fontFamily={logoFontFamily}
+        image={logoImage}
+        icon={icon}
+        iconPlacement="above"
+        iconColor={squidColor}
+        className={cn("relative z-10", lockupClass(viewport))}
+      />
       {/* No `uppercase` here on purpose — the admin's typed casing is shown
           as-is (see Preferences → Branding → Entrance Splash), unlike the
           SCRIPT/N(squid)VEL lockup above which is deliberately always caps.
@@ -386,8 +290,10 @@ export function IntroSplashContent({
   glowShimmer,
   glowOffsetX,
   glowOffsetY,
-  letterColors,
   squidColor,
+  logoText,
+  logoFontFamily,
+  logoImage,
 }: {
   effect: IntroEffect;
   phase: "visible" | "exiting";
@@ -428,12 +334,16 @@ export function IntroSplashContent({
   glowShimmer?: boolean;
   glowOffsetX?: number;
   glowOffsetY?: number;
-  /** Profile.introLetterColors — whether the lockup's three coloured words
-   *  only colour on hover (the default) or wear their colours throughout. */
+  /** Profile.introLetterColors — accepted for callers that still pass it;
+   *  unused since the lockup became the admin's own wordmark. */
   letterColors?: IntroLetterColors;
-  /** Profile.introSquidColor — the squid standing in for the A, which is the
-   *  one part of the lockup that took no colour setting at all before. */
+  /** Profile.introSquidColor — the colour of the icon seal. */
   squidColor?: string;
+  /** Site Design → Header → Wordmark. Defaults let the admin preview and
+   *  any older caller render without threading Site Design through. */
+  logoText?: string;
+  logoFontFamily?: string;
+  logoImage?: string | null;
 }) {
   const exiting = phase === "exiting";
   const bg = bgColor || INTRO_DEFAULTS.introBgColor;
@@ -465,8 +375,10 @@ export function IntroSplashContent({
     glowShimmer: glowShimmer ?? INTRO_DEFAULTS.introGlowShimmer,
     glowOffsetX: glowOffsetX ?? INTRO_DEFAULTS.introGlowOffsetX,
     glowOffsetY: glowOffsetY ?? INTRO_DEFAULTS.introGlowOffsetY,
-    letterColors: letterColors ?? INTRO_DEFAULTS.introLetterColors,
     squidColor: squidColor || INTRO_DEFAULTS.introSquidColor,
+    logoText: logoText || DEFAULT_SITE_DESIGN.headerLogoText,
+    logoFontFamily: logoFontFamily || DEFAULT_SITE_DESIGN.headerLogoFontFamily,
+    logoImage: logoImage ?? null,
   };
 
   if (splitOrientation) {

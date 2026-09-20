@@ -144,6 +144,9 @@ export default async function PublicLayout({
       glowOffsetY={clampIntroGlowOffset(profile?.introGlowOffsetY)}
       letterColors={sanitizeIntroLetterColors(profile?.introLetterColors)}
       squidColor={sanitizeIntroSquidColor(profile?.introSquidColor)}
+      logoText={siteDesign.settings.headerLogoText}
+      logoFontFamily={siteDesign.settings.headerLogoFontFamily}
+      logoImage={siteDesign.settings.headerLogoImage}
     />
     <PublicThemeStyle theme={theme} />
     <NoImageDrag />
@@ -164,7 +167,7 @@ export default async function PublicLayout({
         >
           {children}
         </main>
-        <Footer socialLinks={socialLinks} footerIcon={profile?.footerIcon} />
+        <Footer socialLinks={socialLinks} footerIcon={profile?.footerIcon} wordmark={siteDesign.settings} />
       </div>
       <AnnouncementPopup />
       <FaqChatbox chatIcon={profile?.chatIcon} />

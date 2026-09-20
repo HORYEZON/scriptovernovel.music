@@ -57,6 +57,9 @@ export function IntroSplash({
   glowOffsetY,
   letterColors,
   squidColor,
+  logoText,
+  logoFontFamily,
+  logoImage,
 }: {
   enabled: boolean;
   effect: IntroEffect;
@@ -85,6 +88,10 @@ export function IntroSplash({
   letterColors?: IntroLetterColors;
   /** Profile.introSquidColor — see IntroSplashContent. */
   squidColor?: string;
+  /** Site Design → Header → Wordmark — see IntroSplashContent. */
+  logoText?: string;
+  logoFontFamily?: string;
+  logoImage?: string | null;
 }) {
   const [phase, setPhase] = useState<Phase>("hidden");
   const started = useRef(false);
@@ -183,6 +190,9 @@ export function IntroSplash({
         glowOffsetY={glowOffsetY}
         letterColors={letterColors}
         squidColor={squidColor}
+        logoText={logoText}
+        logoFontFamily={logoFontFamily}
+        logoImage={logoImage}
       />
     </div>
   );

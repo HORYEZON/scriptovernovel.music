@@ -74,7 +74,7 @@ export default function CartClient() {
               {totalItems()} item{totalItems() !== 1 ? "s" : ""}
             </p>
             {/* "A" at index 1 — the glowing squid, same as Gallery/Tales/About/Contact. */}
-            <AnimatedHeading text="Cart" squidLetterIndex={1} />
+            <AnimatedHeading text="Cart" />
             <div className="deco-line mt-6" />
           </div>
 

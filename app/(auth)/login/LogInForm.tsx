@@ -196,7 +196,7 @@ export default function LoginForm({
                         short. */}
                     <div className="text-center mb-7">
                         {/* No logo, or a logo whose file is gone: the same
-                            KALAM(squid)RI lockup as the public navbar/footer. */}
+                            band wordmark as the public footer. */}
                         <SafeImg
                             src={logoSrc ?? undefined}
                             alt="ScriptOverNovel"

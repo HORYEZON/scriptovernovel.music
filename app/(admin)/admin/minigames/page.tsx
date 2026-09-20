@@ -41,7 +41,7 @@ export default async function AdminMinigamesPage() {
             links={[
               {
                 label: "Minigames Page",
-                href: "/gallery?minigames=open",
+                href: "/?minigames=open",
               },
               museumRoomLink(museumRooms, "arcade", "Digital Museum / Arcade Room"),
               museumEditorLink(museumRooms, "arcade", "Scene Editor / Arcade Room"),

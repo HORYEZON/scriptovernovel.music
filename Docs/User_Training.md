@@ -12,42 +12,13 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 2. [Site Design — Header](#2-site-design--header)
 3. [Site Design — Menu animation](#3-site-design--menu-animation)
 4. [Preferences — Site Background Effects](#4-preferences--site-background-effects)
-5. [Glossary — Confusing Terms Explained](#5-glossary--confusing-terms-explained)
-6. [Quick Troubleshooting](#6-quick-troubleshooting)
+5. [Homepage](#5-homepage)
+6. [Glossary — Confusing Terms Explained](#6-glossary--confusing-terms-explained)
+7. [Quick Troubleshooting](#7-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
 ---
-
-<!--
-SAMPLE FORMAT — one `## N. Module Name` section per admin module, in sidebar
-order. Open with a bold "What this is for" line, then `### N.x` sub-sections
-for each task, numbered steps for click-paths, and `> ⚠️` / `> 💡` callouts
-for gotchas. Delete this sample once the first real module is written.
-
-## 5. Sections Module
-
-**What this is for:** Sections are the categories/albums that group items together on the public homepage (e.g. "Singles", "Albums", "Live Sessions"). Each section shows as a cover-image card; clicking it opens a grid of everything inside.
-
-### 5.1 Creating a section
-
-1. **+ New Section** → enter a **Section Name** (a URL-friendly slug is generated automatically).
-2. Optionally upload a **Cover Image** — if you skip this, the section card will automatically fall back to the first item's image once items are added to it.
-3. **Published** checkbox — off = hidden from the public site, and any items assigned to it become effectively invisible on the public site too, even if those items are individually marked Published.
-4. **Create Section**.
-
-### 5.2 Reordering sections
-
-Sections appear on the homepage in **Display Order**. Use the ↑ / ↓ arrows on each row/card to move a section up or down.
-
-> ⚠️ Reordering only works when you're **not** actively searching, filtering, or sorting by something other than "Display Order" — clear those first if the arrows look greyed out.
-
-### 5.3 Deleting a section
-
-Deleting a section moves it to Trash — **and everything inside it goes too.** The confirmation popup tells you exactly how many items will be trashed alongside the section, so double-check that count before confirming. Everything can be restored together from Trash.
-
----
--->
 
 ## 1. Logging In
 
@@ -71,11 +42,17 @@ Deleting a section moves it to Trash — **and everything inside it goes too.** 
 
 > 💡 These two colours only apply while a visitor is in **light** mode. In **dark** mode (the default for new visitors) the bar switches to the site's near-black glass with cream text, whatever you picked — so you never have to check your colours twice.
 
-### 2.2 Wordmark text size
+### 2.2 Menu items
+
+**Site Design → Menu → Links.** The band site's pages are **Music, Store (/shop), Videos, About, Contact**. If your menu still shows the older Gallery / Tales rows, retitle and re-point them here — the labels and links are yours to edit.
+
+> 💡 The header wordmark (Site Design → Header → Wordmark) is also what the footer and the entrance splash show now — one place to change the band's name or logo.
+
+### 2.3 Wordmark text size
 
 **Site Design → Header → Wordmark → Fallback size** is a slider (1–4rem; the readout also shows pixels). It sizes the text wordmark shown when no logo image is uploaded. Phones automatically cap it so it can't crowd the MENU button.
 
-### 2.3 The light/dark switch
+### 2.4 The light/dark switch
 
 The sun/moon pill to the right of **MENU** is always on — there's no setting to hide it. The site starts in dark mode for a first-time visitor, and the pill is how they get to light mode; their choice is remembered on that device.
 
@@ -118,7 +95,21 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 5. Glossary — Confusing Terms Explained
+## 5. Homepage
+
+**What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
+
+- **Hero** — the band's name (Site Design → Header → Wordmark), the genres (About → Skills, relabelled Genres / tags; falls back to the band's four), the tagline (About → Headline) and LISTEN / WATCH buttons over the site background photo. If **Site Design → Homepage Hero** is switched on, your custom hero shows instead. Once Releases ship, a featured release takes over the hero.
+- **Upcoming shows** — Shows / Events with a date in the future (up to three). Hidden when there are none.
+- **Merch** — the four newest available products. Hidden when the store is empty.
+- **Fan wall** — the three newest notes, when the Freedom Wall is active.
+- **Digital Museum + Mini games** — shown when the museum is enabled with published artworks, and when at least one game is playable.
+
+> 💡 The entrance splash's tagline is **Preferences → Branding → Entrance Splash → Tagline** — update it if it still reads like the old art site.
+
+---
+
+## 6. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -128,7 +119,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 6. Quick Troubleshooting
+## 7. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

@@ -1020,6 +1020,15 @@ export const openApiSpec: OpenAPIV3.Document = {
     // ═══════════════════════════════════════════════════════
     // PRODUCTS
     // ═══════════════════════════════════════════════════════
+    "/site-search": {
+      get: {
+        tags: ["Products"],
+        summary: "Header search catalogue (public)",
+        description:
+          "Everything the public header search can match — flat rows with `kind` (release | video | merch), `title`, `subtitle`, `keywords`, `imageUrl`, `href`. Merch today; releases and videos as those modules land. Filtered client-side.",
+        responses: { "200": { description: "{ items: SiteSearchItem[] }" } },
+      },
+    },
     "/products": {
       get: {
         tags: ["Products"],
@@ -3041,7 +3050,7 @@ export const openApiSpec: OpenAPIV3.Document = {
                   introSquidColor: {
                     type: "string",
                     description:
-                      "Hex color for the squid standing in for the A in the entrance splash's KALAM(squid)RI lockup. Tints its halo too. Splash only — the footer/sidebar squids keep their own brand-palette cycle.",
+                      "Hex color of the icon seal above the band wordmark on the entrance splash. Tints its halo too. Splash only — the footer/sidebar icons keep their own brand-palette cycle.",
                   },
                   introGlowShimmer: {
                     type: "boolean",
@@ -3061,7 +3070,7 @@ export const openApiSpec: OpenAPIV3.Document = {
                     type: "string",
                     enum: ["hover", "always"],
                     description:
-                      "How the KALAM(squid)RI lockup's four coloured syllables behave: \"hover\" (the default — each colours only while the pointer is over it) or \"always\" (every syllable wears its colour throughout, the only version a touch visitor can see). An unrecognised value falls back to \"hover\" rather than being rejected.",
+                      "Legacy — accepted and stored but no longer read; the splash draws the Site Design header wordmark. \"hover\" or \"always\"; anything else falls back to \"hover\".",
                   },
                 },
               },

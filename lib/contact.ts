@@ -12,17 +12,26 @@ export interface ContactSubjectOption {
 }
 
 export const CONTACT_SUBJECTS: ContactSubjectOption[] = [
-  { key: "purchase", label: "Purchase Inquiry" },
-  { key: "commission", label: "Commission Request" },
-  { key: "exhibition", label: "Exhibition / Collaboration" },
+  { key: "booking", label: "Booking / Shows" },
   { key: "press", label: "Press / Media" },
-  { key: "other", label: "Other" },
+  { key: "collaboration", label: "Collaboration" },
+  { key: "general", label: "General" },
 ];
+
+// Subjects from the site's art-gallery days — no longer offered, but
+// messages filed under them still exist and should keep their labels in
+// the admin's Gmail tab rather than showing a raw key.
+const LEGACY_SUBJECT_LABELS: Record<string, string> = {
+  purchase: "Purchase Inquiry",
+  commission: "Commission Request",
+  exhibition: "Exhibition / Collaboration",
+  other: "Other",
+};
 
 const LABEL_BY_KEY = new Map(CONTACT_SUBJECTS.map((s) => [s.key, s.label]));
 
 export function contactSubjectLabel(key: string): string {
-  return LABEL_BY_KEY.get(key) ?? key;
+  return LABEL_BY_KEY.get(key) ?? LEGACY_SUBJECT_LABELS[key] ?? key;
 }
 
 export function isContactSubjectKey(value: unknown): value is string {

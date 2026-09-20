@@ -56,6 +56,10 @@ const config: Config = {
       },
       animation: {
         "fade-up": "fadeUp 0.6s ease forwards",
+        // Hazy direction: the slow tide-in for hero type, and the barely-
+        // there drift on a blurred hero photo.
+        "fade-up-slow": "fadeUp 1.2s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "haze-drift": "hazeDrift 28s ease-in-out infinite alternate",
         "fade-in": "fadeIn 0.4s ease forwards",
         "slide-right": "slideRight 0.5s ease forwards",
         shimmer: "shimmer 3s infinite linear", // <--- UPDATED HERE (Changed to 3s and linear)
@@ -73,6 +77,10 @@ const config: Config = {
         "splash-shimmer": "splashShimmer 4.5s ease-in-out infinite",
       },
       keyframes: {
+        hazeDrift: {
+          "0%": { transform: "scale(1.1) translate(0, 0)" },
+          "100%": { transform: "scale(1.16) translate(-1.5%, 1%)" },
+        },
         fadeUp: {
           "0%": { opacity: "0", transform: "translateY(24px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },

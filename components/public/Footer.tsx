@@ -1,7 +1,8 @@
 // components/public/Footer.tsx
 import Link from "next/link";
 import { SocialLinkItem } from "@/components/public/SocialLinkItem";
-import { FooterWordmark } from "@/components/public/FooterWordmark";
+import { Wordmark } from "@/components/public/system/Wordmark";
+import type { SiteDesignSettings } from "@/lib/site-design";
 import { FooterVisitorCount } from "@/components/public/FooterVisitorCount";
 
 export type FooterSocialLink = {
@@ -14,9 +15,13 @@ export type FooterSocialLink = {
 export function Footer({
   socialLinks,
   footerIcon,
+  wordmark,
 }: {
   socialLinks?: FooterSocialLink[];
   footerIcon?: string | null;
+  /** The header's own lockup settings (Site Design → Header → Wordmark),
+   *  so the footer spells the band the way the header does. */
+  wordmark: Pick<SiteDesignSettings, "headerLogoText" | "headerLogoFontFamily" | "headerLogoImage">;
 }) {
   return (
     <footer className="border-t border-white/10 bg-ink/80 dark:bg-ink/90 backdrop-blur-xl backdrop-saturate-150 text-cream">
@@ -24,7 +29,13 @@ export function Footer({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           {/* Brand */}
           <div>
-            <FooterWordmark icon={footerIcon} />
+            <Wordmark
+              text={wordmark.headerLogoText}
+              fontFamily={wordmark.headerLogoFontFamily}
+              image={wordmark.headerLogoImage}
+              icon={footerIcon}
+              className="text-4xl"
+            />
             {/* "Ambience" is the unmarked door to the admin — same trick as
                 kalamari's "Calamares". */}
             <p className="mt-4 font-body text-sm text-ink-300 leading-relaxed max-w-xs">
@@ -49,10 +60,13 @@ export function Footer({
             </p>
             <div className="flex flex-col gap-2">
               {[
-                { href: "/gallery", label: "Gallery" },
-                // { href: "/shop", label: "Shop" },
+                { href: "/music", label: "Music" },
+                { href: "/shop", label: "Store" },
+                { href: "/videos", label: "Videos" },
                 { href: "/about", label: "About" },
                 { href: "/contact", label: "Contact" },
+                { href: "/wall", label: "Fan Wall" },
+                { href: "/gallery/museum", label: "Digital Museum" },
               ].map((link) => (
                 <Link
                   key={link.href}

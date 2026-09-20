@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Mail, Award } from "lucide-react";
 import { ProfileSlideshow } from "@/components/public/ProfileSlideshow";
 import { CertificatesGallery } from "@/components/public/CertificatesGallery";
-import { SquidLetter } from "@/components/public/SquidLetter";
+import { SectionHeading } from "@/components/public/system/SectionHeading";
 import { JsonLd } from "@/components/public/JsonLd";
 import { EventsMap } from "@/components/public/EventsMap";
 import { SITE_URL } from "@/lib/site-url";
@@ -89,20 +89,7 @@ export default async function AboutPage() {
         {/* Card base intact: p-8 md:p-14 */}
         <div className="bg-black/30 dark:bg-black/45 rounded-2xl border border-white/5 shadow-2xl p-8 md:p-14">
 
-          {/* Header */}
-          <div className="mb-20">
-            <p className="font-body text-md tracking-[0.5em] uppercase text-sepia-light mb-3">
-              The Story
-            </p>
-            <h1 className="font-grotesk font-bold text-4xl md:text-6xl tracking-widest uppercase text-white drop-shadow-sm flex">
-              <SquidLetter letter="A" />
-              <span className="transition-colors duration-200 hover:text-[#44D700]">b</span>
-              <span className="transition-colors duration-200 hover:text-[#FF6B9D]">o</span>
-              <span className="transition-colors duration-200 hover:text-[#5BC8F5]">u</span>
-              <span className="transition-colors duration-200 hover:text-[#FFE135]">t</span>
-            </h1>
-            <div className="deco-line mt-6" />
-          </div>
+          <SectionHeading as="h1" eyebrow="The story" title="About" className="mb-20" />
 
           {/* Main Content */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24 items-start">

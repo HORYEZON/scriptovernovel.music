@@ -93,15 +93,15 @@ export const metadata: Metadata = {
   // resolves to the deployed origin.
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "ScriptOverNovel — House of Arts",
+    default: "ScriptOverNovel — shoegaze, dreampop, math rock & post-rock",
     template: "%s | ScriptOverNovel",
   },
   description:
-    "A curated collection from ScriptOverNovel — House of Arts. Original paintings, prints, and mixed media available for acquisition.",
-  keywords: ["Filipino art", "contemporary art", "paintings", "Manila artist"],
+    "ScriptOverNovel is a band from Valenzuela City, PH — shoegaze, dreampop, math rock and post-rock. Music, videos, shows and merch.",
+  keywords: ["ScriptOverNovel", "shoegaze", "dreampop", "math rock", "post-rock", "Filipino band", "Valenzuela", "indie rock Philippines"],
   openGraph: {
-    title: "ScriptOverNovel — House of Arts",
-    description: "A curated collection from ScriptOverNovel — House of Arts.",
+    title: "ScriptOverNovel",
+    description: "Shoegaze, dreampop, math rock and post-rock from Valenzuela City, PH.",
     siteName: "ScriptOverNovel",
     locale: "en_PH",
     type: "website",
@@ -116,8 +116,8 @@ export const metadata: Metadata = {
   // title/description/siteName itself (see the artwork page, which does).
   twitter: {
     card: "summary_large_image",
-    title: "ScriptOverNovel — House of Arts",
-    description: "A curated collection from ScriptOverNovel — House of Arts.",
+    title: "ScriptOverNovel",
+    description: "Shoegaze, dreampop, math rock and post-rock from Valenzuela City, PH.",
   },
 };
 

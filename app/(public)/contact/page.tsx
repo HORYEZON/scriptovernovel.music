@@ -17,12 +17,12 @@ export default async function ContactPage() {
       contactHeading={profile?.contactHeading || "Get in Touch"}
       contactIntro={
         profile?.contactIntro ||
-        "Whether you're interested in acquiring a piece, commissioning an original work, or simply want to say hello — I'd love to hear from you."
+        "Booking a show, writing about us, or just want to say hello — we read everything."
       }
-      commissionHeading={profile?.commissionHeading || "Commission Inquiries"}
+      commissionHeading={profile?.commissionHeading || "Booking"}
       commissionIntro={
         profile?.commissionIntro ||
-        "Commission turnaround is typically 1-2 weeks depending on size and complexity. All commissions include a preliminary sketch and progress updates."
+        "For gigs, festivals and private shows, tell us the date, the venue and the set length you have in mind. We usually reply within a few days."
       }
       callingCardFront={profile?.callingCardFront ?? null}
       callingCardBack={profile?.callingCardBack ?? null}

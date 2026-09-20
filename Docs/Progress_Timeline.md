@@ -46,3 +46,45 @@ not a release of its own.
   Zoom, Drift, Breathe or Parallax (with the visitor's scrolling), each with
   its own speed. Off by default; visitors with reduced motion turned on
   always get the still photo
+
+---
+
+## September 20, 2026 — v0.2
+
+### Admin Side
+
+- Sidebar groups renamed for the band site: **Band** (About, Shows / Events)
+  and **Museum & Archive** (Artworks, Minigames, Digital Museum, Freedom
+  Wall, Tales, Cosplays, Announcements)
+- Entrance Splash: the wordmark is now the header's own logo text / image
+  (Site Design → Header → Wordmark); the "Logo Letter Colors" control is gone
+  and "Squid Color" is now **Icon Color** — the seal above the name
+- Site Design defaults: menu items Music / Store / Videos / About / Contact,
+  hero "New single out now → LISTEN", no mailing-list line. Existing saved
+  menu rows are unchanged — retitle them under Site Design → Menu
+- Contact subjects are now Booking / Shows, Press / Media, Collaboration,
+  General (old messages keep their old labels in Notifications)
+
+### Public Side
+
+- **The site reads as a band site.** New hazy homepage: a full-screen hero
+  (the band's name and genres over the blurred site photo, LISTEN / WATCH),
+  then only the sections that have something in them — upcoming shows, merch,
+  the fan wall, the Digital Museum with Mini Games beside it. The artwork
+  gallery grid has left the homepage; that content lives in the museum
+- One design language across pages: thin-serif headings with a tracked
+  eyebrow, frosted panels, film grain, slow fade-ups (respects reduced motion)
+- Footer and entrance splash show the admin's own wordmark with the chosen
+  icon as a seal, instead of the fixed SCRIPT/N(icon)VEL lockup
+- The Tales page is gone from the public site (still in the museum's Stories
+  room); `/wall` is a short address for the fan wall
+- Header search now searches merch (releases and videos join as they ship)
+- Share cards, page titles and descriptions describe the band, not a gallery
+- Footer links: Music, Store, Videos, About, Contact, Fan Wall, Digital Museum
+
+### Infra / DB
+
+- No schema change. Groundwork for the next phases: `lib/embeds.ts` (YouTube /
+  Spotify / Bandcamp / SoundCloud / Apple Music link parsing + `EmbedFrame`
+  player), `lib/store/product-display.ts` (product title/image fallback chain
+  ahead of the merch decoupling), `/api/site-search`

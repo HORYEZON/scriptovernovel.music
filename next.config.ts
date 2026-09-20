@@ -47,6 +47,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "res.cloudinary.com" },
       ...(r2Host ? [{ protocol: "https" as const, hostname: r2Host }] : []),
       { protocol: "https", hostname: "**.r2.dev" },
+      // YouTube poster frames for the click-to-load video embeds (lib/embeds.ts).
+      { protocol: "https", hostname: "i.ytimg.com" },
       { protocol: "https", hostname: "picsum.photos" },
       { protocol: "https", hostname: "fastly.picsum.photos" },
     ],

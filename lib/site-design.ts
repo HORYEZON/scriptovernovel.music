@@ -234,7 +234,9 @@ export const DEFAULT_SITE_DESIGN: SiteDesignSettings = {
   menuCloseHoverBgColor: "#141414",
   menuCloseHoverIconColor: "#FFFFFF",
   menuCloseHoverEffect: "spin",
-  menuFooterText: "JOIN THE MAILING LIST",
+  // Empty by default: the band has no mailing list. MenuPanel hides the
+  // line when blank; an admin can still type one in.
+  menuFooterText: "",
   menuFooterHref: "/contact",
   menuShowSocialLinks: true,
 
@@ -243,14 +245,14 @@ export const DEFAULT_SITE_DESIGN: SiteDesignSettings = {
   heroBgImage: null,
   heroImage: null,
   heroImageWidth: "480px",
-  heroHeading: "The new collection",
+  heroHeading: "New single out now",
   heroHeadingFontFamily: "var(--font-playfair), Georgia, serif",
   heroHeadingFontSize: "3rem",
   heroHeadingFontWeight: "700",
   heroHeadingColor: "#141414",
   heroSubheading: "",
-  heroCtaLabel: "VIEW NOW",
-  heroCtaHref: "/gallery",
+  heroCtaLabel: "LISTEN",
+  heroCtaHref: "/music",
   heroCtaBgColor: "#141414",
   heroCtaTextColor: "#FFFFFF",
   heroDecorImage: null,
@@ -283,14 +285,14 @@ export interface SiteMenuItem {
   sortOrder: number;
 }
 
-// The reference's palette, one pair per row, mapped onto this site's own
-// pages. Used publicly when the SiteMenuItem table is empty (a fresh
+// The reference's palette, one pair per row, mapped onto the band site's
+// five pages. Used publicly when the SiteMenuItem table is empty (a fresh
 // install), and as the admin editor's starting rows — the first save
 // persists them as real rows.
 export const DEFAULT_MENU_ITEMS: SiteMenuItem[] = [
-  { id: "default-gallery", label: "Gallery", href: "/", bgColor: "#F5D480", underlineColor: "#FDA063", underlineStyle: "scribble", image: null, openInNewTab: false, isVisible: true, sortOrder: 0 },
-  { id: "default-stories", label: "Tales", href: "/stories", bgColor: "#F0645A", underlineColor: "#F5D480", underlineStyle: "straight", image: null, openInNewTab: false, isVisible: true, sortOrder: 1 },
-  { id: "default-shop", label: "Shop", href: "/shop", bgColor: "#6BC08D", underlineColor: "#F7C4C4", underlineStyle: "wave", image: null, openInNewTab: false, isVisible: true, sortOrder: 2 },
+  { id: "default-music", label: "Music", href: "/music", bgColor: "#F5D480", underlineColor: "#FDA063", underlineStyle: "scribble", image: null, openInNewTab: false, isVisible: true, sortOrder: 0 },
+  { id: "default-store", label: "Store", href: "/shop", bgColor: "#6BC08D", underlineColor: "#F7C4C4", underlineStyle: "wave", image: null, openInNewTab: false, isVisible: true, sortOrder: 1 },
+  { id: "default-videos", label: "Videos", href: "/videos", bgColor: "#F0645A", underlineColor: "#F5D480", underlineStyle: "straight", image: null, openInNewTab: false, isVisible: true, sortOrder: 2 },
   { id: "default-about", label: "About", href: "/about", bgColor: "#A6C4DA", underlineColor: "#E07BE0", underlineStyle: "scribble", image: null, openInNewTab: false, isVisible: true, sortOrder: 3 },
   { id: "default-contact", label: "Contact", href: "/contact", bgColor: "#E07BE0", underlineColor: "#5FCFC6", underlineStyle: "wave", image: null, openInNewTab: false, isVisible: true, sortOrder: 4 },
 ];

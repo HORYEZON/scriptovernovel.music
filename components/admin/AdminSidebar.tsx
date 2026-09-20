@@ -87,7 +87,7 @@ const NAV: NavEntry[] = [
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
   {
     id: "gallery",
-    label: "Gallery",
+    label: "Museum & Archive",
     icon: Palette,
     children: [
       // Artworks owns a "Sections" tab now (the old /admin/sections route
@@ -118,11 +118,11 @@ const NAV: NavEntry[] = [
   },
   {
     id: "profile",
-    label: "Profile",
+    label: "Band",
     icon: CircleUser,
     children: [
       { href: "/admin/about", label: "About", icon: User },
-      { href: "/admin/events", label: "Timeline / Events", icon: MapPin },
+      { href: "/admin/events", label: "Shows / Events", icon: MapPin },
     ],
   },
   // The public site's header / menu overlay / homepage hero look — its own

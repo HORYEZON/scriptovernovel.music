@@ -6,7 +6,6 @@ import { ChevronDown, Monitor, Play, Repeat, Smartphone, ToggleLeft, ToggleRight
 import { IntroSplashContent } from "@/components/public/IntroSplashContent";
 import { SettingsAccordion } from "./SettingsAccordion";
 import {
-  INTRO_LETTER_COLORS,
   INTRO_EFFECTS,
   INTRO_SPEED_PRESETS,
   INTRO_TAGLINE_SIZE_PRESETS,
@@ -31,27 +30,6 @@ import {
   type IntroLetterColors,
 } from "@/lib/intro-splash";
 
-/** The two ways the SCRIPT/N(squid)VEL lockup can wear its three colours. Written
- *  out here rather than derived from INTRO_LETTER_COLOR_MODES because each
- *  needs wording of its own — the mode names are storage values, not labels
- *  an admin should have to interpret. */
-const LETTER_COLOR_OPTIONS: {
-  value: IntroLetterColors;
-  label: string;
-  description: string;
-}[] = [
-  {
-    value: "hover",
-    label: "On hover",
-    description: "Cream until the pointer passes over a syllable, one at a time.",
-  },
-  {
-    value: "always",
-    label: "Always on",
-    description: "Every syllable wears its colour for the whole splash.",
-  },
-];
-
 export interface IntroSplashValue {
   introEnabled: boolean;
   introEffect: IntroEffect;
@@ -74,9 +52,8 @@ export interface IntroSplashValue {
   introGlowShimmer: boolean;
   introGlowOffsetX: number;
   introGlowOffsetY: number;
-  /** Whether the wordmark's three coloured words only colour on hover
-   *  (the original behaviour, and the default) or wear their colours
-   *  throughout. See LETTER_COLOR_OPTIONS above. */
+  /** Unused since the splash took the header's wordmark — carried so the
+   *  Branding form's shape is unchanged; no control edits it. */
   introLetterColors: IntroLetterColors;
   introSquidColor: string;
   // Edited from Branding/Icons' "Entrance Splash Icon" picker, not here —
@@ -680,7 +657,7 @@ export function IntroSplashSection({
                   // "entering" shares "exiting"'s off-state classes — see
                   // introTransitionClasses; only "visible" differs.
                   phase={previewPhase === "visible" ? "visible" : "exiting"}
-                  text={value.introText || "House of Arts"}
+                  text={value.introText || INTRO_DEFAULTS.introText}
                   durationMs={introExitMs(value.introSpeedMs)}
                   bgColor={value.introBgColor}
                   icon={value.splashIcon}
@@ -834,89 +811,17 @@ export function IntroSplashSection({
           </p>
         </div>
 
-        {/* --- Wordmark colours -----------------------------------------
-            The three coloured words in SCRIPT/N(squid)VEL have always been a
-            hover effect, which a phone visitor can never trigger: there is no
-            pointer to hover with, and the splash is gone in about a second
-            and a half either way. So on mobile the colours simply never
-            happened. "Always on" is that case's answer — same three colours,
-            just worn for the whole splash. The swatches are read from
-            INTRO_LETTER_COLORS, the same list the wordmark itself draws from,
-            so this can't drift from what it's describing. */}
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
-            Logo Letter Colors
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-            {LETTER_COLOR_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                // No toast here, unlike the switches in this section: this
-                // is a picker, and the Transition Effect picker right above
-                // it doesn't announce itself either. The two swatch rows say
-                // which mode is on at a glance, which a switch can't.
-                onClick={() => onChange({ introLetterColors: option.value })}
-                className={`text-left p-3 rounded-xl border transition-all ${
-                  value.introLetterColors === option.value
-                    ? "border-sepia bg-sepia/10"
-                    : "border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30"
-                }`}
-              >
-                <p
-                  className={`font-body text-sm font-medium ${
-                    value.introLetterColors === option.value
-                      ? "text-sepia"
-                      : "text-ink dark:text-cream"
-                  }`}
-                >
-                  {option.label}
-                </p>
-                <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-0.5">
-                  {option.description}
-                </p>
-                {/* The actual lockup, in the mode this option means — the
-                    swatch row is the answer to "what will it look like",
-                    and it is drawn from the same colour list the splash
-                    uses rather than a copy of it. */}
-                <span className="mt-2 flex items-center gap-0.5 font-badaboom uppercase tracking-[0.15em] text-lg text-cream dark:text-cream">
-                  {INTRO_LETTER_COLORS.map((letter) => (
-                    <span
-                      key={letter.syllable}
-                      style={
-                        option.value === "always"
-                          ? { color: letter.color }
-                          : { color: "var(--color-ink-300, #9b9b9b)" }
-                      }
-                    >
-                      {letter.syllable}
-                    </span>
-                  ))}
-                </span>
-              </button>
-            ))}
-          </div>
-          <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1.5">
-            Hover it in the preview above to see the difference. On a phone
-            there is nothing to hover with, so <strong className="font-medium">Always on</strong>{" "}
-            is the only one a touch visitor ever sees.
-          </p>
-        </div>
-
-        {/* --- The squid ------------------------------------------------
-            Its own control rather than a fourth entry in the word-colour
-            list above: the three words share one on/off mode between them
-            and take their hexes from INTRO_LETTER_COLORS, while the squid is
-            a single glyph that is simply always this colour. It also sits
-            outside that mode entirely — it never hovered, so "hover vs
-            always" was never a question that applied to it, which is how it
-            ended up as the one part of the lockup with no setting at all. */}
+        {/* --- The icon seal --------------------------------------------
+            The splash draws the band's wordmark (Site Design → Header →
+            Wordmark: the same text/font/image the header shows) with the
+            splash icon as a seal above it. This is that seal's colour; the
+            words themselves are cream. */}
         <div>
           <label
             htmlFor="intro-squid-color"
             className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2"
           >
-            Squid Color
+            Icon Color
           </label>
           <HexColorField
             id="intro-squid-color"
@@ -924,36 +829,10 @@ export function IntroSplashSection({
             onChange={(introSquidColor) => onChange({ introSquidColor })}
             resetTo={INTRO_DEFAULTS.introSquidColor}
           />
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            <span className="font-body text-[11px] text-ink-400 dark:text-ink-300">
-              Match a word:
-            </span>
-            {/* The three lockup hexes, one click each — the colour an admin
-                actually wants here is almost always one of the words
-                beside it, and typing #F5F1E8 from memory is not a thing
-                anyone should have to do. */}
-            {INTRO_LETTER_COLORS.map((letter) => (
-              <button
-                key={letter.syllable}
-                type="button"
-                onClick={() => onChange({ introSquidColor: letter.color })}
-                title={`Use the ${letter.syllable} colour (${letter.color})`}
-                className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${
-                  value.introSquidColor.toLowerCase() === letter.color.toLowerCase()
-                    ? "border-sepia ring-2 ring-sepia/40"
-                    : "border-black/15 dark:border-white/20"
-                }`}
-                style={{ backgroundColor: letter.color }}
-              >
-                <span className="sr-only">{letter.syllable}</span>
-              </button>
-            ))}
-          </div>
           <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1.5">
-            The squid standing in for the <strong className="font-medium">A</strong>. Its
-            halo is drawn from this too, so both move together. Only the
-            entrance splash — the footer and sidebar squids keep their own
-            colour cycle.
+            The icon above the band name (picked under Icons → Entrance Splash
+            Icon). Its halo is drawn from this too, so both move together.
+            The wordmark text itself comes from Site Design → Header.
           </p>
         </div>
 
@@ -1039,7 +918,7 @@ export function IntroSplashSection({
               value={value.introText}
               maxLength={MAX_INTRO_TEXT_LENGTH}
               onChange={(e) => onChange({ introText: e.target.value })}
-              placeholder="House of Arts"
+              placeholder={INTRO_DEFAULTS.introText}
               className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
             />
             <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1.5">

@@ -1,6 +1,8 @@
-# ScriptOverNovel — House of Arts Portfolio
+# ScriptOverNovel — band website
 
-A minimalist art gallery and portfolio site for showcasing original artwork. Features a section-based masonry gallery, artwork detail modals, an FAQ chatbox, announcements, a full admin dashboard (artworks, sections, products, orders, FAQs, announcements, about/profile, trash/soft-delete), image uploads to Cloudflare R2, and dark/light theming.
+The website of ScriptOverNovel, a shoegaze / dreampop / math rock / post-rock band from Valenzuela City, PH. A hazy, release-led public site — Music, Store, Videos, About, Contact — with a fan wall, a first-person Digital Museum and mini games, plus a full admin dashboard (site design, releases, videos, merch products, orders, shows, band profile, announcements, trash/soft-delete), media uploads to Cloudflare R2, and dark/light theming.
+
+> Forked from the kalamari.arts art-gallery codebase; the Digital Museum and its archive (artworks, tales, cosplays) live on inside it. The public-site rebuild is phased — see `Docs/Progress_Timeline.md`.
 
 ![Next.js](https://img.shields.io/badge/Next.js_15-black?style=flat&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)

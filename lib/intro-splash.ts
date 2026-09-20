@@ -142,7 +142,7 @@ export const INTRO_DEFAULTS = {
   introEnabled: true,
   introEffect: "fade" as IntroEffect,
   introSpeedMs: 1400,
-  introText: "House of Arts",
+  introText: "Shoegaze · Dreampop · Math rock · Post-rock",
   // Empty on purpose: the line above the logo is opt-in, so an existing splash
   // looks exactly as it did until an admin types something into it.
   introTextAbove: "",

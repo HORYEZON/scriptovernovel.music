@@ -6,7 +6,7 @@ import { Send, MapPin, Mail, Phone, CreditCard, Download, X, RotateCcw } from "l
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "@/lib/toast";
 import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
-import { SquidLetter } from "@/components/public/SquidLetter";
+import { SectionHeading } from "@/components/public/system/SectionHeading";
 import { SafeImg } from "@/components/ui/SafeImage";
 import { CONTACT_SUBJECTS } from "@/lib/contact";
 
@@ -308,22 +308,7 @@ export default function ContactClient({
     <div className="pt-24 pb-24">
       <div className="section-padding">
         <div className="bg-black/30 dark:bg-black/45 rounded-2xl border border-white/5 shadow-2xl p-8 md:p-14">
-          {/* Header */}
-          <div className="mb-16">
-            <p className="font-body text-md tracking-[0.5em] uppercase text-sepia-light mb-3">
-              Reach Out
-            </p>
-            <h1 className="font-grotesk font-bold text-4xl md:text-6xl tracking-widest uppercase text-white drop-shadow-sm flex">
-              <span className="transition-colors duration-200 hover:text-[#FFE135]">C</span>
-              <span className="transition-colors duration-200 hover:text-[#44D700]">o</span>
-              <span className="transition-colors duration-200 hover:text-[#FF6B9D]">n</span>
-              <span className="transition-colors duration-200 hover:text-[#5BC8F5]">t</span>
-              <SquidLetter />
-              <span className="transition-colors duration-200 hover:text-[#44D700]">c</span>
-              <span className="transition-colors duration-200 hover:text-[#FF6B9D]">t</span>
-            </h1>
-            <div className="deco-line mt-6" />
-          </div>
+          <SectionHeading as="h1" eyebrow="Reach out" title="Contact" className="mb-16" />
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-16 lg:gap-24">
             {/* Contact Info */}
@@ -498,7 +483,7 @@ export default function ContactClient({
                   value={form.message}
                   onChange={(e) => setForm({ ...form, message: e.target.value })}
                   className={inputCls + " resize-none"}
-                  placeholder="Tell me about what you have in mind..."
+                  placeholder="Tell us what you have in mind…"
                 />
               </div>
 

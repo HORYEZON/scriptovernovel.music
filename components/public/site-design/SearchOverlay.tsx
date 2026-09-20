@@ -3,23 +3,15 @@
 // components/public/site-design/SearchOverlay.tsx
 //
 // The header's search — a slim panel that drops from under the header with
-// one input, matching artworks by title, medium or tag as you type. The
-// published catalogue is fetched once per open (it's the same list the
-// gallery renders) and filtered here; there's no search endpoint to hit.
+// one input, matching releases, videos and merch by title, subtitle or
+// keyword as you type. The whole (small) catalogue comes from one fetch of
+// /api/site-search per first open and is filtered here.
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SafeImg } from "@/components/ui/SafeImage";
-
-type SearchArtwork = {
-  id: string;
-  slug: string;
-  title: string;
-  imageUrl: string;
-  medium?: string | null;
-  tags?: string[];
-};
+import { SITE_SEARCH_KIND_LABELS, type SiteSearchItem } from "@/lib/site-search";
 
 const MAX_RESULTS = 8;
 
@@ -35,7 +27,7 @@ export function SearchOverlay({
   textColor: string;
 }) {
   const [query, setQuery] = useState("");
-  const [artworks, setArtworks] = useState<SearchArtwork[] | null>(null);
+  const [items, setItems] = useState<SiteSearchItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -46,12 +38,12 @@ export function SearchOverlay({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    if (artworks === null && !loading) {
+    if (items === null && !loading) {
       setLoading(true);
-      fetch("/api/artworks?published=true")
-        .then((r) => (r.ok ? r.json() : []))
-        .then((rows: SearchArtwork[]) => setArtworks(Array.isArray(rows) ? rows : []))
-        .catch(() => setArtworks([]))
+      fetch("/api/site-search")
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then((data: { items?: SiteSearchItem[] }) => setItems(Array.isArray(data?.items) ? data.items : []))
+        .catch(() => setItems([]))
         .finally(() => setLoading(false));
     }
     return () => window.removeEventListener("keydown", onKey);
@@ -60,16 +52,16 @@ export function SearchOverlay({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q || !artworks) return [];
-    return artworks
+    if (!q || !items) return [];
+    return items
       .filter(
         (a) =>
           a.title.toLowerCase().includes(q) ||
-          (a.medium ?? "").toLowerCase().includes(q) ||
-          (a.tags ?? []).some((t) => t.toLowerCase().includes(q))
+          (a.subtitle ?? "").toLowerCase().includes(q) ||
+          a.keywords.some((t) => t.toLowerCase().includes(q))
       )
       .slice(0, MAX_RESULTS);
-  }, [query, artworks]);
+  }, [query, items]);
 
   return (
     <>
@@ -99,8 +91,8 @@ export function SearchOverlay({
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search artworks…"
-            aria-label="Search artworks"
+            placeholder="Search releases, videos, merch…"
+            aria-label="Search the site"
             className="min-w-0 flex-1 bg-transparent font-body text-base outline-none placeholder:opacity-50 md:text-lg"
             style={{ color: textColor }}
           />
@@ -116,7 +108,7 @@ export function SearchOverlay({
 
         {query.trim() && (
           <div className="section-padding max-h-[60vh] overflow-y-auto border-t border-current/10 pb-5 pt-3">
-            {loading && artworks === null ? (
+            {loading && items === null ? (
               <p className="font-body text-xs uppercase tracking-widest opacity-60">Loading…</p>
             ) : results.length === 0 ? (
               <p className="font-body text-xs uppercase tracking-widest opacity-60">No matches</p>
@@ -125,20 +117,23 @@ export function SearchOverlay({
                 {results.map((a) => (
                   <li key={a.id}>
                     <Link
-                      href={`/artwork/${a.slug}`}
+                      href={a.href}
                       onClick={onClose}
                       className="flex items-center gap-4 py-3 transition-opacity hover:opacity-60"
                     >
-                      <SafeImg
-                        src={a.imageUrl}
-                        alt=""
-                        className="h-12 w-12 shrink-0 rounded object-cover"
-                      />
-                      <span className="min-w-0">
+                      {a.imageUrl ? (
+                        <SafeImg src={a.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
+                      ) : (
+                        <span className="h-12 w-12 shrink-0 rounded bg-current/10" />
+                      )}
+                      <span className="min-w-0 flex-1">
                         <span className="block truncate font-body text-sm font-medium">{a.title}</span>
-                        {a.medium && (
-                          <span className="block truncate font-body text-xs opacity-60">{a.medium}</span>
+                        {a.subtitle && (
+                          <span className="block truncate font-body text-xs opacity-60">{a.subtitle}</span>
                         )}
+                      </span>
+                      <span className="shrink-0 font-body text-[10px] uppercase tracking-[0.2em] opacity-50">
+                        {SITE_SEARCH_KIND_LABELS[a.kind]}
                       </span>
                     </Link>
                   </li>
