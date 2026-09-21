@@ -64,7 +64,7 @@ export default async function AdminDashboard() {
   const totalRevenue = revenueAgg._sum.total ?? 0;
 
   const stats = [
-    { label: "Total Artworks", value: artworkCount, icon: ImageIcon, href: "/admin/artworks", color: "sepia" },
+    { label: "Museum Pieces", value: artworkCount, icon: ImageIcon, href: "/admin/artworks", color: "sepia" },
     { label: "Products Listed", value: productCount, icon: ShoppingBag, href: "/admin/products", color: "indigo" },
     { label: "Orders", value: orderCount, icon: Package, href: "/admin/orders", color: "blue" },
     { label: "Revenue", value: formatPrice(totalRevenue), icon: TrendingUp, href: "/admin/sales", color: "emerald" },

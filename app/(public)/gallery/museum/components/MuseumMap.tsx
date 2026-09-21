@@ -183,7 +183,7 @@ export function MuseumMap({
                                 // Music → Vinyls.
                                 room.roomType === "VINYL"
                               ? `Vinyl Room · ${room.vinyls.length} record${room.vinyls.length === 1 ? "" : "s"}`
-                              : `${ROOM_TYPE_LABEL[room.roomType] ?? room.roomType} · ${room.artworks.length} artwork${room.artworks.length === 1 ? "" : "s"}`}
+                              : `${ROOM_TYPE_LABEL[room.roomType] ?? room.roomType} · ${room.artworks.length} piece${room.artworks.length === 1 ? "" : "s"}`}
                           </p>
                         </div>
                         {isCurrent && (

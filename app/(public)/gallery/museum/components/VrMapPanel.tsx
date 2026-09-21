@@ -50,7 +50,7 @@ function roomSubtitle(room: MuseumRoomPublic, freedomWallNoteCount: number): str
     case "VINYL":
       return `Vinyl Room · ${room.vinyls.length} record${room.vinyls.length === 1 ? "" : "s"}`;
     default:
-      return `${ROOM_TYPE_LABEL[room.roomType] ?? room.roomType} · ${room.artworks.length} artwork${room.artworks.length === 1 ? "" : "s"}`;
+      return `${ROOM_TYPE_LABEL[room.roomType] ?? room.roomType} · ${room.artworks.length} piece${room.artworks.length === 1 ? "" : "s"}`;
   }
 }
 

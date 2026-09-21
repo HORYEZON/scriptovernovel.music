@@ -261,7 +261,7 @@ export function ArtworkInfoPanel({
                       }
                     >
                       <ExternalLink size={14} />
-                      View in Gallery
+                      View Full Size
                     </Link>
                   )}
                   <WishlistButton

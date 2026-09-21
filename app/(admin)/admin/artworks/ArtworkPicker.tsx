@@ -130,7 +130,7 @@ export function ArtworkPicker({
       {/* Artwork Picker */}
       <div className="admin-card border rounded-2xl p-4">
         <h4 className="font-jakarta text-sm font-medium text-ink dark:text-cream mb-3">
-          Add Artworks
+          Add Pieces
         </h4>
         <div className="relative mb-3">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
@@ -138,14 +138,14 @@ export function ArtworkPicker({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search artworks…"
+            placeholder="Search pieces…"
             className="admin-input w-full pl-9 pr-3 py-2 rounded-xl text-sm"
           />
         </div>
         <div className="space-y-1.5 max-h-96 overflow-y-auto">
           {filteredArtworks.length === 0 && (
             <p className="font-body text-xs text-ink-400 dark:text-ink-300 py-4 text-center">
-              No artworks match your search.
+              No pieces match your search.
             </p>
           )}
           {filteredArtworks.map((artwork) => {
@@ -232,7 +232,7 @@ export function ArtworkPicker({
           <div className="py-8 text-center">
             <p className="font-body text-sm text-ink dark:text-cream mb-1">Nothing selected yet.</p>
             <p className="font-body text-xs text-ink-400 dark:text-ink-300">
-              Add artworks from the list on the left.
+              Add pieces from the list on the left.
             </p>
           </div>
         ) : (

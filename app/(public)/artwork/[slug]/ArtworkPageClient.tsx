@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { formatPrice } from "@/lib/utils";
 import { ShareButton } from "@/components/public/ShareButton";
 import { WishlistButton } from "@/components/public/WishlistButton";
-import { FeaturedBadge, NewReleaseBadge } from "@/components/public/ArtworkBadge";
+import { FeaturedBadge } from "@/components/public/ArtworkBadge";
 import { VideoIndicator } from "@/components/public/VideoIndicator";
 
 type MediaItem = { type: "image"; url: string } | { type: "video"; url: string };
@@ -102,18 +102,6 @@ export function ArtworkPageClient({
               </div>
             )}
 
-            {artwork.status === "SOLD" && (
-              <div className="absolute top-4 right-4 bg-vermillion px-4 py-1.5">
-                <span className="font-body text-xs tracking-widest uppercase text-cream">
-                  Sold
-                </span>
-              </div>
-            )}
-            {artwork.isNewRelease && (
-              <div className="absolute top-4 left-4">
-                <NewReleaseBadge />
-              </div>
-            )}
             {artwork.featured && (
               <div className="absolute bottom-4 left-4">
                 <FeaturedBadge />
@@ -175,7 +163,7 @@ export function ArtworkPageClient({
             {artwork.medium && (
               <p>
                 <span className="text-white/40 text-xs uppercase tracking-widest">
-                  Medium:{" "}
+                  Kind:{" "}
                 </span>
                 <span className="text-white/80">{artwork.medium}</span>
               </p>
@@ -211,16 +199,10 @@ export function ArtworkPageClient({
             </div>
           )}
 
+          {/* A museum piece, not a listing — no sold/available line. The
+              shop-shaped columns (status, isNewRelease) still exist on the
+              row but nothing on the band site reads them. */}
           <div className="mt-auto pt-6 border-t border-white/10">
-            {artwork.status === "SOLD" ? (
-              <p className="font-body text-sm text-vermillion italic mb-4">
-                This piece has been sold.
-              </p>
-            ) : (
-              <p className="font-body text-sm text-white/50 italic mb-4">
-                Available — reach out via the contact page to inquire.
-              </p>
-            )}
             <div className="flex items-center gap-2">
               <WishlistButton
                 artwork={{

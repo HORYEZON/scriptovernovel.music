@@ -1733,7 +1733,7 @@ export function MuseumScene({
               ? contactConfig.promptLabel
               : activeIndex !== null && servicesRoomId != null && roomIds[activeIndex] === servicesRoomId
                 ? "View Product"
-                : "View Artwork";
+                : "View";
   const promptTitle = activeCert
     ? activeCertLabel
     : activePodium

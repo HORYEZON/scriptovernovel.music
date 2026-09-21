@@ -17,10 +17,11 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 7. [About & Band Members](#7-about--band-members)
 8. [Store (Products)](#8-store-products)
 9. [Mini Games](#9-mini-games)
-10. [Vinyl Room (Digital Museum)](#10-vinyl-room-digital-museum)
-11. [Homepage](#11-homepage)
-12. [Glossary — Confusing Terms Explained](#12-glossary--confusing-terms-explained)
-13. [Quick Troubleshooting](#13-quick-troubleshooting)
+10. [Museum Pieces (Digital Museum)](#10-museum-pieces-digital-museum)
+11. [Vinyl Room (Digital Museum)](#11-vinyl-room-digital-museum)
+12. [Homepage](#12-homepage)
+13. [Glossary — Confusing Terms Explained](#13-glossary--confusing-terms-explained)
+14. [Quick Troubleshooting](#14-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -210,11 +211,30 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 10. Vinyl Room (Digital Museum)
+## 10. Museum Pieces (Digital Museum)
+
+**What this is for:** the pictures that hang on the walls of the Digital Museum's rooms — live photos, gig posters, press shots, cover art, fan art. (This used to be the art gallery's "Artworks"; it is the same screen, relabelled for the band.)
+
+### 10.1 Adding a piece
+
+1. **Museum & Archive → Museum Pieces → + New Piece.**
+2. Upload the **Image** (optionally a short **video clip**, e.g. a live snippet).
+3. **Title**, **Description**, **Kind** (pick a preset — *Live photo*, *Gig poster*, *Press shot*, *Cover art*, *Fan art* — or type your own; it shows on the plaque with the **Year**), **Year**, optional **Size** and **Tags**, and a **Section** (a grouping you use when picking pieces for a room).
+4. **Published** on, **Add Piece**.
+
+### 10.2 Hanging it in a room
+
+**Digital Museum → Rooms** → a room's **Manage pieces** → add from the list. Reorder with the arrows; **Edit Scene** to drag frames along the walls. A piece can hang in several rooms.
+
+> 💡 A good structure: one room per era or kind — "Gigs 2025", "Posters", "Press" — using Sections to keep the picker short.
+
+---
+
+## 11. Vinyl Room (Digital Museum)
 
 **What this is for:** a room in the Digital Museum where your records hang on the wall. A visitor walks up to a sleeve, presses **[E]** (or taps) to take the record, carries it to the turntable, and puts it on. It plays — through effects they can turn (reverb, lo-fi, crackle, echo, 33 / 45 / 78 speed) — while the **Lyrics Wall** shows the song's words line by line.
 
-### 10.1 Adding a record
+### 11.1 Adding a record
 
 1. **Music → Vinyls → + New vinyl.**
 2. **Release** — pick the record. Its cover becomes the sleeve, its tracklist and lyrics feed the Lyrics Wall. (Add lyrics under Releases → track → Lyrics.)
@@ -223,7 +243,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 > Published records hang on the wall the next time the room is opened. ↑ ↓ sets the order along the wall; 🗑 moves it to **Trash → Music → Vinyls** (emptying Trash also deletes the audio file).
 
-### 10.2 Turning the room on and laying it out
+### 11.2 Turning the room on and laying it out
 
 1. **Digital Museum → Rooms** — the **Vinyl Room** is created for you but starts **off**. Turn it on with its toggle (it can't be deleted).
 2. **Edit Scene** on that room:
@@ -231,7 +251,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
    - Click the **turntable** to drag it anywhere on the floor (Move) or turn it (Rotate). It saves as you move it.
    - **Turntable & Lyrics Wall** card: upload your own turntable `.glb`, set the **default effects** a visitor starts from, and switch the **Lyrics Wall** on or off, pick its wall (north / east / west) and its colours.
 
-### 10.3 Good to know
+### 11.3 Good to know
 
 - The museum's own soundtrack pauses while a record plays and comes back when it's taken off.
 - A visitor's effect settings last for their visit; the room's defaults are yours.
@@ -240,7 +260,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 11. Homepage
+## 12. Homepage
 
 **What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
 
@@ -256,7 +276,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 12. Glossary — Confusing Terms Explained
+## 13. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -266,7 +286,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 13. Quick Troubleshooting
+## 14. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

@@ -1,6 +1,13 @@
 // app/(admin)/admin/artworks/ArtworksClient.tsx
 "use client";
 
+// The Museum Pieces admin — the images (and clips) that hang in the Digital
+// Museum's rooms: live photos, gig posters, press shots, cover art, fan art.
+// Inherited from the art-gallery codebase as "Artworks" (the model, routes
+// and the /artwork/[slug] page keep that name), so the shop-shaped bits —
+// Sold / Available, "New Release", price sorting — are hidden here rather
+// than removed: the columns stay, nothing on the band site reads them.
+
 import { useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "@/components/ui/SafeImage";
@@ -12,8 +19,6 @@ import {
   Eye,
   Star,
   Upload,
-  CheckCircle,
-  Tag,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
@@ -26,7 +31,6 @@ import {
   ToggleLeft,
   ToggleRight,
   Layers,
-  Sparkles,
   Share2,
   Film,
   ImagePlus,
@@ -41,7 +45,11 @@ import toast from "@/lib/toast";
 import { playSoundEffect } from "@/lib/sound/engine";
 
 type ArtworkStatus = "AVAILABLE" | "SOLD";
-type SortOption = "title" | "section" | "date" | "price" | "status" | "featured" | "newRelease" | "draft";
+type SortOption = "title" | "section" | "date" | "featured" | "draft";
+
+/** Suggested values for Kind (the old `medium` column) — free text, these
+ *  just keep the plaque wording consistent across the museum. */
+const PIECE_KIND_PRESETS = ["Live photo", "Gig poster", "Press shot", "Cover art", "Fan art", "Artwork", "Behind the scenes"];
 type SortOrder = "asc" | "desc";
 type ViewMode = "table" | "grid";
 
@@ -109,50 +117,33 @@ function getStatusBadges(artwork: Artwork) {
       >
         {artwork.published ? "Published" : "Draft"}
       </span>
-      <span
-        className={`px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wider border ${artwork.status === "SOLD"
-          ? "bg-vermillion/10 text-vermillion border-vermillion/20"
-          : "bg-sepia/10 text-sepia border-sepia/20"
-          }`}
-      >
-        {artwork.status === "SOLD" ? "Sold" : "Available"}
-      </span>
       {artwork.featured && (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wider bg-sepia/10 text-sepia border border-sepia/20">
           <Star size={10} className="fill-current" />
           Featured
         </span>
       )}
-      {artwork.isNewRelease && (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wider bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-          <Sparkles size={10} className="fill-current" />
-          New Release
-        </span>
-      )}
       {artwork.videoUrl && (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
           <Film size={10} />
-          Timelapse
+          Video
         </span>
       )}
     </div>
   );
 }
 
-// Publish, Featured & New Release are all "visibility/promotion" flags on an
-// artwork, so they're grouped into a single segmented control (one bordered
-// pill, divided) rather than three separate free-floating buttons — keeps
-// the actions row from sprawling and reads as one related decision.
+// Publish & Featured are both "visibility/promotion" flags on a piece, so
+// they're grouped into a single segmented control (one bordered pill,
+// divided) rather than separate free-floating buttons.
 function ArtworkFlagToggles({
   artwork,
   onTogglePublished,
   onToggleFeatured,
-  onToggleNewRelease,
 }: {
   artwork: Artwork;
   onTogglePublished: () => void;
   onToggleFeatured: () => void;
-  onToggleNewRelease: () => void;
 }) {
   return (
     <div className="inline-flex items-center rounded-lg border border-black/10 dark:border-white/10 divide-x divide-black/10 dark:divide-white/10 overflow-hidden shrink-0">
@@ -182,25 +173,6 @@ function ArtworkFlagToggles({
           }`}
       >
         <Star size={16} className={artwork.featured ? "fill-current" : ""} />
-      </button>
-
-      <button
-        type="button"
-        onClick={onToggleNewRelease}
-        title={
-          artwork.isNewRelease
-            ? "Remove New Release tag"
-            : "Mark as New Release"
-        }
-        className={`p-2 transition-colors ${artwork.isNewRelease
-          ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20"
-          : "bg-black/5 dark:bg-white/5 text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:bg-black/10 dark:hover:bg-white/10"
-          }`}
-      >
-        <Sparkles
-          size={16}
-          className={artwork.isNewRelease ? "fill-current" : ""}
-        />
       </button>
     </div>
   );
@@ -244,7 +216,6 @@ export function ArtworksClient({
   // Tag Filter State — independent on/off toggles (an artwork can be both
   // Featured and a New Release at once, unlike the mutually-exclusive status tabs)
   const [featuredFilter, setFeaturedFilter] = useState(false);
-  const [newReleaseFilter, setNewReleaseFilter] = useState(false);
   const [timelapseFilter, setTimelapseFilter] = useState(false);
 
   // Search State
@@ -280,12 +251,8 @@ export function ArtworksClient({
     const filtered = artworks.filter((artwork) => {
       // Status Filter
       if (statusFilter !== "ALL") {
-        if (statusFilter === "AVAILABLE" && artwork.status !== "AVAILABLE")
-          return false;
-        if (statusFilter === "SOLD" && artwork.status !== "SOLD") return false;
+        if (statusFilter === "PUBLISHED" && !artwork.published) return false;
         if (statusFilter === "HIDDEN" && artwork.published) return false;
-        if (statusFilter === "RESERVED" && artwork.status !== "SOLD")
-          return false; // In case reserved logic exists
       }
 
       // Section Filter
@@ -299,7 +266,6 @@ export function ArtworksClient({
 
       // Tag Filters
       if (featuredFilter && !artwork.featured) return false;
-      if (newReleaseFilter && !artwork.isNewRelease) return false;
       if (timelapseFilter && !artwork.videoUrl) return false;
 
       // Search Filter
@@ -334,22 +300,9 @@ export function ArtworksClient({
           if (comparison === 0) comparison = a.title.localeCompare(b.title);
           break;
         }
-        case "price": {
-          const priceA = a.product?.price ?? -1;
-          const priceB = b.product?.price ?? -1;
-          comparison = priceA - priceB;
-          break;
-        }
-        case "status":
-          comparison = a.status.localeCompare(b.status);
-          break;
         case "featured":
           comparison = Number(b.featured) - Number(a.featured);
           // Tie-break by title so featured/non-featured groups stay readable
-          if (comparison === 0) comparison = a.title.localeCompare(b.title);
-          break;
-        case "newRelease":
-          comparison = Number(b.isNewRelease) - Number(a.isNewRelease);
           if (comparison === 0) comparison = a.title.localeCompare(b.title);
           break;
         case "draft":
@@ -372,7 +325,6 @@ export function ArtworksClient({
     statusFilter,
     sectionFilter,
     featuredFilter,
-    newReleaseFilter,
     timelapseFilter,
     searchTerm,
     sortBy,
@@ -528,7 +480,7 @@ export function ArtworksClient({
     e.preventDefault();
 
     if (!form.imageUrl) {
-      toast.error("Artwork Not Uploaded");
+      toast.error("Upload an image first");
       return;
     }
 
@@ -553,16 +505,16 @@ export function ArtworksClient({
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Failed to save artwork");
+      if (!res.ok) throw new Error("Failed to save piece");
       const data = await res.json();
 
       if (editing) {
         setArtworks(artworks.map((a) => (a.id === editing.id ? data : a)));
-        toast.success("Artwork updated");
+        toast.success("Piece updated");
       } else {
         setArtworks([data, ...artworks]);
         setCurrentPage(1);
-        toast.success("Artwork created");
+        toast.success("Piece added");
       }
       setShowModal(false);
       router.refresh();
@@ -582,7 +534,7 @@ export function ArtworksClient({
       const newTotal = Math.ceil(next.length / pageSize);
       if (currentPage > newTotal && newTotal > 0) setCurrentPage(newTotal);
       setDeleteConfirm(null);
-      toast.success("Artwork deleted");
+      toast.success("Piece moved to Trash");
       router.refresh();
     } catch {
       toast.error("Failed to delete");
@@ -625,44 +577,7 @@ export function ArtworksClient({
     }
   }
 
-  async function toggleNewRelease(artwork: Artwork) {
-    try {
-      const res = await fetch(`/api/artworks/${artwork.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isNewRelease: !artwork.isNewRelease }),
-      });
-      if (!res.ok) throw new Error();
-      const updated = await res.json();
-      setArtworks(artworks.map((a) => (a.id === artwork.id ? updated : a)));
-      toast.success(
-        updated.isNewRelease ? "Marked as New Release" : "Removed New Release tag"
-      );
-      router.refresh();
-    } catch {
-      toast.error("Failed to update");
-    }
-  }
 
-  async function toggleStatus(artwork: Artwork) {
-    const newStatus = artwork.status === "AVAILABLE" ? "SOLD" : "AVAILABLE";
-    try {
-      const res = await fetch(`/api/artworks/${artwork.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error();
-      const updated = await res.json();
-      setArtworks(artworks.map((a) => (a.id === artwork.id ? updated : a)));
-      toast.success(
-        newStatus === "SOLD" ? "Marked as Sold" : "Marked as Available"
-      );
-      router.refresh();
-    } catch {
-      toast.error("Failed to update");
-    }
-  }
 
   return (
     <>
@@ -673,7 +588,7 @@ export function ArtworksClient({
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sepia text-white font-jakarta text-sm font-medium hover:bg-sepia-dark transition-all duration-200 shadow-md self-start sm:self-auto"
         >
           <Plus size={18} />
-          New Artwork
+          New Piece
         </button>
 
         <div className="font-body text-xs text-ink-400 dark:text-ink-300">
@@ -688,7 +603,7 @@ export function ArtworksClient({
       <div className="mb-6 admin-card border rounded-2xl p-4 flex flex-col lg:flex-row gap-3 justify-between items-stretch lg:items-center backdrop-blur-md shadow-sm">
         {/* Status Filter Tabs */}
         <div className="flex flex-wrap items-center gap-1">
-          {(["ALL", "AVAILABLE", "SOLD", "RESERVED", "HIDDEN"] as const).map(
+          {(["ALL", "PUBLISHED", "HIDDEN"] as const).map(
             (status) => (
               <button
                 key={status}
@@ -723,19 +638,6 @@ export function ArtworksClient({
           </button>
           <button
             onClick={() => {
-              setNewReleaseFilter((v) => !v);
-              setCurrentPage(1);
-            }}
-            className={`inline-flex items-center gap-1 font-body text-[10px] sm:text-xs px-3 py-1.5 rounded-lg tracking-wider uppercase border transition-all ${newReleaseFilter
-              ? "bg-sepia text-white border-sepia font-medium"
-              : "border-black/10 dark:border-white/10 text-ink-400 dark:text-ink-300 hover:border-black/30 dark:hover:border-white/30"
-              }`}
-          >
-            <Sparkles size={10} className={newReleaseFilter ? "fill-current" : ""} />
-            New
-          </button>
-          <button
-            onClick={() => {
               setTimelapseFilter((v) => !v);
               setCurrentPage(1);
             }}
@@ -745,7 +647,7 @@ export function ArtworksClient({
               }`}
           >
             <Film size={10} />
-            Timelapse
+            Video
           </button>
         </div>
 
@@ -825,13 +727,9 @@ export function ArtworksClient({
                     setSortBy(next);
                     // Tagged-first is the useful default for these two — flip
                     // to ascending so switching into them doesn't silently
-                    // bury Featured/New Release items under the untagged pile
+                    // bury Featured / Draft items under the untagged pile
                     // if the toggle was left on "desc" from a prior sort.
-                    if (
-                      next === "featured" ||
-                      next === "newRelease" ||
-                      next === "draft"
-                    ) {
+                    if (next === "featured" || next === "draft") {
                       setSortOrder("asc");
                     }
                     setCurrentPage(1);
@@ -847,17 +745,8 @@ export function ArtworksClient({
                   <option value="section" className="bg-white dark:bg-ink-900">
                     Section Name (A-Z)
                   </option>
-                  <option value="price" className="bg-white dark:bg-ink-900">
-                    By Price
-                  </option>
-                  <option value="status" className="bg-white dark:bg-ink-900">
-                    By Availability
-                  </option>
                   <option value="featured" className="bg-white dark:bg-ink-900">
                     Featured
-                  </option>
-                  <option value="newRelease" className="bg-white dark:bg-ink-900">
-                    New Release
                   </option>
                   <option value="draft" className="bg-white dark:bg-ink-900">
                     Draft
@@ -926,12 +815,12 @@ export function ArtworksClient({
             <Palette className="w-12 h-12 text-ink-400 dark:text-ink-300 mx-auto mb-4 opacity-50" />
             <h3 className="text-lg font-jakarta font-medium text-ink dark:text-cream mb-1">
               {artworks.length === 0
-                ? "No artworks yet"
-                : "No matching artworks"}
+                ? "No pieces yet"
+                : "No matching pieces"}
             </h3>
             <p className="text-sm font-body text-ink-400 dark:text-ink-300 mb-6 max-w-md mx-auto">
               {artworks.length === 0
-                ? "Add your first artwork to start building your gallery."
+                ? "Add a live photo, a gig poster or cover art — then hang it in a museum room."
                 : "Try adjusting your search query, section or status filter criteria."}
             </p>
             {artworks.length === 0 ? (
@@ -940,7 +829,7 @@ export function ArtworksClient({
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sepia text-white text-sm font-jakarta font-medium hover:bg-sepia-dark transition-all"
               >
                 <Plus size={16} />
-                Add First Artwork
+                Add the first piece
               </button>
             ) : (
               <button
@@ -949,7 +838,6 @@ export function ArtworksClient({
                   setStatusFilter("ALL");
                   setSectionFilter("ALL");
                   setFeaturedFilter(false);
-                  setNewReleaseFilter(false);
                   setTimelapseFilter(false);
                   setCurrentPage(1);
                 }}
@@ -998,21 +886,6 @@ export function ArtworksClient({
                     <Star size={10} className="text-white fill-current" />
                     <span className="font-body text-[10px] uppercase tracking-widest text-white">
                       Featured
-                    </span>
-                  </div>
-                )}
-                {artwork.status === "SOLD" && (
-                  <div className="absolute top-2 right-2 bg-vermillion px-2 py-0.5 rounded-md pointer-events-none">
-                    <span className="font-body text-[10px] uppercase tracking-widest text-cream">
-                      Sold
-                    </span>
-                  </div>
-                )}
-                {artwork.isNewRelease && (
-                  <div className="absolute bottom-2 left-2 bg-indigo-500 px-2 py-0.5 rounded-md pointer-events-none flex items-center gap-1">
-                    <Sparkles size={10} className="text-white fill-current" />
-                    <span className="font-body text-[10px] uppercase tracking-widest text-white">
-                      New Release
                     </span>
                   </div>
                 )}
@@ -1086,27 +959,8 @@ export function ArtworksClient({
                     artwork={artwork}
                     onTogglePublished={() => togglePublished(artwork)}
                     onToggleFeatured={() => toggleFeatured(artwork)}
-                    onToggleNewRelease={() => toggleNewRelease(artwork)}
                   />
 
-                  <button
-                    onClick={() => toggleStatus(artwork)}
-                    title={
-                      artwork.status === "AVAILABLE"
-                        ? "Mark as Sold"
-                        : "Mark as Available"
-                    }
-                    className={`p-2 rounded-lg transition-colors ${artwork.status === "SOLD"
-                      ? "bg-vermillion/10 text-vermillion hover:bg-vermillion/20"
-                      : "bg-black/5 dark:bg-white/5 text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:bg-black/10 dark:hover:bg-white/10"
-                      }`}
-                  >
-                    {artwork.status === "AVAILABLE" ? (
-                      <Tag size={16} />
-                    ) : (
-                      <CheckCircle size={16} />
-                    )}
-                  </button>
 
                   <button
                     onClick={() => openEdit(artwork)}
@@ -1289,28 +1143,8 @@ export function ArtworksClient({
                           artwork={artwork}
                           onTogglePublished={() => togglePublished(artwork)}
                           onToggleFeatured={() => toggleFeatured(artwork)}
-                          onToggleNewRelease={() => toggleNewRelease(artwork)}
                         />
 
-                        {/* Sold / Available Toggle */}
-                        <button
-                          onClick={() => toggleStatus(artwork)}
-                          title={
-                            artwork.status === "AVAILABLE"
-                              ? "Mark as Sold"
-                              : "Mark as Available"
-                          }
-                          className={`p-2 rounded-lg transition-colors ${artwork.status === "SOLD"
-                            ? "bg-vermillion/10 text-vermillion hover:bg-vermillion/20"
-                            : "bg-black/5 dark:bg-white/5 text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:bg-black/10 dark:hover:bg-white/10"
-                            }`}
-                        >
-                          {artwork.status === "AVAILABLE" ? (
-                            <Tag size={16} />
-                          ) : (
-                            <CheckCircle size={16} />
-                          )}
-                        </button>
 
                         {/* Edit */}
                         <button
@@ -1420,27 +1254,8 @@ export function ArtworksClient({
                     artwork={artwork}
                     onTogglePublished={() => togglePublished(artwork)}
                     onToggleFeatured={() => toggleFeatured(artwork)}
-                    onToggleNewRelease={() => toggleNewRelease(artwork)}
                   />
 
-                  <button
-                    onClick={() => toggleStatus(artwork)}
-                    title={
-                      artwork.status === "AVAILABLE"
-                        ? "Mark as Sold"
-                        : "Mark as Available"
-                    }
-                    className={`p-2 rounded-lg transition-colors ${artwork.status === "SOLD"
-                      ? "bg-vermillion/10 text-vermillion hover:bg-vermillion/20"
-                      : "bg-black/5 dark:bg-white/5 text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:bg-black/10 dark:hover:bg-white/10"
-                      }`}
-                  >
-                    {artwork.status === "AVAILABLE" ? (
-                      <Tag size={16} />
-                    ) : (
-                      <CheckCircle size={16} />
-                    )}
-                  </button>
 
                   <button
                     onClick={() => openEdit(artwork)}
@@ -1546,7 +1361,7 @@ export function ArtworksClient({
             <div className="flex items-center justify-between p-5 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
               <div>
                 <h3 className="font-jakarta text-lg font-semibold text-ink dark:text-cream">
-                  Artwork Details
+                  Piece Details
                 </h3>
                 <p className="font-body text-xs text-ink-400 dark:text-ink-300 mt-0.5">
                   ID: {viewingItem.id}
@@ -1680,7 +1495,7 @@ export function ArtworksClient({
               {/* Details List */}
               <div className="space-y-2 text-xs border-t border-black/10 dark:border-white/10 pt-3">
                 <div className="flex justify-between py-1">
-                  <span className="text-ink-400">Medium:</span>
+                  <span className="text-ink-400">Kind:</span>
                   <span className="font-medium text-ink dark:text-cream">{viewingItem.medium || "—"}</span>
                 </div>
                 <div className="flex justify-between py-1">
@@ -1734,7 +1549,7 @@ export function ArtworksClient({
                   }}
                   className="flex-1 py-2 px-4 rounded-xl bg-sepia text-white text-xs font-medium hover:bg-sepia-dark transition-all flex items-center justify-center gap-2"
                 >
-                  <Pencil size={14} /> Edit Artwork
+                  <Pencil size={14} /> Edit Piece
                 </button>
                 <button
                   onClick={() => setViewingItem(null)}
@@ -1755,7 +1570,7 @@ export function ArtworksClient({
             {/* Header - stays fixed */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 shrink-0">
               <h2 className="text-xl font-jakarta font-semibold text-ink dark:text-cream">
-                {editing ? "Edit Artwork" : "New Artwork"}
+                {editing ? "Edit Piece" : "New Piece"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
@@ -1803,7 +1618,7 @@ export function ArtworksClient({
               {/* Image Upload Area */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
-                  Artwork Image <span className="text-red-500 dark:text-red-400">*</span>
+                  Image <span className="text-red-500 dark:text-red-400">*</span>
                 </label>
                 {form.imageUrl ? (
                   <div className="relative">
@@ -1813,7 +1628,7 @@ export function ArtworksClient({
                       onClick={() =>
                         setPreviewImage({
                           url: form.imageUrl,
-                          title: form.title || "Artwork Preview",
+                          title: form.title || "Preview",
                         })
                       }
                     >
@@ -2012,27 +1827,36 @@ export function ArtworksClient({
                 </div>
               )}
 
-              {/* Medium & Size */}
+              {/* Kind & Size — "Kind" is the old Medium column: it reads on
+                  the museum plaque as "Live photo · 2025", so presets keep
+                  the wording consistent while still allowing anything. */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
-                    Medium
+                    Kind
                   </label>
                   <input
                     type="text"
-                    placeholder="Oil on Canvas"
+                    list="piece-kind-presets"
+                    placeholder="Live photo"
                     value={form.medium}
                     onChange={(e) => setForm({ ...form, medium: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
                   />
+                  <datalist id="piece-kind-presets">
+                    {PIECE_KIND_PRESETS.map((k) => (
+                      <option key={k} value={k} />
+                    ))}
+                  </datalist>
+                  <p className="mt-1 font-body text-[11px] text-ink-400 dark:text-ink-300">Shown on the plaque with the year.</p>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
-                    Size
+                    Size <span className="normal-case tracking-normal font-normal">(optional)</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="24 × 36 in"
+                    placeholder="A3 poster · 1080 × 1350"
                     value={form.dimensions}
                     onChange={(e) => setForm({ ...form, dimensions: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
@@ -2040,7 +1864,7 @@ export function ArtworksClient({
                 </div>
               </div>
 
-              {/* Year & Status */}
+              {/* Year */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
@@ -2055,25 +1879,6 @@ export function ArtworksClient({
                     onChange={(e) => setForm({ ...form, year: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream focus:outline-none focus:border-sepia transition-colors text-sm font-mono"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
-                    Status
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={form.status}
-                      onChange={(e) => setForm({ ...form, status: e.target.value as ArtworkStatus })}
-                      className="w-full px-4 py-2.5 pr-10 rounded-xl admin-input border text-ink dark:text-cream focus:outline-none focus:border-sepia transition-colors text-sm cursor-pointer appearance-none"
-                    >
-                      <option value="AVAILABLE" className="bg-white dark:bg-ink-900">Available</option>
-                      <option value="SOLD" className="bg-white dark:bg-ink-900">Sold</option>
-                    </select>
-                    <ChevronDown
-                      size={14}
-                      className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-ink-400"
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -2125,16 +1930,7 @@ export function ArtworksClient({
                     onChange={(e) => setForm({ ...form, featured: e.target.checked })}
                     className="w-5 h-5 rounded bg-black/10 dark:bg-white/10 border-black/20 dark:border-white/20 text-sepia focus:ring-0 focus:ring-offset-0 cursor-pointer"
                   />
-                  <span className="text-sm font-medium text-ink dark:text-cream">Featured Artwork</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.isNewRelease}
-                    onChange={(e) => setForm({ ...form, isNewRelease: e.target.checked })}
-                    className="w-5 h-5 rounded bg-black/10 dark:bg-white/10 border-black/20 dark:border-white/20 text-indigo-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                  />
-                  <span className="text-sm font-medium text-ink dark:text-cream">New Release</span>
+                  <span className="text-sm font-medium text-ink dark:text-cream">Featured</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -2163,7 +1959,7 @@ export function ArtworksClient({
                 disabled={loading || uploading}
                 className="px-5 py-2.5 rounded-xl bg-sepia text-white text-sm font-medium hover:bg-sepia-dark transition-all disabled:opacity-50"
               >
-                {loading ? "Saving..." : editing ? "Save Changes" : "Create Artwork"}
+                {loading ? "Saving..." : editing ? "Save Changes" : "Add Piece"}
               </button>
             </div>
           </div>
@@ -2174,7 +1970,7 @@ export function ArtworksClient({
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-white dark:bg-[#121212] border border-black/10 dark:border-white/15 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-lg font-semibold text-ink dark:text-cream mb-2">Delete Artwork</h3>
+            <h3 className="text-lg font-semibold text-ink dark:text-cream mb-2">Delete Piece</h3>
             <p className="text-sm text-ink-400 dark:text-ink-300 mb-6">
               Are you sure you want to delete this artwork? This action cannot be undone.
             </p>

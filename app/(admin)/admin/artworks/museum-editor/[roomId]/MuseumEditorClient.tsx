@@ -6233,7 +6233,7 @@ export function MuseumEditorClient({
             the canvas the same way Rooms Tab's own "Manage Artworks"
             ordered list works. */}
         <EditorPanelCard
-          title={room.roomType === "SERVICES" ? "Product Frames" : "Artwork Frames"}
+          title={room.roomType === "SERVICES" ? "Product Frames" : "Frames"}
           count={artworkItems.length}
           open={panels.open.artworks}
           onToggle={() => panels.toggle("artworks")}
@@ -6260,7 +6260,7 @@ export function MuseumEditorClient({
             </div>
           )}
           {artworkItems.length === 0 ? (
-            <p className="font-body text-xs text-ink-400 dark:text-ink-300">No artworks hung in this room yet.</p>
+            <p className="font-body text-xs text-ink-400 dark:text-ink-300">No pieces hung in this room yet.</p>
           ) : (
             <>
               <div className="space-y-1.5">

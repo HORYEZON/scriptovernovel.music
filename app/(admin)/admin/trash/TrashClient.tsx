@@ -1269,7 +1269,7 @@ export function TrashClient({
 
   const CATEGORY_LABEL: Record<Category, string> = {
     notifications: "Notifications",
-    artworks: "Artworks",
+    artworks: "Museum Pieces",
     stories: "Tales",
     cosplays: "Cosplays",
     rooms: "Rooms",
@@ -1291,7 +1291,7 @@ export function TrashClient({
   // the hyphenated slugs don't survive a bare `.slice(0, -1)`.
   const CATEGORY_SINGULAR: Record<Category, string> = {
     notifications: "notification",
-    artworks: "artwork",
+    artworks: "piece",
     stories: "tale",
     cosplays: "cosplay",
     rooms: "room",
