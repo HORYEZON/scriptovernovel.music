@@ -26,17 +26,18 @@
 import { prisma } from "@/lib/prisma";
 import type { AdminGoToGroup, AdminGoToLink } from "@/components/admin/AdminGoToMenu";
 
-export type MuseumRoomKey = "about" | "freedom-wall" | "services" | "stories" | "arcade" | "cosplay";
+export type MuseumRoomKey = "about" | "freedom-wall" | "services" | "stories" | "arcade" | "cosplay" | "vinyl";
 
 const ROOM_TYPE_FOR: Record<
   Exclude<MuseumRoomKey, "about">,
-  "FREEDOM_WALL" | "SERVICES" | "STORIES" | "ARCADE" | "COSPLAY"
+  "FREEDOM_WALL" | "SERVICES" | "STORIES" | "ARCADE" | "COSPLAY" | "VINYL"
 > = {
   "freedom-wall": "FREEDOM_WALL",
   services: "SERVICES",
   stories: "STORIES",
   arcade: "ARCADE",
   cosplay: "COSPLAY",
+  vinyl: "VINYL",
 };
 
 export interface MuseumRoomStatus {
@@ -62,7 +63,7 @@ export async function getMuseumRoomStatus(): Promise<MuseumRoomStatus> {
       .findMany({
         where: {
           roomType: {
-            in: ["ABOUT", "FREEDOM_WALL", "SERVICES", "STORIES", "ARCADE", "COSPLAY"],
+            in: ["ABOUT", "FREEDOM_WALL", "SERVICES", "STORIES", "ARCADE", "COSPLAY", "VINYL"],
           },
           deletedAt: null,
         },
@@ -86,6 +87,7 @@ export async function getMuseumRoomStatus(): Promise<MuseumRoomStatus> {
       stories: roomActive("stories"),
       arcade: roomActive("arcade"),
       cosplay: roomActive("cosplay"),
+      vinyl: roomActive("vinyl"),
     },
     roomId: {
       about: idFor("ABOUT"),
@@ -94,6 +96,7 @@ export async function getMuseumRoomStatus(): Promise<MuseumRoomStatus> {
       stories: idFor("STORIES"),
       arcade: idFor("ARCADE"),
       cosplay: idFor("COSPLAY"),
+      vinyl: idFor("VINYL"),
     },
   };
 }

@@ -125,6 +125,13 @@ const ADMIN_PAGES: AdminPage[] = [
     keywords: "videos youtube music video live behind the scenes",
     group: "Music",
   },
+  {
+    label: "Vinyls",
+    href: "/admin/vinyls",
+    icon: Disc3,
+    keywords: "vinyls vinyl room records turntable audio museum lyrics wall",
+    group: "Music",
+  },
   // ── Artworks (main page + tab-based sub-modules) ──────────────────────────
   {
     label: "Artworks",
@@ -419,6 +426,12 @@ interface SearchResponse {
     published: boolean;
     featured: boolean;
   }[];
+  vinyls: {
+    id: string;
+    sideLabel: string | null;
+    published: boolean;
+    release: { title: string };
+  }[];
 }
 
 const EMPTY_RESULTS: SearchResponse = {
@@ -434,6 +447,7 @@ const EMPTY_RESULTS: SearchResponse = {
   events: [],
   releases: [],
   videos: [],
+  vinyls: [],
 };
 
 interface ResultItem {
@@ -766,6 +780,23 @@ export function GlobalSearch() {
             : v.published
               ? { label: "Published", className: ACTIVE_BADGE }
               : { label: "Hidden", className: INACTIVE_BADGE },
+        })),
+      });
+    }
+
+    if (results.vinyls.length > 0) {
+      list.push({
+        key: "vinyls",
+        label: "Vinyls",
+        icon: Disc3,
+        items: results.vinyls.map((v) => ({
+          key: v.id,
+          title: v.release.title,
+          subtitle: v.sideLabel ?? "Vinyl Room",
+          href: "/admin/vinyls",
+          badge: v.published
+            ? { label: "Published", className: ACTIVE_BADGE }
+            : { label: "Hidden", className: INACTIVE_BADGE },
         })),
       });
     }

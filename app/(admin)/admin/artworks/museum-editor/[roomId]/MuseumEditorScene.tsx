@@ -27,6 +27,10 @@ import { Room360Capture, type CaptureEye, type Share360Fn } from "@/app/(public)
 import { StoryPodium } from "@/app/(public)/gallery/museum/components/StoryPodium";
 import { ArcadeCabinet } from "@/app/(public)/gallery/museum/components/ArcadeCabinet";
 import { CosplayStandee } from "@/app/(public)/gallery/museum/components/CosplayStandee";
+import { VinylSleeve } from "@/app/(public)/gallery/museum/components/VinylSleeve";
+import { Turntable } from "@/app/(public)/gallery/museum/components/Turntable";
+import { LyricsWall } from "@/app/(public)/gallery/museum/components/LyricsWall";
+import type { VinylRoomConfig } from "@/lib/museum/vinylConfig";
 import type { LightsAnimation, LightsStyle } from "@/lib/museum/cosplayStandee";
 import type { RoomBannerStyle } from "@/lib/museum/roomBanner";
 import { PriceTag } from "@/app/(public)/gallery/museum/components/ServicesRoomContents";
@@ -65,7 +69,7 @@ import {
 import type { FreedomWallNotePublic, MuseumRoomType, MuseumArtwork, MuseumAboutData } from "@/types";
 import { parseTextConfig } from "@/lib/museum/aboutRoomBlocks";
 import { FREEDOM_WALL_BANNER_KIND, parseBannerColors } from "@/lib/museum/freedomWallBanner";
-import type { SceneMode, SceneObject, EditableArtworkItem, EditablePodiumItem, EditableCabinetItem, EditableStandeeItem } from "./MuseumEditorClient";
+import type { SceneMode, SceneObject, EditableArtworkItem, EditablePodiumItem, EditableCabinetItem, EditableStandeeItem, EditableSleeveItem } from "./MuseumEditorClient";
 
 // How far an object has been turned around the vertical axis — the one
 // rotation anything in this editor is allowed, and the number every drag
@@ -1162,6 +1166,142 @@ function EditableStandee({
   );
 }
 
+/** One record sleeve on the Vinyl Room's wall — the same wall-snapped drag
+ *  EditableArtwork has (one free axis along the wall, Y for hang height;
+ *  switching walls is the side panel's job), drawing the real VinylSleeve
+ *  so the preview matches the room. */
+function EditableSleeve({
+  item,
+  selected,
+  onSelect,
+  onChangePosition,
+  onInteractionStart,
+  setOrbitEnabled,
+  allItems,
+}: {
+  item: EditableSleeveItem;
+  selected: boolean;
+  onSelect: () => void;
+  onChangePosition: (patch: { positionX: number; positionY: number; positionZ: number; rotationY: number }) => void;
+  onInteractionStart: () => void;
+  setOrbitEnabled: (enabled: boolean) => void;
+  allItems: EditableSleeveItem[];
+}) {
+  const [node, setNode] = useState<THREE.Group | null>(null);
+  const onFreeXAxis = Math.abs(Math.cos(item.rotationY)) > 0.5;
+
+  return (
+    <>
+      <group
+        ref={setNode}
+        position={[item.positionX, item.positionY, item.positionZ]}
+        rotation={[0, item.rotationY, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect();
+        }}
+      >
+        <VinylSleeve
+          coverImageUrl={item.coverImageUrl}
+          title={item.title}
+          placement={{ position: [0, 0, 0], rotationY: 0, wallNormal: [0, 0, 1], maxWidth: 3.3 }}
+          active={selected}
+          taken={false}
+          scale={item.scale}
+          shouldLoad
+        />
+      </group>
+      {selected && node && (
+        <TransformControls
+          object={node}
+          mode="translate"
+          showX={onFreeXAxis}
+          showY
+          showZ={!onFreeXAxis}
+          onMouseDown={() => {
+            onInteractionStart();
+            setOrbitEnabled(false);
+          }}
+          onMouseUp={() => setOrbitEnabled(true)}
+          onObjectChange={() => {
+            const others = allItems.filter((o) => o.id !== item.id);
+            for (const other of others) {
+              if (Math.abs(other.positionY - node.position.y) <= SNAP_THRESHOLD) {
+                node.position.y = other.positionY;
+                break;
+              }
+            }
+            onChangePosition({
+              positionX: node.position.x,
+              positionY: node.position.y,
+              positionZ: node.position.z,
+              rotationY: readYaw(node),
+            });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/** The Vinyl Room's deck — dragged on the floor like a cabinet (translate)
+ *  or turned (rotate, Y only). Its placement lives on the room's config row,
+ *  not a join row, so the change goes up as a config patch. */
+function EditableTurntable({
+  placement,
+  modelUrl,
+  selected,
+  mode,
+  onSelect,
+  onChange,
+  onInteractionStart,
+  setOrbitEnabled,
+}: {
+  placement: { x: number; z: number; rotationY: number };
+  modelUrl: string | null;
+  selected: boolean;
+  mode: SceneMode;
+  onSelect: () => void;
+  onChange: (next: { x: number; z: number; rotationY: number }) => void;
+  onInteractionStart: () => void;
+  setOrbitEnabled: (enabled: boolean) => void;
+}) {
+  const [node, setNode] = useState<THREE.Group | null>(null);
+  return (
+    <>
+      <group
+        ref={setNode}
+        position={[placement.x, 0, placement.z]}
+        rotation={[0, placement.rotationY, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect();
+        }}
+      >
+        <Turntable position={[0, 0, 0]} rotationY={0} modelUrl={modelUrl} recordCoverUrl={null} playing={false} rpm={0} active={selected} shouldLoad />
+      </group>
+      {selected && node && (
+        <TransformControls
+          object={node}
+          mode={mode}
+          showX={mode === "translate"}
+          showY={mode === "rotate"}
+          showZ={mode === "translate"}
+          onMouseDown={() => {
+            onInteractionStart();
+            setOrbitEnabled(false);
+          }}
+          onMouseUp={() => setOrbitEnabled(true)}
+          onObjectChange={() => {
+            node.position.y = 0;
+            onChange({ x: node.position.x, z: node.position.z, rotationY: readYaw(node) });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 export function MuseumEditorScene({
   room,
   hasNorthOpening,
@@ -1194,6 +1334,15 @@ export function MuseumEditorScene({
   selectedStandeeId = null,
   onSelectStandee,
   onChangeStandeePosition,
+  sleeveItems = [],
+  selectedSleeveId = null,
+  onSelectSleeve,
+  onChangeSleevePosition,
+  vinylConfig = null,
+  turntablePlacement = null,
+  turntableSelected = false,
+  onSelectTurntable,
+  onChangeTurntable,
   standeeModelUrl = null,
   standeeTextureUrl = null,
   standeeCutoutHeight,
@@ -1273,6 +1422,20 @@ export function MuseumEditorScene({
    *  photo behind a standee travels with it. */
   standeeItems?: EditableStandeeItem[];
   selectedStandeeId?: string | null;
+  /** Only set for the Vinyl Room — its sleeves (wall-hung like frames), the
+   *  deck (from the room's config row) and the Lyrics Wall preview. */
+  sleeveItems?: EditableSleeveItem[];
+  selectedSleeveId?: string | null;
+  onSelectSleeve?: (id: string) => void;
+  onChangeSleevePosition?: (
+    id: string,
+    patch: { positionX: number; positionY: number; positionZ: number; rotationY: number }
+  ) => void;
+  vinylConfig?: VinylRoomConfig | null;
+  turntablePlacement?: { x: number; z: number; rotationY: number } | null;
+  turntableSelected?: boolean;
+  onSelectTurntable?: () => void;
+  onChangeTurntable?: (next: { x: number; z: number; rotationY: number }) => void;
   onSelectStandee?: (id: string) => void;
   onChangeStandeePosition?: (
     id: string,
@@ -1601,6 +1764,40 @@ export function MuseumEditorScene({
           roomDepth={depth}
         />
       ))}
+      {sleeveItems.map((item) => (
+        <EditableSleeve
+          key={item.id}
+          item={item}
+          selected={item.id === selectedSleeveId}
+          onSelect={() => onSelectSleeve?.(item.id)}
+          onChangePosition={(patch) => onChangeSleevePosition?.(item.id, patch)}
+          onInteractionStart={onInteractionStart}
+          setOrbitEnabled={setOrbitEnabled}
+          allItems={sleeveItems}
+        />
+      ))}
+      {vinylConfig && turntablePlacement && (
+        <EditableTurntable
+          placement={turntablePlacement}
+          modelUrl={vinylConfig.turntableModelUrl}
+          selected={turntableSelected}
+          mode={mode}
+          onSelect={() => onSelectTurntable?.()}
+          onChange={(next) => onChangeTurntable?.(next)}
+          onInteractionStart={onInteractionStart}
+          setOrbitEnabled={setOrbitEnabled}
+        />
+      )}
+      {vinylConfig?.lyricsWall.enabled && (
+        <LyricsWall
+          wall={vinylConfig.lyricsWall.wall}
+          depth={depth}
+          textColor={vinylConfig.lyricsWall.textColor}
+          glowColor={vinylConfig.lyricsWall.glowColor}
+          currentLine={null}
+          glow={0.3}
+        />
+      )}
       <OrbitControls makeDefault enabled={orbitEnabled} target={[0, 1.5, 0]} maxPolarAngle={Math.PI / 2.05} />
     </Canvas>
   );

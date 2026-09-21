@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Landmark, Image as ImageIcon, Sparkles, User, StickyNote, ArrowUpToLine, ShoppingBag, BookOpen, Gamepad2, Shirt, type LucideProps } from "lucide-react";
+import { Landmark, Image as ImageIcon, Sparkles, User, StickyNote, ArrowUpToLine, ShoppingBag, BookOpen, Gamepad2, Shirt, type LucideProps, Disc3 } from "lucide-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import type { MuseumRoomType } from "@/types";
 
@@ -33,6 +33,7 @@ const DOOR_ICON: Record<MuseumRoomType, LucideIcon> = {
   STORIES: BookOpen,
   ARCADE: Gamepad2,
   COSPLAY: Shirt,
+  VINYL: Disc3,
 };
 
 const TYPE_LABEL: Record<MuseumRoomType, string> = {
@@ -46,6 +47,7 @@ const TYPE_LABEL: Record<MuseumRoomType, string> = {
   STORIES: "STORIES",
   ARCADE: "ARCADE",
   COSPLAY: "COSPLAY",
+  VINYL: "VINYL ROOM",
 };
 
 // ─── Public API ────────────────────────────────────────────────────────────────

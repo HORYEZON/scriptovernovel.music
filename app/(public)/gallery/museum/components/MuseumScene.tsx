@@ -5,7 +5,7 @@ import type { ArtworkShimmerConfig } from "@/lib/museum/artworkShimmer";
 import { Canvas, useThree } from "@react-three/fiber";
 import { PerformanceMonitor, AdaptiveDpr, AdaptiveEvents, PerspectiveCamera, Text, useProgress } from "@react-three/drei";
 import * as THREE from "three";
-import type { MuseumArtwork, MuseumStory, MuseumCosplay, MuseumRoomPublic, MuseumAboutData, MuseumAboutCertificate, MuseumChaseCompanion, FreedomWallNotePublic } from "@/types";
+import type { MuseumArtwork, MuseumStory, MuseumCosplay, MuseumRoomPublic, MuseumAboutData, MuseumAboutCertificate, MuseumChaseCompanion, FreedomWallNotePublic, MuseumVinylSleeve } from "@/types";
 import { ChaseCompanion } from "./ChaseCompanion";
 import { StepTracker } from "./StepTracker";
 import { MiniMapTracker, type MiniMapFrameState, type MiniMapDot } from "./MiniMapTracker";
@@ -48,6 +48,15 @@ import { CosplayRoomContents, type StandeeEntry } from "./CosplayRoomContents";
 import { computeStandeePlacements } from "./standeePlacement";
 import { STANDEE_COLLIDER_RADIUS } from "./CosplayStandee";
 import { CosplayInfoPanel } from "./CosplayInfoPanel";
+import { VinylRoomContents, type SleeveEntry, type VinylTarget } from "./VinylRoomContents";
+import { computeSleevePlacements, defaultTurntablePosition, wallNormalForRotation } from "./sleevePlacement";
+import { TURNTABLE_COLLIDER_RADIUS } from "./Turntable";
+import { TurntablePanel } from "./TurntablePanel";
+import { HeldVinylHud } from "./HeldVinylHud";
+import { createVinylPlayer, type VinylPlayer, type VinylPlayerState } from "@/lib/museum/vinylAudio";
+import { DEFAULT_VINYL_CONFIG, DEFAULT_VINYL_EFFECTS, sanitizeVinylEffects, type VinylEffects } from "@/lib/museum/vinylConfig";
+import { buildLyricsTimeline, lineIndexAt, trackIndexAt } from "@/lib/museum/lyricsTimeline";
+import { pauseMuseumMusicForVinyl, resumeMuseumMusicAfterVinyl } from "@/lib/museum/museumMusicController";
 import { StoryReader } from "@/components/public/StoryReader";
 import { GamePreviewModal } from "@/components/public/minigames/GamePreviewModal";
 import { GameSession } from "@/components/public/minigames/GameSession";
@@ -600,6 +609,44 @@ export function MuseumScene({
     }));
   }, [cosplayLayout]);
 
+  // ── Vinyl Room ─────────────────────────────────────────────────────────
+  // The records (lib/museum/vinylRoom.ts). Sleeves hang on the walls like
+  // frames (a FramePlacement each — admin override else the side-wall walk
+  // in sleevePlacement.ts), the deck stands where the config row says (else
+  // the default), and the Lyrics Wall takes one wall. The audio side — the
+  // player, what's held, what's on the deck — is state further down.
+  const vinylLayout = layouts.find((l) => l.room.roomType === "VINYL") ?? null;
+  const vinylConfig = vinylLayout?.room.vinylConfig ?? DEFAULT_VINYL_CONFIG;
+  const sleeveEntries = useMemo((): SleeveEntry[] => {
+    if (!vinylLayout) return [];
+    const entries = vinylLayout.room.vinyls;
+    const auto = computeSleevePlacements(
+      entries.length,
+      vinylLayout.depth,
+      vinylConfig.lyricsWall.wall,
+      vinylConfig.lyricsWall.enabled,
+      vinylLayout.hasNorthOpening
+    );
+    return entries.map((entry, i) => ({
+      entryId: entry.entryId,
+      vinyl: entry,
+      scale: entry.scale ?? 1,
+      placement:
+        entry.positionX !== null && entry.positionY !== null && entry.positionZ !== null && entry.rotationY !== null
+          ? {
+              position: [entry.positionX, entry.positionY, entry.positionZ] as [number, number, number],
+              rotationY: entry.rotationY,
+              wallNormal: wallNormalForRotation(entry.rotationY),
+              maxWidth: auto[i]?.maxWidth ?? MAX_FRAME_WIDTH,
+            }
+          : auto[i],
+    }));
+  }, [vinylLayout, vinylConfig]);
+  const turntablePlacement = useMemo(
+    () => vinylConfig.turntable ?? defaultTurntablePosition(vinylLayout?.depth ?? 18, vinylConfig.lyricsWall.wall),
+    [vinylConfig, vinylLayout]
+  );
+
   const roomObjectLocalPositions = useMemo(() => {
     const map = new Map<string, MiniMapDot[]>();
     for (const layout of layouts) {
@@ -645,6 +692,14 @@ export function MuseumScene({
           });
         }
       }
+      // And the Vinyl Room: every sleeve (a wall hanging, like a frame) and
+      // the deck, which is the one thing there a visitor walks to.
+      if (layout.room.roomType === "VINYL") {
+        for (const sleeve of sleeveEntries) {
+          positions.push({ id: sleeve.entryId, x: sleeve.placement.position[0], z: sleeve.placement.position[2] });
+        }
+        positions.push({ id: "vinyl-deck", x: turntablePlacement.x, z: turntablePlacement.z });
+      }
       // And for the About room's Contact Desk — furniture standing on the
       // floor, not a wall hanging, so it belongs with the podiums and
       // cabinets rather than with the block dots above. Its row already
@@ -665,7 +720,7 @@ export function MuseumScene({
       if (positions.length > 0) map.set(layout.room.id, positions);
     }
     return map;
-  }, [layouts, storyPodiums, arcadeCabinets, cosplayStandees]);
+  }, [layouts, storyPodiums, arcadeCabinets, cosplayStandees, sleeveEntries, turntablePlacement]);
 
   // Sticky notes' room-local {x,z} — same "MiniMapHud.tsx dot" idea as the
   // artwork/object maps above, just always keyed to whichever room actually
@@ -883,9 +938,15 @@ export function MuseumScene({
     });
   }, [cosplayStandees, cosplayLayout]);
 
+  // The Vinyl Room's deck — the stand plus both speakers, one circle.
+  const turntableObstacles = useMemo(() => {
+    if (!vinylLayout) return [];
+    return [{ x: turntablePlacement.x, z: turntablePlacement.z + vinylLayout.centerZ, radius: TURNTABLE_COLLIDER_RADIUS }];
+  }, [vinylLayout, turntablePlacement]);
+
   const obstacles = useMemo(
-    () => [...podiumObstacles, ...cabinetObstacles, ...standeeObstacles, ...customObstacles, ...contactObstacles],
-    [podiumObstacles, cabinetObstacles, standeeObstacles, customObstacles, contactObstacles]
+    () => [...podiumObstacles, ...cabinetObstacles, ...standeeObstacles, ...turntableObstacles, ...customObstacles, ...contactObstacles],
+    [podiumObstacles, cabinetObstacles, standeeObstacles, turntableObstacles, customObstacles, contactObstacles]
   );
 
   const [activePodium, setActivePodium] = useState<PodiumEntry | null>(null);
@@ -895,6 +956,93 @@ export function MuseumScene({
   // its info panel is open. Same shape as the artwork/story activeX/panelX pairs.
   const [activeStandee, setActiveStandee] = useState<StandeeEntry | null>(null);
   const [panelCosplay, setPanelCosplay] = useState<MuseumCosplay | null>(null);
+
+  // Vinyl Room — `activeVinylTarget` = a sleeve or the deck is in [E] range;
+  // `heldVinyl` = the record in the visitor's hands; `deckVinyl` = the record
+  // on the platter; `panelDeck` = the turntable panel is open. Unlike every
+  // other room's panel, closing this one doesn't stop anything: the record
+  // keeps playing until it's taken off, which is the point of the room.
+  const [activeVinylTarget, setActiveVinylTarget] = useState<VinylTarget | null>(null);
+  const [heldVinyl, setHeldVinyl] = useState<MuseumVinylSleeve | null>(null);
+  const [deckVinyl, setDeckVinyl] = useState<MuseumVinylSleeve | null>(null);
+  const [panelDeck, setPanelDeck] = useState(false);
+  const [deckState, setDeckState] = useState<VinylPlayerState>({ playing: false, currentTime: 0, duration: 0, ended: false, error: null });
+  // Effects start from the room's defaults; a visitor's tweaks persist for
+  // the visit (sessionStorage) so leaving and re-entering keeps their sound.
+  const [vinylEffects, setVinylEffects] = useState<VinylEffects>(() => {
+    if (typeof window === "undefined") return vinylConfig.defaultEffects;
+    try {
+      const raw = window.sessionStorage.getItem("museum:vinylEffects");
+      return raw ? sanitizeVinylEffects({ ...vinylConfig.defaultEffects, ...JSON.parse(raw) }) : vinylConfig.defaultEffects;
+    } catch {
+      return vinylConfig.defaultEffects;
+    }
+  });
+  // One player per museum visit, built lazily on the first record (an
+  // AudioContext wants a user gesture behind it) and disposed on unmount.
+  const vinylPlayerRef = useRef<VinylPlayer | null>(null);
+  const getVinylPlayer = useCallback(() => {
+    if (!vinylPlayerRef.current) {
+      const player = createVinylPlayer(vinylEffects);
+      player.subscribe(setDeckState);
+      vinylPlayerRef.current = player;
+    }
+    return vinylPlayerRef.current;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    return () => {
+      vinylPlayerRef.current?.dispose();
+      vinylPlayerRef.current = null;
+      resumeMuseumMusicAfterVinyl();
+    };
+  }, []);
+  const applyVinylEffects = useCallback((next: Partial<VinylEffects>) => {
+    setVinylEffects((prev) => {
+      const merged = sanitizeVinylEffects({ ...prev, ...next });
+      vinylPlayerRef.current?.setEffects(merged);
+      try {
+        window.sessionStorage.setItem("museum:vinylEffects", JSON.stringify(merged));
+      } catch {
+        /* private mode */
+      }
+      return merged;
+    });
+  }, []);
+  const takeRecordOffDeck = useCallback((toHands: boolean) => {
+    const player = vinylPlayerRef.current;
+    player?.stop();
+    resumeMuseumMusicAfterVinyl();
+    setPanelDeck(false);
+    setDeckVinyl((current) => {
+      if (toHands && current) setHeldVinyl(current);
+      return null;
+    });
+  }, []);
+  // The sleeves whose record is out — held or on the deck — so the wall
+  // shows the gap.
+  const takenEntryIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (heldVinyl) ids.add(heldVinyl.entryId);
+    if (deckVinyl) ids.add(deckVinyl.entryId);
+    return ids;
+  }, [heldVinyl, deckVinyl]);
+  // Lyrics: which line the wall (and the panel) should show now — see
+  // lib/museum/lyricsTimeline.ts for how honest that guess is.
+  const lyricsTimeline = useMemo(() => (deckVinyl ? buildLyricsTimeline(deckVinyl.tracks) : []), [deckVinyl]);
+  const lyricsLineIndex = deckVinyl ? lineIndexAt(lyricsTimeline, deckState.currentTime, deckState.duration) : -1;
+  const currentTrackIndex = deckVinyl ? trackIndexAt(deckVinyl.tracks, deckState.currentTime, deckState.duration) : -1;
+  const lyricsWallState = useMemo(() => {
+    const line = lyricsLineIndex >= 0 ? lyricsTimeline[lyricsLineIndex] : null;
+    const trackTitle = deckVinyl && currentTrackIndex >= 0 ? deckVinyl.tracks[currentTrackIndex]?.title ?? null : null;
+    return {
+      currentLine: line?.text ?? (deckVinyl && deckState.playing ? "…" : null),
+      previousLine: lyricsLineIndex > 0 ? lyricsTimeline[lyricsLineIndex - 1].text : null,
+      nextLine: lyricsLineIndex >= 0 && lyricsLineIndex < lyricsTimeline.length - 1 ? lyricsTimeline[lyricsLineIndex + 1].text : null,
+      caption: deckVinyl ? [deckVinyl.title, trackTitle].filter(Boolean).join(" — ") : null,
+      glow: Math.min(1, 0.2 + vinylEffects.reverb * 0.5 + vinylEffects.lofi * 0.3),
+    };
+  }, [lyricsLineIndex, lyricsTimeline, deckVinyl, currentTrackIndex, deckState.playing, vinylEffects]);
 
   // Arcade Room — `activeArcadeGame` = a cabinet is in [E] range,
   // `panelGame` = its info panel (GamePreviewModal) is open, `playingGame` = a
@@ -950,7 +1098,10 @@ export function MuseumScene({
   // from the same set, so the lit dot and the on-screen prompt can't disagree
   // about which thing the visitor is standing at, or about how close counts.
   const activeInteractId =
-    activeArtworkId ?? activeStandee?.entryId ?? (activeContact ? ABOUT_CONTACT_KIND : null);
+    activeArtworkId
+    ?? activeStandee?.entryId
+    ?? (activeVinylTarget?.kind === "sleeve" ? activeVinylTarget.entry.entryId : activeVinylTarget?.kind === "deck" ? "vinyl-deck" : null)
+    ?? (activeContact ? ABOUT_CONTACT_KIND : null);
   const [panelContact, setPanelContact] = useState(false);
   const inAboutRoom = aboutRoomId != null && currentRoomId === aboutRoomId;
   // Leaving the About room (travel / teleport) clears its gig interaction
@@ -1107,6 +1258,30 @@ export function MuseumScene({
   // touched (PointerLockControls / the touch look path), never its position.
   const rigRef = useRef<THREE.Group>(null);
 
+  // Dev-only: a window handle the headless verification script reads (rig
+  // position, what's in [E] range, what's held / on the deck). Never set in
+  // production builds.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const w = window as unknown as { __museumDebug?: () => unknown };
+    w.__museumDebug = () => ({
+      x: rigRef.current?.position.x ?? null,
+      z: rigRef.current?.position.z ?? null,
+      vinylTarget: activeVinylTarget?.kind === "sleeve" ? `sleeve:${activeVinylTarget.entry.vinyl.title}` : activeVinylTarget?.kind ?? null,
+      held: heldVinyl?.title ?? null,
+      deck: deckVinyl?.title ?? null,
+      playing: deckState.playing,
+      currentTime: deckState.currentTime,
+      duration: deckState.duration,
+      error: deckState.error,
+      line: lyricsWallState.currentLine,
+      effects: vinylEffects,
+    });
+    return () => {
+      delete w.__museumDebug;
+    };
+  }, [activeVinylTarget, heldVinyl, deckVinyl, deckState, lyricsWallState, vinylEffects]);
+
   // Where a 360° share is taken from: the rig's own position — the visitor
   // frames the shot by walking to a spot, the same way [R] frames a flat
   // one — tagged with the room they're in for the file name and deep link.
@@ -1211,6 +1386,7 @@ export function MuseumScene({
     else if (panelCert) setPanelCert(null);
     else if (panelStory) setPanelStory(null);
     else if (panelCosplay) setPanelCosplay(null);
+    else if (panelDeck) setPanelDeck(false);
     else if (panelGame) setPanelGame(null);
     else if (panelGigs) setPanelGigs(false);
     else if (panelContact) setPanelContact(false);
@@ -1256,8 +1432,42 @@ export function MuseumScene({
       // COSPLAY_SELECT in page.tsx), so this too costs no request.
       const entry = cosplayLayout?.room.cosplays.find((e) => e.entryId === activeStandee.entryId);
       if (entry) setPanelCosplay(entry.cosplay);
+    } else if (activeVinylTarget?.kind === "sleeve") {
+      const sleeve = activeVinylTarget.entry.vinyl;
+      if (heldVinyl && heldVinyl.entryId === sleeve.entryId) {
+        // Put it back where it came from.
+        setHeldVinyl(null);
+      } else if (!heldVinyl && !takenEntryIds.has(sleeve.entryId)) {
+        // Take it off the wall — the held-item HUD shows it from here.
+        setHeldVinyl(sleeve);
+      }
+      // Holding a different record, or this one is on the deck: nothing to do
+      // at this sleeve (the prompt already says so).
+    } else if (activeVinylTarget?.kind === "deck") {
+      if (heldVinyl) {
+        // Put it on — and play. The click/keypress that got us here is the
+        // user gesture the AudioContext needs.
+        const record = heldVinyl;
+        const player = getVinylPlayer();
+        if (deckVinyl) {
+          // Swap: the record already on the deck goes back to the wall.
+          player.stop();
+        }
+        setHeldVinyl(null);
+        setDeckVinyl(record);
+        player.load(record.audioUrl);
+        player.setEffects(vinylEffects);
+        pauseMuseumMusicForVinyl();
+        void player.play();
+        releasePointer();
+        setPanelDeck(true);
+      } else if (deckVinyl) {
+        releasePointer();
+        setPanelDeck(true);
+      }
+      // Empty deck, empty hands: nothing to do.
     }
-  }, [panelArtwork, panelCert, panelStory, panelCosplay, panelGame, playingGame, panelGigs, activeGigs, panelContact, activeContact, activeArcadeGame, activeIndex, artworks, activeCert, activePodium, storiesLayout, activeStandee, cosplayLayout, onArtworkViewed, roomIds, servicesRoomId, releasePointer]);
+  }, [panelArtwork, panelCert, panelStory, panelCosplay, panelDeck, panelGame, playingGame, panelGigs, activeGigs, panelContact, activeContact, activeArcadeGame, activeIndex, artworks, activeCert, activePodium, storiesLayout, activeStandee, cosplayLayout, activeVinylTarget, heldVinyl, deckVinyl, takenEntryIds, vinylEffects, getVinylPlayer, onArtworkViewed, roomIds, servicesRoomId, releasePointer]);
 
   // Report the starting room immediately — PlayerControls' onRoomChange
   // only fires on a *change*, so without this the HUD wouldn't know the
@@ -1317,6 +1527,10 @@ export function MuseumScene({
   useEffect(() => {
     if (activeStandee === null) setPanelCosplay(null);
   }, [activeStandee]);
+  // Walking away from the deck closes its panel — the record keeps playing.
+  useEffect(() => {
+    if (activeVinylTarget?.kind !== "deck") setPanelDeck(false);
+  }, [activeVinylTarget]);
   // Walking away from a cabinet closes its info panel — but never mid-round
   // (a running GameSession owns the screen; the visitor isn't walking).
   useEffect(() => {
@@ -1482,17 +1696,35 @@ export function MuseumScene({
   // the DOM pill additionally hides behind hudHidden and waits for pointer
   // lock, neither of which exists in VR.
   const anyPanelOpen = Boolean(
-    panelArtwork || panelCert || panelStory || panelCosplay || panelGame || playingGame || panelGigs || panelContact
+    panelArtwork || panelCert || panelStory || panelCosplay || panelDeck || panelGame || playingGame || panelGigs || panelContact
   );
+  // What [E] would do at the Vinyl Room's sleeve or deck right now — null
+  // when nothing (empty deck with empty hands; a sleeve whose record is out
+  // and isn't the one in hand), so the prompt doesn't offer a dead press.
+  const vinylPrompt: { label: string; title: string } | null = (() => {
+    if (!activeVinylTarget) return null;
+    if (activeVinylTarget.kind === "sleeve") {
+      const sleeve = activeVinylTarget.entry.vinyl;
+      if (heldVinyl?.entryId === sleeve.entryId) return { label: "Put Back", title: sleeve.title };
+      if (heldVinyl) return null;
+      if (takenEntryIds.has(sleeve.entryId)) return { label: "On the deck", title: sleeve.title };
+      return { label: "Take Record", title: sleeve.title };
+    }
+    if (heldVinyl) return { label: deckVinyl ? "Swap Record" : "Put On", title: heldVinyl.title };
+    if (deckVinyl) return { label: "Open Deck", title: deckVinyl.title };
+    return { label: "Turntable", title: "Bring a record from the wall" };
+  })();
   const promptTarget =
     !anyPanelOpen &&
-    (activeIndex !== null || activeCert !== null || activePodium !== null || activeStandee !== null || activeArcadeGame !== null || activeGigs || activeContact);
+    (activeIndex !== null || activeCert !== null || activePodium !== null || activeStandee !== null || activeArcadeGame !== null || vinylPrompt !== null || activeGigs || activeContact);
   const promptLabel = activeCert
     ? "View Certificate"
     : activePodium
       ? "Read Tale"
       : activeStandee
         ? "View Cosplay"
+        : vinylPrompt
+          ? vinylPrompt.label
         : activeArcadeGame
           ? "View Game"
           : activeGigs
@@ -1513,6 +1745,8 @@ export function MuseumScene({
         ? [activeStandee.cosplay.character || activeStandee.cosplay.title, activeStandee.cosplay.series]
             .filter(Boolean)
             .join(" · ")
+        : vinylPrompt
+          ? vinylPrompt.title
         : activeArcadeGame
           ? activeArcadeGame.display.title
           : activeGigs
@@ -1954,6 +2188,26 @@ export function MuseumScene({
             />
           </Suspense>
         )}
+        {vinylLayout && (
+          <Suspense fallback={null}>
+            <VinylRoomContents
+              sleeves={sleeveEntries}
+              depth={vinylLayout.depth}
+              centerZ={vinylLayout.centerZ}
+              baseY={vinylLayout.floorYSouth}
+              shouldLoad={nearbyRoomIds.has(vinylLayout.room.id)}
+              config={vinylConfig}
+              turntable={turntablePlacement}
+              activeTarget={activeVinylTarget}
+              onActiveChange={setActiveVinylTarget}
+              takenEntryIds={takenEntryIds}
+              deckVinyl={deckVinyl}
+              deckPlaying={deckState.playing}
+              deckRpm={vinylEffects.speed === 33 ? 100 / 3 : vinylEffects.speed}
+              lyrics={lyricsWallState}
+            />
+          </Suspense>
+        )}
         {freedomWallLayout && (
           <Suspense fallback={null}>
             <FreedomWallRoomContents
@@ -1992,7 +2246,7 @@ export function MuseumScene({
           // The VR map counts too: a trigger press on one of its room rows
           // must not also fall through to handleActivate (see PlayerControls'
           // select handler). Outside VR mapOpen never reaches here.
-          panelOpen={Boolean(panelArtwork || panelCert || panelStory || panelCosplay || panelGame || playingGame || panelGigs || panelContact || aboutDrawerOpen || vrHud?.mapOpen)}
+          panelOpen={Boolean(panelArtwork || panelCert || panelStory || panelCosplay || panelDeck || panelGame || playingGame || panelGigs || panelContact || aboutDrawerOpen || vrHud?.mapOpen)}
         />
         {/* The VR renderer of the same panel state the DOM modals below
             render outside a session (see VrUi.tsx's header): one mirrored
@@ -2077,6 +2331,7 @@ export function MuseumScene({
         !panelCert &&
         !panelStory &&
         !panelCosplay &&
+        !panelDeck &&
         !panelGame &&
         !playingGame &&
         !panelGigs &&
@@ -2102,6 +2357,7 @@ export function MuseumScene({
         !panelCert &&
         !panelStory &&
         !panelCosplay &&
+        !panelDeck &&
         !panelGame &&
         !playingGame &&
         !panelGigs &&
@@ -2176,6 +2432,38 @@ export function MuseumScene({
         cosplay={isPresenting ? null : panelCosplay}
         onClose={() => setPanelCosplay(null)}
         landscape={touchLandscape}
+      />
+
+      {/* Vinyl Room — the deck's panel (transport, speed, effects, tracklist)
+          and the "you're holding a record" card. Neither exists in VR: the
+          headset gets the room, the wall and the sound, not the sliders. */}
+      <TurntablePanel
+        vinyl={panelDeck && !isPresenting ? deckVinyl : null}
+        state={deckState}
+        effects={vinylEffects}
+        currentTrackIndex={currentTrackIndex}
+        currentLine={lyricsLineIndex >= 0 ? lyricsTimeline[lyricsLineIndex].text : null}
+        onClose={() => setPanelDeck(false)}
+        onPlayPause={() => {
+          const player = vinylPlayerRef.current;
+          if (!player) return;
+          if (player.isPlaying()) player.pause();
+          else {
+            pauseMuseumMusicForVinyl();
+            void player.play();
+          }
+        }}
+        onTakeOff={() => takeRecordOffDeck(true)}
+        onSeek={(seconds) => vinylPlayerRef.current?.seek(seconds)}
+        onEffectsChange={applyVinylEffects}
+        onResetEffects={() => applyVinylEffects(vinylConfig.defaultEffects ?? DEFAULT_VINYL_EFFECTS)}
+        landscape={touchLandscape}
+      />
+      <HeldVinylHud
+        vinyl={heldVinyl}
+        visible={!hudHidden && !isPresenting && heldVinyl !== null && !anyPanelOpen}
+        onPutBack={() => setHeldVinyl(null)}
+        isCoarsePointer={isCoarsePointer}
       />
 
       {/* Arcade Room — the same preview + round the gallery's Mini Games

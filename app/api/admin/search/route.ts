@@ -41,13 +41,14 @@ export async function GET(request: NextRequest) {
       events: [],
       releases: [],
       videos: [],
+      vinyls: [],
     });
   }
 
   try {
     const insensitive = { contains: q, mode: "insensitive" as const };
 
-    const [artworks, stories, cosplays, products, orders, sections, rooms, announcements, faqs, events, releases, videos] =
+    const [artworks, stories, cosplays, products, orders, sections, rooms, announcements, faqs, events, releases, videos, vinyls] =
       await Promise.all([
         prisma.artwork.findMany({
           where: {
@@ -193,9 +194,15 @@ export async function GET(request: NextRequest) {
           take: MAX_PER_GROUP,
           orderBy: { updatedAt: "desc" },
         }),
+        prisma.vinylRecord.findMany({
+          where: { deletedAt: null, OR: [{ release: { title: insensitive } }, { sideLabel: insensitive }] },
+          select: { id: true, sideLabel: true, published: true, release: { select: { title: true } } },
+          take: MAX_PER_GROUP,
+          orderBy: { updatedAt: "desc" },
+        }),
       ]);
 
-    return NextResponse.json({ artworks, stories, cosplays, products, orders, sections, rooms, announcements, faqs, events, releases, videos });
+    return NextResponse.json({ artworks, stories, cosplays, products, orders, sections, rooms, announcements, faqs, events, releases, videos, vinyls });
   } catch (error) {
     console.error("[admin/search] failed to search", error);
     return NextResponse.json({ error: "Search failed." }, { status: 500 });

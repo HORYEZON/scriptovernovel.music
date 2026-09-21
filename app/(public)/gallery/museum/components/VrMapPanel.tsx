@@ -30,6 +30,7 @@ const ROOM_TYPE_LABEL: Record<string, string> = {
   STORIES: "Tales",
   ARCADE: "Arcade",
   COSPLAY: "Cosplay",
+  VINYL: "Vinyl Room",
 };
 
 function roomSubtitle(room: MuseumRoomPublic, freedomWallNoteCount: number): string {
@@ -46,6 +47,8 @@ function roomSubtitle(room: MuseumRoomPublic, freedomWallNoteCount: number): str
       return `Arcade · ${room.miniGames.length} available game${room.miniGames.length === 1 ? "" : "s"}`;
     case "COSPLAY":
       return `Cosplay · ${room.cosplays.length} standee${room.cosplays.length === 1 ? "" : "s"}`;
+    case "VINYL":
+      return `Vinyl Room · ${room.vinyls.length} record${room.vinyls.length === 1 ? "" : "s"}`;
     default:
       return `${ROOM_TYPE_LABEL[room.roomType] ?? room.roomType} · ${room.artworks.length} artwork${room.artworks.length === 1 ? "" : "s"}`;
   }

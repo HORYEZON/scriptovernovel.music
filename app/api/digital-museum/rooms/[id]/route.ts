@@ -353,6 +353,14 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
       );
     }
 
+    // Same rule again for the Vinyl Room (lib/museum/vinylRoom.ts).
+    if (target?.roomType === "VINYL") {
+      return NextResponse.json(
+        { error: "The Vinyl Room can't be deleted — turn it off with its toggle instead." },
+        { status: 409 }
+      );
+    }
+
     // Never let the museum end up with zero reachable rooms — block trashing
     // the last enabled one rather than silently locking every visitor out.
     if (target?.enabled && enabledCount <= 1) {

@@ -19,6 +19,8 @@ import { ensureAboutContactDesk } from "@/lib/museum/aboutRoom";
 import { ensureWallClock } from "@/lib/museum/wallClock";
 import { ensureStoryPodiumModel } from "@/lib/museum/storiesRoom";
 import { ensureCosplayStandeeModel } from "@/lib/museum/cosplayRoom";
+import { ensureVinylConfig } from "@/lib/museum/vinylRoom";
+import { VINYL_CONFIG_KIND } from "@/lib/museum/vinylConfig";
 import { ARCADE_CONFIG_KIND } from "@/lib/museum/arcadeConfig";
 import { DIVIDER_KIND, DEFAULT_DIVIDER_CONFIG } from "@/lib/museum/wallDivider";
 import { BANNER_KIND, DEFAULT_BANNER_CONFIG } from "@/lib/museum/sceneBanner";
@@ -138,6 +140,16 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     // placement" pattern as the two above.
     if (room.roomType === "COSPLAY" && !objects.some((o) => o.kind === COSPLAY_STANDEE_MODEL_KIND)) {
       await ensureCosplayStandeeModel(id);
+      objects = await prisma.museumSceneObject.findMany({
+        where: { roomId: id, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+      });
+    }
+
+    // The Vinyl Room's single turntable / Lyrics Wall config row (see
+    // lib/museum/vinylConfig.ts) — same pattern once more.
+    if (room.roomType === "VINYL" && !objects.some((o) => o.kind === VINYL_CONFIG_KIND)) {
+      await ensureVinylConfig(id);
       objects = await prisma.museumSceneObject.findMany({
         where: { roomId: id, deletedAt: null },
         orderBy: { createdAt: "asc" },

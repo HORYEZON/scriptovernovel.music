@@ -48,6 +48,7 @@ The website of ScriptOverNovel, a shoegaze / dreampop / math rock / post-rock ba
 - `/gallery` — Full gallery with filtering/search by medium, tag, section
 - **Releases** — the band's singles / EPs / albums on `/music` and the homepage hero: cover, tracklist with fold-out lyrics, and streaming embeds (Spotify · Bandcamp · YouTube · SoundCloud · Apple Music) parsed and host-allow-listed by [`lib/embeds.ts`](lib/embeds.ts), rendered click-to-load by [`EmbedFrame.tsx`](components/public/system/EmbedFrame.tsx). Admin at **Releases**; model helpers in [`lib/releases.ts`](lib/releases.ts) / [`lib/releases-server.ts`](lib/releases-server.ts)
 - **Videos** — YouTube-only, admin-managed (`/admin/videos`), on `/videos` and the homepage strip as click-to-play tiles (still frame first, player on press). Model helpers in [`lib/videos.ts`](lib/videos.ts) / [`lib/videos-server.ts`](lib/videos-server.ts)
+- **Vinyls** — records for the Digital Museum's **Vinyl Room** (`/admin/vinyls`): one release + one uploaded audio file each. In the room a visitor takes a sleeve off the wall, carries it to the turntable and plays it through a Web Audio effects chain ([`lib/museum/vinylAudio.ts`](lib/museum/vinylAudio.ts): reverb, lo-fi, crackle, echo, 33/45/78 rpm) while a **Lyrics Wall** projects the track's lyrics ([`lib/museum/lyricsTimeline.ts`](lib/museum/lyricsTimeline.ts), proportional timing). Room provisioning in [`lib/museum/vinylRoom.ts`](lib/museum/vinylRoom.ts), the deck / wall config in [`lib/museum/vinylConfig.ts`](lib/museum/vinylConfig.ts)
 - **About / Band Members** — the band's story (Profile fields relabelled), a `BandMember` grid (`/admin/band-members`), the band photos (Profile images) and a Shows history from Events with the Leaflet map
 - **Store** — merch products with their own title / photos / category / sizes (`/shop`, `/shop/[slug]`), cart + PayMongo checkout + orders as before. `lib/store/product-display.ts` is the one fallback chain (own fields → legacy artwork → order snapshot); `lib/store/queries.ts` the one "buyable" filter. Legacy artwork-backed products keep working and still hang in the museum's Services Room
 - **Release Notes** — a ✨ icon in the navbar beside the theme toggle listing the newest few visitor-facing changes to the site, each opening in full. Admin-written from **Settings → Release Notes**; only the newest N (default 3) are ever shown. See [Release Notes](#release-notes) below
@@ -100,7 +101,7 @@ The website of ScriptOverNovel, a shoegaze / dreampop / math rock / post-rock ba
 - **About** — bio, headline, profile images/slideshow, background/logo, social links, artist skills, certificates & awards, contact/commission copy
 - **Timeline / Events** (`/admin/events`) — full CRUD for the public Timeline/Gigs map: title, venue, description, date, click-to-drop-pin location picker (falls back to manual lat/lng inputs without a Maps key), enable toggle, reorder, and a **Next Event** star toggle (server-enforced single flag, same transactional pattern as the Digital Museum's entry-room). Photo/video upload straight to R2. Wired into **Global Search** and the sidebar
 - **Cosplays** (`/admin/cosplays`) — costume photography kept out of Artworks on purpose: character, series, cosplayer, photographer, year and event, with two images per entry (the shot printed on its life-size standee, and an optional photo hung on the panel behind it). The list has the same **Grid / List** view toggle as the other admin modules, defaulting to the card grid. Publishing one gives it a standee in the Digital Museum's **Cosplay Room**, where every field but the description reads on the standee's own plaque (character, series, event · year, credits) — the description stays behind the **[E]** info panel. Membership _and order_ are mirrored from this module, so the reorder arrows move standees around the room's walls. There is no separate public page. See [`Docs/Museum_CosplayRoom.md`](Docs/Museum_CosplayRoom.md)
-- **Trash** — soft-delete recovery for artworks, sections, products, cosplays, announcements, marquees, notifications, Digital Museum rooms, and Timeline events (`deletedAt`)
+- **Trash** — soft-delete recovery for artworks, sections, products, cosplays, releases, videos, vinyls, band members, announcements, marquees, notifications, Digital Museum rooms, and Timeline events (`deletedAt`)
 - **Global Search** (⌘K / Ctrl+K, `components/admin/GlobalSearch.tsx`) — command-palette search across Artworks, Products, Orders, Sections, Rooms, Announcements, FAQs, and Timeline Events, plus a quick-nav shortcut to every admin page
 - **API Documentation** — interactive OpenAPI 3.0 reference at `/admin/api-docs` (Swagger UI), covering all ~130 endpoints. Accepts the `x-api-key` header (set `API_SECRET_KEY` in env) alongside the session cookie — useful for scripts, CI, and the Swagger UI's "Try it out" (see [API Documentation](#api-documentation) below)
 - Auth-gated via NextAuth middleware; only `role: ADMIN` users may access `/admin/*`
@@ -469,6 +470,7 @@ DigitalMuseum (singleton row)
         │    title (see "Room-entry splash" below); null falls back to the default glowing squid / room name
         ├─ artworks: MuseumRoomArtwork[]   — join table to Artwork, with its own displayOrder
         ├─ cosplays: MuseumRoomCosplay[]   — COSPLAY rooms only; mirrors published Cosplay rows
+        ├─ vinyls: MuseumRoomVinyl[]       — the VINYL room only; mirrors published VinylRecord rows
         └─ sceneObjects: MuseumSceneObject[]  — Museum Scene Editor placements (see below)
 ```
 
@@ -743,6 +745,7 @@ scriptovernovel.music/
 │   │       │                        #   museum-ui.tsx), and museum-editor/[roomId]/ (the 3D
 │   │       │                        #   Museum Scene Editor — see "Digital Museum" above)
 │   │       ├── cosplays/            # Cosplay CRUD (CosplaysClient.tsx) — feeds the Cosplay Room
+│   │       ├── vinyls/              # Vinyl CRUD (VinylsClient.tsx) — feeds the Vinyl Room
 │   │       ├── sections/            # Gallery section CRUD + reorder
 │   │       ├── products/            # Product/pricing management (V2)
 │   │       ├── orders/              # Order tracking (V2)

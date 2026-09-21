@@ -613,6 +613,7 @@ model Release {
   tracks        ReleaseTrack[]
   videos        Video[]
   miniGames     MiniGame[]     @relation("MiniGameRelease")
+  vinyls        VinylRecord[]
 
   @@index([published, releaseDate])
   @@index([deletedAt])
@@ -1002,6 +1003,12 @@ enum MuseumRoomType {
   // both, because a standee and the photo it stands in front of only make
   // sense together. See MuseumRoomCosplay.
   COSPLAY
+  // The Vinyl Room — records from Music → Vinyls hang on its walls; the
+  // visitor carries one to the turntable and it plays through the Web Audio
+  // effects deck, with the Lyrics Wall projecting the words. Mirror room like
+  // ARCADE: lazily provisioned (lib/museum/vinylRoom.ts), never creatable,
+  // retypeable or deletable from the admin.
+  VINYL
 }
 
 model MuseumRoom {
@@ -1083,8 +1090,59 @@ model MuseumRoom {
   miniGames      MuseumRoomMiniGame[]
   // Only ever non-empty on the single COSPLAY room — see MuseumRoomCosplay.
   cosplays       MuseumRoomCosplay[]
+  // Only ever non-empty on the single VINYL room — see MuseumRoomVinyl.
+  vinyls         MuseumRoomVinyl[]
 
   @@index([museumId])
+}
+
+// One record in the Vinyl Room: a Release (its cover is the sleeve and the
+// label, its tracklist and lyrics feed the Lyrics Wall) plus one uploaded
+// audio file that the turntable actually plays — the only place the site
+// hosts audio besides the background music. Same conventions as Video:
+// published / sortOrder / soft delete. Placements in the room are
+// MuseumRoomVinyl rows, mirrored from published records by
+// lib/museum/vinylRoom.ts's syncVinylRoomRecords.
+model VinylRecord {
+  id         String            @id @default(cuid())
+  releaseId  String
+  release    Release           @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  audioUrl   String
+  // What the visitor is putting on — "Side A", "Full record", "Live take".
+  sideLabel  String?
+  published  Boolean           @default(true)
+  sortOrder  Int               @default(0)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  deletedAt  DateTime?
+  placements MuseumRoomVinyl[]
+
+  @@index([published, sortOrder])
+  @@index([deletedAt])
+  @@index([releaseId])
+}
+
+// One sleeve hanging in the Vinyl Room — the wall-hung counterpart to
+// MuseumRoomArtwork, same placement semantics (room-local X/Z on the wall
+// line, positionY = world hang height, rotationY picks the wall; all null =
+// auto-placed by the room's perimeter walk).
+model MuseumRoomVinyl {
+  id           String      @id @default(cuid())
+  roomId       String
+  room         MuseumRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  vinylId      String
+  vinyl        VinylRecord @relation(fields: [vinylId], references: [id], onDelete: Cascade)
+  displayOrder Int         @default(0)
+  positionX    Float?
+  positionY    Float?
+  positionZ    Float?
+  rotationY    Float?
+  scale        Float?
+  createdAt    DateTime    @default(now())
+
+  @@unique([roomId, vinylId])
+  @@index([roomId])
+  @@index([vinylId])
 }
 
 // A freestanding 3D object placed in a room with an admin-editable

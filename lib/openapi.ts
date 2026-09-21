@@ -346,6 +346,21 @@ export const openApiSpec: OpenAPIV3.Document = {
           updatedAt: { type: "string", format: "date-time" },
         },
       },
+      Vinyl: {
+        type: "object",
+        description: "One record in the Digital Museum's Vinyl Room: a release plus the audio file the deck plays. Cover, title and tracklist (with lyrics for the Lyrics Wall) come from the release.",
+        properties: {
+          id: { type: "string" },
+          releaseId: { type: "string" },
+          audioUrl: { type: "string", description: "An https URL on the site's own R2 host (uploaded through /upload/audio/sign)." },
+          sideLabel: { type: "string", nullable: true, description: "\"Side A\", \"Full record\" — shown on the deck." },
+          published: { type: "boolean", description: "Published records hang on the Vinyl Room's wall on its next load." },
+          sortOrder: { type: "integer", description: "The wall order in the room." },
+          release: { type: "object", properties: { id: { type: "string" }, title: { type: "string" }, slug: { type: "string", nullable: true }, coverImageUrl: { type: "string" }, published: { type: "boolean" }, trackCount: { type: "integer" } } },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
       Event: {
         type: "object",
         properties: {
@@ -1788,6 +1803,52 @@ export const openApiSpec: OpenAPIV3.Document = {
         responses: { "200": SuccessResponse, "401": ErrorResponse },
       },
     },
+    "/vinyls": {
+      get: {
+        tags: ["Vinyls"],
+        summary: "List live vinyls (admin)",
+        security: adminSecurity,
+        responses: { "200": { description: "Vinyls", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Vinyl" } } } } }, "401": ErrorResponse },
+      },
+      post: {
+        tags: ["Vinyls"],
+        summary: "Create a vinyl",
+        description: "`releaseId` must name a live release. `audioUrl` must be an https URL on the site's own R2 public host with an audio extension (400 otherwise) — upload it first through `/upload/audio/sign`. The Vinyl Room mirrors published vinyls on its next load.",
+        security: adminSecurity,
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { type: "object", required: ["releaseId", "audioUrl"], properties: { releaseId: { type: "string" }, audioUrl: { type: "string" }, sideLabel: { type: "string", nullable: true }, published: { type: "boolean" } } } } },
+        },
+        responses: { "201": { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Vinyl" } } } }, "400": ErrorResponse, "401": ErrorResponse },
+      },
+    },
+    "/vinyls/reorder": {
+      put: {
+        tags: ["Vinyls"],
+        summary: "Reorder vinyls",
+        security: adminSecurity,
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { order: { type: "array", items: { type: "object", properties: { id: { type: "string" }, sortOrder: { type: "integer" } } } } } } } } },
+        responses: { "200": { description: "Vinyls in new order" }, "400": ErrorResponse, "401": ErrorResponse },
+      },
+    },
+    "/vinyls/{id}": {
+      patch: {
+        tags: ["Vinyls"],
+        summary: "Update a vinyl (partial)",
+        security: adminSecurity,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: { content: { "application/json": { schema: { type: "object", properties: { releaseId: { type: "string" }, audioUrl: { type: "string" }, sideLabel: { type: "string", nullable: true }, published: { type: "boolean" }, sortOrder: { type: "integer" } } } } } },
+        responses: { "200": { description: "Updated", content: { "application/json": { schema: { $ref: "#/components/schemas/Vinyl" } } } }, "400": ErrorResponse, "401": ErrorResponse, "404": ErrorResponse },
+      },
+      delete: {
+        tags: ["Vinyls"],
+        summary: "Move a vinyl to Trash",
+        description: "Soft delete. Emptying it from Trash deletes the audio file from storage too.",
+        security: adminSecurity,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": SuccessResponse, "401": ErrorResponse },
+      },
+    },
     "/events": {
       get: {
         tags: ["Events"],
@@ -2298,6 +2359,33 @@ export const openApiSpec: OpenAPIV3.Document = {
                     nullable: true,
                     description: "Raise off the room's own floor; 0 normally (unlike a wall frame's world height)",
                   },
+                  positionZ: { type: "number", nullable: true },
+                  rotationY: { type: "number", nullable: true },
+                  scale: { type: "number", nullable: true },
+                },
+              },
+            },
+          },
+        },
+        responses: { "200": { description: "Updated" }, "400": ErrorResponse, "401": ErrorResponse, "404": ErrorResponse },
+      },
+    },
+    "/digital-museum/room-vinyls/{id}": {
+      patch: {
+        tags: ["Digital Museum"],
+        summary: "Update a record sleeve's position/scale in the Vinyl Room",
+        description:
+          "[id] is the MuseumRoomVinyl join row's id. A sleeve is a wall hanging like an artwork frame: positionX/Z on the wall line, positionY the hang height, rotationY which wall. Position is all-or-nothing: all four as numbers (a custom placement) or all four as null (reset to the auto side-wall layout). Membership is mirrored from the published Vinyls — this only ever moves a sleeve. The turntable and Lyrics Wall are not rows here: they live on the room's single `vinyl-room-config` scene object (PATCH /digital-museum/scene-objects/{id} with the serialised config in `modelUrl`).",
+        security: adminSecurity,
+        parameters: [IdParam],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  positionX: { type: "number", nullable: true },
+                  positionY: { type: "number", nullable: true, description: "Hang height (centre)" },
                   positionZ: { type: "number", nullable: true },
                   rotationY: { type: "number", nullable: true },
                   scale: { type: "number", nullable: true },
@@ -4269,6 +4357,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Orders", description: "Customer orders (admin + public lookup)" },
     { name: "Releases", description: "The band's singles, EPs and albums — covers, tracklists, lyrics, streaming links" },
     { name: "Videos", description: "YouTube videos on the Videos page — music videos, live, behind the scenes" },
+    { name: "Vinyls", description: "Records for the Digital Museum's Vinyl Room — a release plus the audio the turntable plays" },
     { name: "Band Members", description: "Who's in the band — the About page's members grid" },
     { name: "Checkout", description: "PayMongo checkout session and webhook" },
     { name: "Announcements", description: "Timed site announcements" },

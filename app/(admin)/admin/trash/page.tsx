@@ -24,6 +24,7 @@ export default async function AdminTrashPage() {
     releaseNotes,
     releases,
     videos,
+    vinyls,
     bandMembers,
   ] =
     await Promise.all([
@@ -108,6 +109,11 @@ export default async function AdminTrashPage() {
         include: { release: { select: { id: true, title: true } } },
         orderBy: { deletedAt: "desc" },
       }),
+      prisma.vinylRecord.findMany({
+        where: { deletedAt: { not: null } },
+        include: { release: { select: { id: true, title: true, coverImageUrl: true } } },
+        orderBy: { deletedAt: "desc" },
+      }),
       prisma.bandMember.findMany({ where: { deletedAt: { not: null } }, orderBy: { deletedAt: "desc" } }),
     ]);
 
@@ -127,6 +133,7 @@ export default async function AdminTrashPage() {
     releaseNotes.length +
     releases.length +
     videos.length +
+    vinyls.length +
     bandMembers.length;
 
   return (
@@ -151,6 +158,7 @@ export default async function AdminTrashPage() {
         initialReleaseNotes={JSON.parse(JSON.stringify(releaseNotes))}
         initialReleases={JSON.parse(JSON.stringify(releases))}
         initialVideos={JSON.parse(JSON.stringify(videos))}
+        initialVinyls={JSON.parse(JSON.stringify(vinyls))}
         initialBandMembers={JSON.parse(JSON.stringify(bandMembers))}
       />
     </div>

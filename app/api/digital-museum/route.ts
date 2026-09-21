@@ -16,6 +16,7 @@ import { ensureServicesRoom, syncServicesRoomProducts } from "@/lib/museum/servi
 import { ensureStoriesRoom, syncStoriesRoomStories, ensureStoryPodiumModel } from "@/lib/museum/storiesRoom";
 import { ensureArcadeRoom, syncArcadeRoomGames, ensureArcadeConfig } from "@/lib/museum/arcadeRoom";
 import { ensureCosplayRoom, syncCosplayRoomEntries, ensureCosplayStandeeModel } from "@/lib/museum/cosplayRoom";
+import { ensureVinylRoom, syncVinylRoomRecords, ensureVinylConfig } from "@/lib/museum/vinylRoom";
 import { ensureRoomBanner } from "@/lib/museum/roomBannerProvision";
 
 // Digital Museum config lives on a single well-known row — no separate
@@ -44,7 +45,7 @@ export async function GET() {
     // the Services Room is the one fixed room that appears in that query's
     // `rooms` result, so it has to exist, and its frames have to be current,
     // for RoomsTab.tsx to render it with an accurate product count.
-    const [aboutRoom, freedomWallRoom, stairsRoom, servicesRoom, storiesRoom, arcadeRoom, cosplayRoom] = await Promise.all([
+    const [aboutRoom, freedomWallRoom, stairsRoom, servicesRoom, storiesRoom, arcadeRoom, cosplayRoom, vinylRoom] = await Promise.all([
       ensureAboutRoom(),
       ensureFreedomWallRoom(),
       ensureStairsRoom(),
@@ -52,6 +53,7 @@ export async function GET() {
       ensureStoriesRoom(),
       ensureArcadeRoom(),
       ensureCosplayRoom(),
+      ensureVinylRoom(),
     ]);
     // Every mirror room reconciles here for the same reason: they appear in
     // the `rooms` result below, so RoomsTab.tsx needs their contents current
@@ -64,6 +66,8 @@ export async function GET() {
       ensureArcadeConfig(arcadeRoom.id),
       syncCosplayRoomEntries(cosplayRoom.id),
       ensureCosplayStandeeModel(cosplayRoom.id),
+      syncVinylRoomRecords(vinylRoom.id),
+      ensureVinylConfig(vinylRoom.id),
       // The room-wide plaque style each of these rooms' labels reads (see
       // lib/museum/roomBanner.ts). The About room provisions here too — it is
       // the one banner room with no sync/config pass of its own.
@@ -189,6 +193,18 @@ export async function GET() {
                 },
               },
             },
+            // Only ever non-empty on the VINYL room — RoomsTab lists the
+            // records hanging in it (mirrored from Music → Vinyls).
+            vinyls: {
+              orderBy: { displayOrder: "asc" },
+              select: {
+                id: true,
+                displayOrder: true,
+                vinyl: {
+                  select: { id: true, sideLabel: true, release: { select: { id: true, title: true, coverImageUrl: true } } },
+                },
+              },
+            },
           },
         },
       },
@@ -205,6 +221,8 @@ export async function GET() {
       arcadeRoomId: arcadeRoom.id,
       // And the Cosplay Room, on the same terms again.
       cosplayRoomId: cosplayRoom.id,
+      // And the Vinyl Room.
+      vinylRoomId: vinylRoom.id,
       aboutRoomId: aboutRoom.id,
       // About's own `floor` column (0/1 — see docs/SecondFloorStairs_Spec.md)
       // is a real MuseumRoom field, unlike its wall/floor/ceiling visuals

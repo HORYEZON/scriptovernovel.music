@@ -237,6 +237,8 @@ export interface MuseumArtwork {
 // "COSPLAY" is the standee room (lib/museum/cosplayRoom.ts) — same terms again,
 // mirroring every published Cosplay. Its contents are pairs: a standee on the
 // floor with that cosplay's second photo hanging behind it.
+// "VINYL" is the Vinyl Room (lib/museum/vinylRoom.ts): record sleeves from
+// Music → Vinyls on the walls, a turntable, and the Lyrics Wall.
 export type MuseumRoomType =
   | "MAIN_HALL"
   | "GALLERY"
@@ -247,7 +249,35 @@ export type MuseumRoomType =
   | "SERVICES"
   | "STORIES"
   | "ARCADE"
-  | "COSPLAY";
+  | "COSPLAY"
+  | "VINYL";
+
+/** One record in the Vinyl Room as the museum sees it: the release it is
+ *  (cover = sleeve and label, tracks for the Lyrics Wall) plus the audio
+ *  file the deck plays, with its wall placement. */
+export interface MuseumVinylSleeve {
+  entryId: string;
+  vinylId: string;
+  displayOrder: number;
+  positionX: number | null;
+  positionY: number | null;
+  positionZ: number | null;
+  rotationY: number | null;
+  scale: number | null;
+  title: string;
+  coverImageUrl: string;
+  releaseSlug: string | null;
+  audioUrl: string;
+  sideLabel: string | null;
+  tracks: { title: string; durationSec: number | null; lyrics: string | null }[];
+}
+
+export interface VinylRoomConfigPublic {
+  turntableModelUrl: string | null;
+  turntable: { x: number; z: number; rotationY: number } | null;
+  defaultEffects: { reverb: number; lofi: number; crackle: number; delay: number; speed: 33 | 45 | 78; fine: number };
+  lyricsWall: { enabled: boolean; wall: "north" | "east" | "west"; textColor: string; glowColor: string };
+}
 
 // Public payload for one room — see app/(public)/gallery/museum/page.tsx.
 // Each room carries its own already-filtered (published, non-deleted)
@@ -399,6 +429,13 @@ export interface MuseumRoomPublic {
   // placement covers the pair (the standee and the photo hung behind it). See
   // lib/museum/cosplayRoom.ts.
   cosplays: MuseumCosplayStandee[];
+  // Only ever non-empty on the single VINYL room — one entry per published
+  // record (sleeve on the wall). Same "placement rides on the entry" shape as
+  // `artworks` (wall-hung). See lib/museum/vinylRoom.ts.
+  vinyls: MuseumVinylSleeve[];
+  // VINYL room only — the deck, its position, default effects and the Lyrics
+  // Wall (lib/museum/vinylConfig.ts). Absent elsewhere.
+  vinylConfig?: VinylRoomConfigPublic;
   // COSPLAY room only — the room-wide standee body and backdrop-panel settings
   // (see lib/museum/cosplayStandee.ts). Absent elsewhere. Every standee in the
   // room is built from these; only the two photos are per-cosplay.

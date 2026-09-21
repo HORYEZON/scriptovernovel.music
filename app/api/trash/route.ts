@@ -25,6 +25,7 @@ export async function GET() {
       releaseNotes,
       releases,
       videos,
+      vinyls,
       bandMembers,
     ] =
       await Promise.all([
@@ -114,6 +115,11 @@ export async function GET() {
           include: { release: { select: { id: true, title: true } } },
           orderBy: { deletedAt: "desc" },
         }),
+        prisma.vinylRecord.findMany({
+          where: { deletedAt: { not: null } },
+          include: { release: { select: { id: true, title: true, coverImageUrl: true } } },
+          orderBy: { deletedAt: "desc" },
+        }),
         prisma.bandMember.findMany({ where: { deletedAt: { not: null } }, orderBy: { deletedAt: "desc" } }),
       ]);
 
@@ -133,6 +139,7 @@ export async function GET() {
       releaseNotes,
       releases,
       videos,
+      vinyls,
       bandMembers,
     });
   } catch {

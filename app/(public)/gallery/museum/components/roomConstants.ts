@@ -72,6 +72,9 @@ export const ROOM_SIZE_PRESETS: Record<MuseumRoomType, RoomSize> = {
   // hence the same depth. The middle of the floor stays empty on purpose: it is
   // the room a visitor walks down to look left and right.
   COSPLAY: { width: ROOM_WIDTH, depth: 24 },
+  // Vinyl Room — sleeves on the east/west walls, the deck near the middle,
+  // the Lyrics Wall across the north end; a gallery-sized room is enough.
+  VINYL: { width: ROOM_WIDTH, depth: 18 },
 };
 
 // How many world units the second floor sits above the ground floor —
@@ -215,6 +218,17 @@ export const ROOM_LIGHTING_PRESETS: Record<MuseumRoomType, RoomLighting> = {
     pointColor: "#fff4e6",
     pointIntensity: 18,
   },
+  // Vinyl Room — a listening room: dimmer and warmer than the galleries so
+  // the sleeves and the glowing Lyrics Wall carry the light, tungsten-toned
+  // like a record shop after hours.
+  VINYL: {
+    ambientIntensity: 0.4,
+    hemiSky: "#f3e6cf",
+    hemiGround: "#4a3a2a",
+    hemiIntensity: 0.3,
+    pointColor: "#ffd9a0",
+    pointIntensity: 13,
+  },
 };
 
 // Visitor-facing "Dark Mode" ([L] / the HUD toggle) — dims every room down
@@ -313,6 +327,14 @@ export const ROOM_LIGHTING_DARK_PRESETS: Record<MuseumRoomType, RoomLighting> = 
     hemiIntensity: 0.15,
     pointColor: "#ffeed6",
     pointIntensity: 9,
+  },
+  VINYL: {
+    ambientIntensity: 0.12,
+    hemiSky: "#2a2218",
+    hemiGround: "#0d0a08",
+    hemiIntensity: 0.14,
+    pointColor: "#ffc98a",
+    pointIntensity: 7,
   },
 };
 

@@ -14,9 +14,17 @@ import { uploadAudioViaSignedUrl } from "@/lib/storage/browser";
 export function AudioUploader({
   value,
   onChange,
+  label = "Music File",
+  hint = "The track that plays on loop when a visitor turns music on.",
+  successMessage = "Track uploaded",
 }: {
   value: string;
   onChange: (url: string) => void;
+  /** Field label and helper line — the museum soundtrack's by default; the
+   *  Vinyls module passes its own. */
+  label?: string;
+  hint?: string | null;
+  successMessage?: string;
 }) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +59,7 @@ export function AudioUploader({
       // the one the server validated and signed — not re-read from the file.
       await uploadAudioViaSignedUrl(file, signData.uploadUrl!, signData.contentType!);
       onChange(signData.publicUrl!);
-      toast.success("Track uploaded");
+      toast.success(successMessage);
     } catch (err) {
       toast.error(getErrorMessage(err, "Upload failed"));
     } finally {
@@ -62,10 +70,12 @@ export function AudioUploader({
 
   return (
     <div>
-      <label className="label">Music File</label>
-      <p className="font-body text-xs text-ink-400 dark:text-ink-300 mb-3">
-        The track that plays on loop when a visitor turns music on.
-      </p>
+      <label className="label">{label}</label>
+      {hint && (
+        <p className="font-body text-xs text-ink-400 dark:text-ink-300 mb-3">
+          {hint}
+        </p>
+      )}
       <input
         ref={inputRef}
         type="file"

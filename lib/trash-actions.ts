@@ -35,6 +35,7 @@ export type TrashType =
   | "release-notes"
   | "releases"
   | "videos"
+  | "vinyls"
   | "band-members";
 
 export const TRASH_TYPES: TrashType[] = [
@@ -53,6 +54,7 @@ export const TRASH_TYPES: TrashType[] = [
   "release-notes",
   "releases",
   "videos",
+  "vinyls",
   "band-members",
 ];
 
@@ -83,6 +85,7 @@ export async function listTrashedIds(type: TrashType): Promise<string[]> {
       case "release-notes": return prisma.releaseNote.findMany(opts);
       case "releases": return prisma.release.findMany(opts);
       case "videos": return prisma.video.findMany(opts);
+      case "vinyls": return prisma.vinylRecord.findMany(opts);
       case "band-members": return prisma.bandMember.findMany(opts);
     }
   })();
@@ -116,6 +119,7 @@ const REVALIDATE_PATHS: Record<TrashType, string[]> = {
   "release-notes": ["/admin/settings/release-notes"],
   releases: ["/admin/releases", "/music"],
   videos: ["/admin/videos", "/videos"],
+  vinyls: ["/admin/vinyls", "/gallery/museum", "/admin/artworks"],
   "band-members": ["/admin/band-members", "/about"],
 };
 
@@ -207,6 +211,10 @@ export async function restoreTrashItem(type: TrashType, id: string): Promise<voi
         break;
       case "videos":
         await prisma.video.update({ where: { id }, data: { deletedAt: null } });
+        break;
+      case "vinyls":
+        // The Vinyl Room re-mirrors it on its next load (lib/museum/vinylRoom.ts).
+        await prisma.vinylRecord.update({ where: { id }, data: { deletedAt: null } });
         break;
       case "band-members":
         await prisma.bandMember.update({ where: { id }, data: { deletedAt: null } });
@@ -371,6 +379,14 @@ export async function purgeTrashItem(type: TrashType, id: string): Promise<void>
         // A YouTube link — nothing of ours in storage.
         await prisma.video.delete({ where: { id } });
         break;
+      case "vinyls": {
+        // Placements cascade; the audio file is the one upload to clean up
+        // (deleteArtworkImage is content-agnostic — see its comment).
+        const vinyl = await prisma.vinylRecord.findUnique({ where: { id }, select: { audioUrl: true } });
+        await prisma.vinylRecord.delete({ where: { id } });
+        if (vinyl) deleteArtworkImage(vinyl.audioUrl).catch(() => {});
+        break;
+      }
       case "band-members": {
         const member = await prisma.bandMember.findUnique({ where: { id }, select: { photoUrl: true } });
         await prisma.bandMember.delete({ where: { id } });

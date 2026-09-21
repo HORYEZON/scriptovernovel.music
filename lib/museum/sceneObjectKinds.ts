@@ -19,11 +19,13 @@
 import { STORY_PODIUM_MODEL_KIND } from "./storyPodiumModel";
 import { COSPLAY_STANDEE_MODEL_KIND } from "./cosplayStandee";
 import { ROOM_BANNER_KIND } from "./roomBanner";
+import { VINYL_CONFIG_KIND } from "./vinylConfig";
 
 const CONFIG_ONLY_KINDS = new Set<string>([
   STORY_PODIUM_MODEL_KIND,
   COSPLAY_STANDEE_MODEL_KIND,
   ROOM_BANNER_KIND,
+  VINYL_CONFIG_KIND,
 ]);
 
 /** True for a row that configures the room rather than standing in it — so it

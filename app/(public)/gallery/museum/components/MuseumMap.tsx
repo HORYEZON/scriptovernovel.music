@@ -1,6 +1,6 @@
 "use client";
 
-import { X, MapPin, Landmark, Image as ImageIcon, Sparkles, User, StickyNote, ArrowDown, ArrowUpToLine, ShoppingBag, BookOpen, Gamepad2, Shirt, type LucideProps } from "lucide-react";
+import { X, MapPin, Landmark, Image as ImageIcon, Sparkles, User, StickyNote, ArrowDown, ArrowUpToLine, ShoppingBag, BookOpen, Gamepad2, Shirt, Disc3, type LucideProps } from "lucide-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { MuseumRoomPublic } from "@/types";
@@ -17,6 +17,7 @@ const ROOM_TYPE_ICON: Record<string, LucideIcon> = {
   STORIES: BookOpen,
   ARCADE: Gamepad2,
   COSPLAY: Shirt,
+  VINYL: Disc3,
 };
 
 const ROOM_TYPE_LABEL: Record<string, string> = {
@@ -30,6 +31,7 @@ const ROOM_TYPE_LABEL: Record<string, string> = {
   STORIES: "Tales",
   ARCADE: "Arcade",
   COSPLAY: "Cosplay",
+  VINYL: "Vinyl Room",
 };
 
 // Corridor overview — every room is one connected walkable space now (see
@@ -177,6 +179,10 @@ export function MuseumMap({
                                 // anything here for the same reason.
                                 room.roomType === "COSPLAY"
                               ? `Cosplay · ${room.cosplays.length} standee${room.cosplays.length === 1 ? "" : "s"}`
+                              : // And the Vinyl Room — records mirrored from
+                                // Music → Vinyls.
+                                room.roomType === "VINYL"
+                              ? `Vinyl Room · ${room.vinyls.length} record${room.vinyls.length === 1 ? "" : "s"}`
                               : `${ROOM_TYPE_LABEL[room.roomType] ?? room.roomType} · ${room.artworks.length} artwork${room.artworks.length === 1 ? "" : "s"}`}
                           </p>
                         </div>

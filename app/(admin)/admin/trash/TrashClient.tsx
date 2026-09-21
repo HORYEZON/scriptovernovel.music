@@ -250,6 +250,16 @@ interface TrashedRelease {
   createdAt: string;
 }
 
+interface TrashedVinyl {
+  id: string;
+  audioUrl: string;
+  sideLabel: string | null;
+  release: { id: string; title: string; coverImageUrl: string };
+  published: boolean;
+  deletedAt: string;
+  createdAt: string;
+}
+
 interface TrashedVideo {
   id: string;
   title: string;
@@ -288,6 +298,7 @@ type Category =
   | "release-notes"
   | "releases"
   | "videos"
+  | "vinyls"
   | "band-members";
 // "createdAt" sorts by when the item was originally made rather than when it
 // was thrown away — the two orders diverge sharply for Freedom Wall notes,
@@ -311,6 +322,7 @@ type AnyTrashedItem =
   | TrashedReleaseNote
   | TrashedRelease
   | TrashedVideo
+  | TrashedVinyl
   | TrashedBandMember;
 
 const ROOM_TYPE_LABEL: Record<TrashedRoom["roomType"], string> = {
@@ -327,7 +339,7 @@ const ROOM_TYPE_LABEL: Record<TrashedRoom["roomType"], string> = {
 // is the Sales module, Events is the Timeline module, etc.
 const CATEGORY_GROUPS: { label: string; keys: Category[] }[] = [
   { label: "Notifications", keys: ["notifications"] },
-  { label: "Music", keys: ["releases", "videos"] },
+  { label: "Music", keys: ["releases", "videos", "vinyls"] },
   { label: "Museum & Archive", keys: ["artworks", "sections", "stories", "cosplays"] },
   { label: "Digital Museum", keys: ["rooms"] },
   { label: "Freedom Wall", keys: ["freedom-wall-events", "freedom-wall-notes"] },
@@ -401,6 +413,8 @@ function getItemName(item: AnyTrashedItem, cat: Category): string {
       return (item as TrashedRelease).title;
     case "videos":
       return (item as TrashedVideo).title;
+    case "vinyls":
+      return (item as TrashedVinyl).release.title;
     case "band-members":
       return (item as TrashedBandMember).name;
   }
@@ -480,6 +494,10 @@ function getItemSubtext(item: AnyTrashedItem, cat: Category): string {
       const kind = v.kind.replace(/_/g, " ").toLowerCase();
       return v.release ? `${kind} · ${v.release.title}` : kind;
     }
+    case "vinyls": {
+      const v = item as TrashedVinyl;
+      return v.sideLabel ? `Vinyl · ${v.sideLabel}` : "Vinyl";
+    }
     case "band-members":
       return (item as TrashedBandMember).role;
   }
@@ -489,6 +507,8 @@ function getItemImage(item: AnyTrashedItem, cat: Category): string | null {
   switch (cat) {
     case "artworks":
       return (item as TrashedArtwork).imageUrl || null;
+    case "vinyls":
+      return (item as TrashedVinyl).release.coverImageUrl || null;
     case "stories":
       return (item as TrashedStory).coverImageUrl || null;
     case "cosplays":
@@ -855,6 +875,18 @@ function ViewModalFields({
         </>
       );
     }
+    case "vinyls": {
+      const v = item as TrashedVinyl;
+      return (
+        <>
+          <FieldRow label="Release" value={<span className="font-semibold">{v.release.title}</span>} />
+          {v.sideLabel && <FieldRow label="Side" value={v.sideLabel} />}
+          <FieldRow label="Audio" value={<a href={v.audioUrl} target="_blank" rel="noopener noreferrer" className="underline break-all">{v.audioUrl.split("/").pop()}</a>} />
+          <FieldRow label="Status" value={v.published ? "Published" : "Hidden"} />
+          <FieldRow label="Created" value={formatDate(v.createdAt)} />
+        </>
+      );
+    }
     case "band-members": {
       const m = item as TrashedBandMember;
       return (
@@ -885,6 +917,7 @@ export function TrashClient({
   initialReleaseNotes,
   initialReleases,
   initialVideos,
+  initialVinyls,
   initialBandMembers,
 }: {
   initialAnnouncements: TrashedAnnouncement[];
@@ -902,6 +935,7 @@ export function TrashClient({
   initialReleaseNotes: TrashedReleaseNote[];
   initialReleases: TrashedRelease[];
   initialVideos: TrashedVideo[];
+  initialVinyls: TrashedVinyl[];
   initialBandMembers: TrashedBandMember[];
 }) {
   const [announcements, setAnnouncements] = useState(initialAnnouncements);
@@ -919,6 +953,7 @@ export function TrashClient({
   const [releaseNotes, setReleaseNotes] = useState(initialReleaseNotes);
   const [releases, setReleases] = useState(initialReleases);
   const [videos, setVideos] = useState(initialVideos);
+  const [vinyls, setVinyls] = useState(initialVinyls);
   const [bandMembers, setBandMembers] = useState(initialBandMembers);
 
   const [activeCategory, setActiveCategory] = useState<Category>("artworks");
@@ -1024,10 +1059,12 @@ export function TrashClient({
         return releases;
       case "videos":
         return videos;
+      case "vinyls":
+        return vinyls;
       case "band-members":
         return bandMembers;
     }
-  }, [activeCategory, announcements, marquees, artworks, stories, cosplays, products, sections, notifications, rooms, events, freedomWallNotes, freedomWallEvents, releaseNotes, releases, videos, bandMembers]);
+  }, [activeCategory, announcements, marquees, artworks, stories, cosplays, products, sections, notifications, rooms, events, freedomWallNotes, freedomWallEvents, releaseNotes, releases, videos, vinyls, bandMembers]);
 
   const processedItems = useMemo(() => {
     return currentItems
@@ -1110,6 +1147,9 @@ export function TrashClient({
       case "videos":
         setVideos((p) => p.filter((i) => i.id !== id));
         break;
+      case "vinyls":
+        setVinyls((p) => p.filter((i) => i.id !== id));
+        break;
       case "band-members":
         setBandMembers((p) => p.filter((i) => i.id !== id));
         break;
@@ -1135,6 +1175,7 @@ export function TrashClient({
       case "release-notes": setReleaseNotes([]); break;
       case "releases": setReleases([]); break;
       case "videos": setVideos([]); break;
+      case "vinyls": setVinyls([]); break;
       case "band-members": setBandMembers([]); break;
     }
   }
@@ -1242,6 +1283,7 @@ export function TrashClient({
     "release-notes": "Release Notes",
     releases: "Releases",
     videos: "Videos",
+    vinyls: "Vinyls",
     "band-members": "Band Members",
   };
 
@@ -1263,6 +1305,7 @@ export function TrashClient({
     "release-notes": "release note",
     releases: "release",
     videos: "video",
+    vinyls: "vinyl",
     "band-members": "band member",
   };
 
@@ -1282,6 +1325,7 @@ export function TrashClient({
     "release-notes": releaseNotes.length,
     releases: releases.length,
     videos: videos.length,
+    vinyls: vinyls.length,
     "band-members": bandMembers.length,
   };
 
