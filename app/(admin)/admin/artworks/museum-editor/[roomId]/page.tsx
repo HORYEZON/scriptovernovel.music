@@ -149,6 +149,27 @@ export default async function MuseumEditorPage({ params }: { params: Promise<{ r
             },
           },
         },
+        // Only ever non-empty on the Vinyl Room — its sleeves, hung on the
+        // walls like frames. Membership is mirrored from the published
+        // records (lib/museum/vinylRoom.ts), so this is placement-only.
+        vinyls: {
+          orderBy: { displayOrder: "asc" },
+          select: {
+            id: true,
+            positionX: true,
+            positionY: true,
+            positionZ: true,
+            rotationY: true,
+            scale: true,
+            vinyl: {
+              select: {
+                id: true,
+                sideLabel: true,
+                release: { select: { title: true, coverImageUrl: true } },
+              },
+            },
+          },
+        },
       },
     }),
     // Only enough to reconstruct which of this room's north/south walls
@@ -316,7 +337,7 @@ export default async function MuseumEditorPage({ params }: { params: Promise<{ r
           { label: "Edit Scene" },
         ]}
         title={`Edit Scene · ${room.name}`}
-        description="Drag artwork frames, podiums, standees and decorative objects into place, then Save."
+        description="Drag artwork frames, podiums, standees, record sleeves and decorative objects into place, then Save."
         action={
           <AdminGoToMenu
             icon={<DoorOpen size={16} />}

@@ -66,6 +66,14 @@ import {
 import { computePodiumPlacements } from "@/app/(public)/gallery/museum/components/podiumPlacement";
 import { computeCabinetPlacements } from "@/app/(public)/gallery/museum/components/cabinetPlacement";
 import { computeStandeePlacements } from "@/app/(public)/gallery/museum/components/standeePlacement";
+import { computeSleevePlacements, defaultTurntablePosition } from "@/app/(public)/gallery/museum/components/sleevePlacement";
+import {
+  VINYL_CONFIG_KIND,
+  DEFAULT_VINYL_EFFECTS,
+  parseVinylConfig,
+  serializeVinylConfig,
+  type VinylRoomConfig,
+} from "@/lib/museum/vinylConfig";
 import {
   ARCADE_CONFIG_KIND,
   DEFAULT_CABINET_SCREEN_DEPTH,
@@ -408,6 +416,35 @@ export interface CosplayEntry {
   };
 }
 
+/** One record row as it arrives from page.tsx — the Vinyl Room only. */
+export interface VinylEntry {
+  id: string; // MuseumRoomVinyl join-row id
+  positionX: number | null;
+  positionY: number | null;
+  positionZ: number | null;
+  rotationY: number | null;
+  scale: number | null;
+  vinyl: {
+    id: string;
+    sideLabel: string | null;
+    release: { title: string; coverImageUrl: string };
+  };
+}
+
+/** What the 3D view renders for one sleeve — the Vinyl counterpart to
+ *  EditableArtworkItem (a wall hanging, so the same wall-snapped drag). */
+export interface EditableSleeveItem {
+  id: string;
+  title: string;
+  coverImageUrl: string;
+  positionX: number;
+  positionY: number;
+  positionZ: number;
+  rotationY: number;
+  scale: number;
+  hasCustomPosition: boolean;
+}
+
 /** What the 3D view renders for one standee — the Cosplay counterpart to
  *  EditablePodiumItem. One item is the whole pair (the standee and the photo
  *  hung behind it), because one placement moves both. */
@@ -492,6 +529,8 @@ interface RoomShell {
   miniGames?: MiniGameEntry[];
   /** Only ever non-empty on the Cosplay Room. */
   cosplays?: CosplayEntry[];
+  /** Only ever non-empty on the Vinyl Room. */
+  vinyls?: VinylEntry[];
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -736,6 +775,8 @@ type Selection =
   | { type: "podium"; id: string }
   | { type: "cabinet"; id: string }
   | { type: "standee"; id: string }
+  | { type: "sleeve"; id: string }
+  | { type: "turntable" }
   | { type: "note"; id: string }
   | null;
 
@@ -759,6 +800,7 @@ interface HistorySnapshot {
   stories: StoryEntry[];
   miniGames: MiniGameEntry[];
   cosplays: CosplayEntry[];
+  vinyls: VinylEntry[];
   freedomWallNotes: FreedomWallNotePublic[];
 }
 
@@ -896,6 +938,7 @@ export function MuseumEditorClient({
   const [stories, setStories] = useState<StoryEntry[]>(room.stories ?? []);
   const [miniGames, setMiniGames] = useState<MiniGameEntry[]>(room.miniGames ?? []);
   const [cosplays, setCosplays] = useState<CosplayEntry[]>(room.cosplays ?? []);
+  const [vinyls, setVinyls] = useState<VinylEntry[]>(room.vinyls ?? []);
   const [freedomWallNotes, setFreedomWallNotes] = useState<FreedomWallNotePublic[]>(initialFreedomWallNotes);
   const [selection, setSelection] = useState<Selection>(null);
   const [mode, setMode] = useState<SceneMode>("translate");
@@ -979,6 +1022,7 @@ export function MuseumEditorClient({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const podiumModelInputRef = useRef<HTMLInputElement>(null);
   const cabinetModelInputRef = useRef<HTMLInputElement>(null);
+  const turntableModelInputRef = useRef<HTMLInputElement>(null);
   const standeeModelInputRef = useRef<HTMLInputElement>(null);
   // Unsaved-changes guard: shown when the user tries to navigate away
   // with dirty=true — mirrors the existing "Unsaved changes" hint text
@@ -1056,7 +1100,7 @@ export function MuseumEditorClient({
   const panels = useAccordionState("scriptovernovel:museum-editor:panels", [
     "decorative", "fixtures", "text", "dividers", "removed",
     "artworks", "notes", "surfaces", "lights", "labelStyle",
-    "podiumModel", "standeeModel", "defaultDisplay", "cabinetModel",
+    "podiumModel", "standeeModel", "defaultDisplay", "cabinetModel", "vinylRoom", "sleeves",
   ] as const);
   const sceneDarkMode = sceneLightMode === "dark";
   // Share 360° — the same bridge the public museum's button uses
@@ -1656,6 +1700,45 @@ export function MuseumEditorClient({
     [standeeItems, hiddenIds]
   );
 
+  // Vinyl Room — the sleeves (wall-hung like frames, so the same override-
+  // else-auto shape as artworkItems against sleevePlacement.ts's side-wall
+  // walk), the deck and the Lyrics Wall, both off the room's single config
+  // row (lib/museum/vinylConfig.ts).
+  const vinylConfigObject = useMemo(
+    () => (sceneObjects ?? []).find((o) => o.kind === VINYL_CONFIG_KIND) ?? null,
+    [sceneObjects]
+  );
+  const vinylConfig = useMemo(() => parseVinylConfig(vinylConfigObject?.modelUrl), [vinylConfigObject]);
+  const autoSleevePlacements = useMemo(
+    () => computeSleevePlacements(vinyls.length, depth, vinylConfig.lyricsWall.wall, vinylConfig.lyricsWall.enabled, hasNorthOpening),
+    [vinyls.length, depth, vinylConfig.lyricsWall.wall, vinylConfig.lyricsWall.enabled, hasNorthOpening]
+  );
+  const sleeveItems: EditableSleeveItem[] = useMemo(
+    () =>
+      vinyls.map((entry, i) => {
+        const hasCustomPosition =
+          entry.positionX !== null && entry.positionY !== null && entry.positionZ !== null && entry.rotationY !== null;
+        const auto = autoSleevePlacements[i];
+        return {
+          id: entry.id,
+          title: entry.vinyl.release.title,
+          coverImageUrl: entry.vinyl.release.coverImageUrl,
+          positionX: hasCustomPosition ? entry.positionX! : auto?.position[0] ?? 0,
+          positionY: hasCustomPosition ? entry.positionY! : auto?.position[1] ?? FRAME_CENTER_Y,
+          positionZ: hasCustomPosition ? entry.positionZ! : auto?.position[2] ?? 0,
+          rotationY: hasCustomPosition ? entry.rotationY! : auto?.rotationY ?? 0,
+          scale: entry.scale ?? 1,
+          hasCustomPosition,
+        };
+      }),
+    [vinyls, autoSleevePlacements]
+  );
+  const visibleSleeveItems = useMemo(() => sleeveItems.filter((c) => !hiddenIds.has(c.id)), [sleeveItems, hiddenIds]);
+  const turntablePlacement = useMemo(
+    () => vinylConfig.turntable ?? defaultTurntablePosition(depth, vinylConfig.lyricsWall.wall),
+    [vinylConfig, depth]
+  );
+
   const visibleSceneObjects = useMemo(
     () => (sceneObjects ?? []).filter((o) => !hiddenIds.has(o.id)),
     [sceneObjects, hiddenIds]
@@ -1712,9 +1795,9 @@ export function MuseumEditorClient({
   // rest of this editor already follows. (Which objects *exist* is the one
   // thing that is synced — see reconcileSceneObjects below.)
   const snapshot = useCallback(() => {
-    setUndoStack((prev) => [...prev, { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, freedomWallNotes }]);
+    setUndoStack((prev) => [...prev, { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, vinyls, freedomWallNotes }]);
     setRedoStack([]);
-  }, [sceneObjects, artworks, stories, miniGames, cosplays, freedomWallNotes]);
+  }, [sceneObjects, artworks, stories, miniGames, cosplays, vinyls, freedomWallNotes]);
 
   // The one exception to "local state only": which scene objects *exist*.
   // Add, Duplicate and Remove each write to the server the moment they are
@@ -1759,7 +1842,7 @@ export function MuseumEditorClient({
   const undo = useCallback(() => {
     if (undoStack.length === 0) return;
     const last = undoStack[undoStack.length - 1];
-    const current: HistorySnapshot = { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, freedomWallNotes };
+    const current: HistorySnapshot = { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, vinyls, freedomWallNotes };
     setUndoStack(undoStack.slice(0, -1));
     setRedoStack((r) => [...r, current]);
     setSceneObjects(last.sceneObjects);
@@ -1767,15 +1850,16 @@ export function MuseumEditorClient({
     setStories(last.stories);
     setMiniGames(last.miniGames);
     setCosplays(last.cosplays);
+    setVinyls(last.vinyls);
     setFreedomWallNotes(last.freedomWallNotes);
     setDirty(true);
     void reconcileSceneObjects(current.sceneObjects, last.sceneObjects);
-  }, [undoStack, sceneObjects, artworks, stories, miniGames, cosplays, freedomWallNotes, reconcileSceneObjects]);
+  }, [undoStack, sceneObjects, artworks, stories, miniGames, cosplays, vinyls, freedomWallNotes, reconcileSceneObjects]);
 
   const redo = useCallback(() => {
     if (redoStack.length === 0) return;
     const last = redoStack[redoStack.length - 1];
-    const current: HistorySnapshot = { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, freedomWallNotes };
+    const current: HistorySnapshot = { sceneObjects: sceneObjects ?? [], artworks, stories, miniGames, cosplays, vinyls, freedomWallNotes };
     setRedoStack(redoStack.slice(0, -1));
     setUndoStack((u) => [...u, current]);
     setSceneObjects(last.sceneObjects);
@@ -1783,10 +1867,11 @@ export function MuseumEditorClient({
     setStories(last.stories);
     setMiniGames(last.miniGames);
     setCosplays(last.cosplays);
+    setVinyls(last.vinyls);
     setFreedomWallNotes(last.freedomWallNotes);
     setDirty(true);
     void reconcileSceneObjects(current.sceneObjects, last.sceneObjects);
-  }, [redoStack, sceneObjects, artworks, stories, miniGames, cosplays, freedomWallNotes, reconcileSceneObjects]);
+  }, [redoStack, sceneObjects, artworks, stories, miniGames, cosplays, vinyls, freedomWallNotes, reconcileSceneObjects]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -2391,6 +2476,40 @@ export function MuseumEditorClient({
     setDirty(true);
   }
 
+  // Vinyl sleeves — same model as artworks above (a wall hanging), saved to
+  // /api/digital-museum/room-vinyls/{id}. Membership is mirrored from the
+  // published records (lib/museum/vinylRoom.ts), so there is no remove.
+  function updateSleevePosition(
+    id: string,
+    patch: { positionX: number; positionY: number; positionZ: number; rotationY: number }
+  ) {
+    setVinyls((prev) =>
+      prev.map((entry) =>
+        entry.id === id
+          ? { ...entry, positionX: patch.positionX, positionY: patch.positionY, positionZ: patch.positionZ, rotationY: patch.rotationY }
+          : entry
+      )
+    );
+    setDirty(true);
+  }
+  function setSleeveWall(id: string, wall: WallDefinition, currentPositionY: number) {
+    snapshot();
+    const center = (wall.freeMin + wall.freeMax) / 2;
+    const { x, z } = wallPointAt(wall, center);
+    updateSleevePosition(id, { positionX: x, positionY: currentPositionY, positionZ: z, rotationY: wall.rotationY });
+  }
+  function setSleeveScale(id: string, scale: number) {
+    setVinyls((prev) => prev.map((entry) => (entry.id === id ? { ...entry, scale } : entry)));
+    setDirty(true);
+  }
+  function resetSleevePosition(id: string) {
+    snapshot();
+    setVinyls((prev) =>
+      prev.map((entry) => (entry.id === id ? { ...entry, positionX: null, positionY: null, positionZ: null, rotationY: null } : entry))
+    );
+    setDirty(true);
+  }
+
   // Sticky notes — same "drag updates local state, Save PATCHes it" model
   // as artworks above, just without an auto/custom distinction (a note's
   // position was random from the start, so there's no "auto layout" to
@@ -2651,6 +2770,19 @@ export function MuseumEditorClient({
           }),
         })
       );
+      const sleeveSaves = vinyls.map((entry) =>
+        fetch(`/api/digital-museum/room-vinyls/${entry.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            positionX: entry.positionX,
+            positionY: entry.positionY,
+            positionZ: entry.positionZ,
+            rotationY: entry.rotationY,
+            scale: entry.scale,
+          }),
+        })
+      );
       const noteSaves = freedomWallNotes.map((n) =>
         fetch(`/api/admin/freedom-wall/notes/${n.id}`, {
           method: "PATCH",
@@ -2666,7 +2798,7 @@ export function MuseumEditorClient({
           }),
         })
       );
-      const results = await Promise.all([...sceneSaves, ...artworkSaves, ...podiumSaves, ...minigameSaves, ...standeeSaves, ...noteSaves]);
+      const results = await Promise.all([...sceneSaves, ...artworkSaves, ...podiumSaves, ...minigameSaves, ...standeeSaves, ...sleeveSaves, ...noteSaves]);
       const failed = results.find((res) => !res.ok);
       if (failed) {
         // A 409 means this tab is still holding an object that has since been
@@ -2888,6 +3020,48 @@ export function MuseumEditorClient({
       "Failed to save the Arcade Room settings",
       successMessage
     );
+  }
+
+  /** Patches the Vinyl Room's room-wide settings — the deck (model and
+   *  placement), the default effects and the Lyrics Wall — on its singleton
+   *  config row. Saved immediately, same reasoning as saveArcadeConfig. */
+  function saveVinylConfig(next: Partial<VinylRoomConfig>, successMessage?: string) {
+    if (!vinylConfigObject) return;
+    saveConfigRow(
+      vinylConfigObject.id,
+      serializeVinylConfig({ ...vinylConfig, ...next }),
+      "Failed to save the Vinyl Room settings",
+      successMessage
+    );
+  }
+
+  /** Uploads a .glb and makes it this room's deck — same signed-upload path
+   *  as handleUploadCabinetModel. */
+  async function handleUploadTurntableModel(file: File) {
+    if (!file.name.toLowerCase().endsWith(".glb")) {
+      toast.error("Only .glb files are supported");
+      return;
+    }
+    if (file.size > MAX_MODEL_SIZE) {
+      toast.error("File too large — 100MB max");
+      return;
+    }
+    setUploading(true);
+    try {
+      const signRes = await fetch("/api/upload/model/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name }),
+      });
+      const signData = await signRes.json().catch(() => ({}));
+      if (!signRes.ok) throw new Error(signData.error || "Failed to prepare upload");
+      const modelUrl = await uploadModelViaSignedUrl(file, signData.path, signData.uploadUrl, signData.publicUrl);
+      saveVinylConfig({ turntableModelUrl: modelUrl }, "Turntable model set");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   }
 
   /** Patches the Cosplay Room's room-wide settings — the standee body every
@@ -3296,6 +3470,10 @@ export function MuseumEditorClient({
     selectedCabinetItem ? miniGames.find((e) => e.id === selectedCabinetItem.id) ?? null : null;
   const selectedStandeeItem =
     selection?.type === "standee" ? standeeItems.find((c) => c.id === selection.id) ?? null : null;
+  const selectedSleeveItem =
+    selection?.type === "sleeve" ? sleeveItems.find((c) => c.id === selection.id) ?? null : null;
+  const selectedSleeveWall = selectedSleeveItem ? nearestWall(artworkWalls, selectedSleeveItem) : null;
+  const turntableSelected = selection?.type === "turntable";
   const selectedNote = selection?.type === "note" ? freedomWallNotes.find((n) => n.id === selection.id) ?? null : null;
   // Which wall/segment the selected note is actually pinned to right now —
   // drives the Wall picker's highlighted button, same "resolve, don't guess"
@@ -3583,6 +3761,15 @@ export function MuseumEditorClient({
           cabinetTextureUrl={arcadeConfig.cabinetTextureUrl}
           cabinetScreenHeight={arcadeConfig.screenHeight}
           cabinetScreenDepth={arcadeConfig.screenDepth}
+          sleeveItems={visibleSleeveItems}
+          selectedSleeveId={selection?.type === "sleeve" ? selection.id : null}
+          onSelectSleeve={(id) => setSelection({ type: "sleeve", id })}
+          onChangeSleevePosition={updateSleevePosition}
+          vinylConfig={room.roomType === "VINYL" ? vinylConfig : null}
+          turntablePlacement={room.roomType === "VINYL" ? turntablePlacement : null}
+          turntableSelected={turntableSelected}
+          onSelectTurntable={() => setSelection({ type: "turntable" })}
+          onChangeTurntable={(next) => saveVinylConfig({ turntable: next })}
           standeeItems={visibleStandeeItems}
           selectedStandeeId={selection?.type === "standee" ? selection.id : null}
           onSelectStandee={(id) => setSelection({ type: "standee", id })}
@@ -7507,6 +7694,300 @@ export function MuseumEditorClient({
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) handleUploadStandeeModel(file);
+                e.target.value = "";
+              }}
+            />
+          </EditorPanelCard>
+        )}
+
+        {/* Vinyl Room — a selected sleeve: the same wall picker + height +
+            size card an artwork frame gets. */}
+        {selectedSleeveItem && (
+          <div className="admin-card border rounded-2xl p-4 space-y-4">
+            <div>
+              <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300 mb-1">Record Sleeve</p>
+              <p className="font-jakarta text-sm font-medium text-ink dark:text-cream truncate">{selectedSleeveItem.title}</p>
+            </div>
+            <div>
+              <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300 mb-2">Wall</p>
+              <div className="space-y-1.5">
+                {artworkWallGroups.map((group) => (
+                  <div key={group[0].id === "divider" ? `divider-${group[0].dividerId}` : group[0].id} className="flex gap-1.5">
+                    {group.map((wall) => (
+                      <button
+                        key={`${wall.id}-${wall.dividerId ?? ""}-${wall.face ?? wall.segment ?? "full"}`}
+                        type="button"
+                        onClick={() => setSleeveWall(selectedSleeveItem.id, wall, selectedSleeveItem.positionY)}
+                        className={cn(
+                          "flex-1 px-3 py-2.5 sm:py-2 rounded-xl font-jakarta text-xs font-medium transition-colors border",
+                          selectedSleeveWall && sameWall(selectedSleeveWall, wall)
+                            ? "bg-sepia/10 text-sepia border-sepia/20"
+                            : "text-ink-400 dark:text-ink-300 border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
+                        )}
+                      >
+                        {wallLabel(wall, dividerNames)}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-2">
+                Drag the sleeve in the 3D preview to slide it along the wall, or drag its green arrow to
+                raise/lower it — height: {selectedSleeveItem.positionY.toFixed(2)}m.
+              </p>
+              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1.5">
+                Which records hang here is mirrored from Music → Vinyls — publish or unpublish a record there
+                to add or remove a sleeve.
+              </p>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">Size</label>
+                <span className="font-body text-[11px] text-ink-400 dark:text-ink-300 tabular-nums">{Math.round(selectedSleeveItem.scale * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={SCALE_MIN}
+                max={SCALE_MAX}
+                step={0.05}
+                value={selectedSleeveItem.scale}
+                onPointerDown={snapshot}
+                onChange={(e) => setSleeveScale(selectedSleeveItem.id, Number(e.target.value))}
+                className="w-full touch-none"
+              />
+            </div>
+            <SaveButton dirty={dirty} saving={saving} onSave={handleSave} />
+            {selectedSleeveItem.hasCustomPosition && (
+              <button
+                type="button"
+                onClick={() => resetSleevePosition(selectedSleeveItem.id)}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-black/5 dark:bg-white/5 text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream font-jakarta text-sm font-medium transition-colors"
+              >
+                <RotateCcw size={14} /> Reset to Auto Layout
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Vinyl Room — the deck selected. Its placement is a room setting
+            (the config row), so a drag saves on its own like the other
+            config cards; no Save button here. */}
+        {turntableSelected && room.roomType === "VINYL" && (
+          <>
+            <ModeToolbar mode={mode} onModeChange={setMode} />
+            <div className="admin-card border rounded-2xl p-4 space-y-4">
+              <div>
+                <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300 mb-1">Turntable</p>
+                <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-2">
+                  Drag it anywhere on the floor, or use the <strong>{mode === "rotate" ? "Rotate" : "Move"}</strong> gizmo
+                  above. Position: {turntablePlacement.x.toFixed(2)}, {turntablePlacement.z.toFixed(2)}
+                  {` · facing ${Math.round(((turntablePlacement.rotationY * 180) / Math.PI + 360) % 360)}°`}. Saves as you move it.
+                </p>
+              </div>
+              {vinylConfig.turntable && (
+                <button
+                  type="button"
+                  onClick={() => saveVinylConfig({ turntable: null }, "Turntable back at its default spot")}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-black/5 dark:bg-white/5 text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream font-jakarta text-sm font-medium transition-colors"
+                >
+                  <RotateCcw size={14} /> Reset to Default Spot
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Vinyl Room — the record sleeves list, so a sleeve can be picked
+            without hunting for it in the 3D view. */}
+        {room.roomType === "VINYL" && (
+          <EditorPanelCard
+            title="Record Sleeves"
+            count={sleeveItems.length}
+            open={panels.open.sleeves}
+            onToggle={() => panels.toggle("sleeves")}
+          >
+            {sleeveItems.length === 0 ? (
+              <p className="font-body text-xs text-ink-400 dark:text-ink-300">
+                No records on the wall yet — add and publish one under Music → Vinyls.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {sleeveItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelection({ type: "sleeve", id: item.id })}
+                    className={cn(
+                      "w-full flex items-center gap-2 text-left px-2.5 py-2 rounded-xl border font-body text-xs transition-colors",
+                      selection?.type === "sleeve" && selection.id === item.id
+                        ? "bg-sepia/10 border-sepia/20 text-sepia"
+                        : "border-black/5 dark:border-white/5 text-ink dark:text-cream"
+                    )}
+                  >
+                    <span className="truncate flex-1">{item.title}</span>
+                    {item.hasCustomPosition && <span className="shrink-0 text-[9px] uppercase tracking-wider text-sepia">Custom</span>}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setSelection({ type: "turntable" })}
+                  className={cn(
+                    "w-full flex items-center gap-2 text-left px-2.5 py-2 rounded-xl border font-body text-xs transition-colors",
+                    turntableSelected ? "bg-sepia/10 border-sepia/20 text-sepia" : "border-black/5 dark:border-white/5 text-ink dark:text-cream"
+                  )}
+                >
+                  <span className="truncate flex-1">Turntable</span>
+                </button>
+              </div>
+            )}
+          </EditorPanelCard>
+        )}
+
+        {/* Vinyl Room — the room-wide settings: the deck's model, the default
+            effects a visitor starts from, and the Lyrics Wall. Room settings,
+            not a selection, so this shows whenever the Vinyl scene is open,
+            and each change saves on its own like the Arcade cards. */}
+        {room.roomType === "VINYL" && vinylConfigObject && (
+          <EditorPanelCard
+            title="Turntable & Lyrics Wall"
+            description={vinylConfig.turntableModelUrl ? "Using your uploaded turntable. The record is still drawn on top." : "Using the built-in turntable. Upload a .glb to replace it."}
+            open={panels.open.vinylRoom}
+            onToggle={() => panels.toggle("vinylRoom")}
+          >
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => turntableModelInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-black/5 dark:bg-white/5 text-ink dark:text-cream font-jakarta text-xs font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+              >
+                <Upload size={13} />
+                {uploading ? "Uploading…" : vinylConfig.turntableModelUrl ? "Replace" : "Upload .glb"}
+              </button>
+              {vinylConfig.turntableModelUrl && (
+                <button
+                  type="button"
+                  onClick={() => saveVinylConfig({ turntableModelUrl: null }, "Using the built-in turntable")}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-red-500/80 hover:text-red-500 hover:bg-red-500/10 font-jakarta text-xs font-medium transition-colors"
+                >
+                  <RotateCcw size={13} /> Use built-in
+                </button>
+              )}
+            </div>
+            <p className="font-body text-[11px] text-ink-400 dark:text-ink-300">
+              Model it facing forward with its origin on the floor; the record sits about 0.9m up.
+            </p>
+
+            <div className="pt-3 border-t border-black/5 dark:border-white/5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">Default effects</p>
+                <button
+                  type="button"
+                  onClick={() => saveVinylConfig({ defaultEffects: DEFAULT_VINYL_EFFECTS }, "Default effects reset")}
+                  className="font-body text-[11px] text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream"
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="flex gap-1.5 mb-3">
+                {([33, 45, 78] as const).map((rpm) => (
+                  <button
+                    key={rpm}
+                    type="button"
+                    onClick={() => saveVinylConfig({ defaultEffects: { ...vinylConfig.defaultEffects, speed: rpm } }, `Default speed: ${rpm === 33 ? "33⅓" : rpm} rpm`)}
+                    className={cn(
+                      "flex-1 px-3 py-2 rounded-xl font-jakarta text-xs font-medium transition-colors",
+                      vinylConfig.defaultEffects.speed === rpm
+                        ? "bg-sepia text-white"
+                        : "bg-black/5 dark:bg-white/5 text-ink dark:text-cream hover:bg-black/10 dark:hover:bg-white/10"
+                    )}
+                  >
+                    {rpm === 33 ? "33⅓" : rpm} rpm
+                  </button>
+                ))}
+              </div>
+              {([
+                ["reverb", "Reverb"],
+                ["lofi", "Lo-fi"],
+                ["crackle", "Crackle"],
+                ["delay", "Echo"],
+              ] as const).map(([key, label]) => (
+                <div key={key} className="mb-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">{label}</label>
+                    <span className="font-body text-[11px] text-ink-400 dark:text-ink-300 tabular-nums">{Math.round(vinylConfig.defaultEffects[key] * 100)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={Math.round(vinylConfig.defaultEffects[key] * 100)}
+                    onChange={(e) => saveVinylConfig({ defaultEffects: { ...vinylConfig.defaultEffects, [key]: Number(e.target.value) / 100 } })}
+                    className="w-full touch-none"
+                  />
+                </div>
+              ))}
+              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300">
+                Where a visitor&apos;s sliders start. They can change them on the deck; their choice lasts for the visit.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-black/5 dark:border-white/5 space-y-3">
+              <Toggle
+                label="Lyrics Wall"
+                checked={vinylConfig.lyricsWall.enabled}
+                onChange={(enabled) => saveVinylConfig({ lyricsWall: { ...vinylConfig.lyricsWall, enabled } }, enabled ? "Lyrics Wall on" : "Lyrics Wall off")}
+              />
+              {vinylConfig.lyricsWall.enabled && (
+                <>
+                  <div>
+                    <p className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300 mb-1.5">Wall</p>
+                    <div className="flex gap-1.5">
+                      {(["north", "east", "west"] as const).map((wall) => (
+                        <button
+                          key={wall}
+                          type="button"
+                          onClick={() => saveVinylConfig({ lyricsWall: { ...vinylConfig.lyricsWall, wall } }, `Lyrics Wall on the ${wall} wall`)}
+                          className={cn(
+                            "flex-1 px-3 py-2 rounded-xl font-jakarta text-xs font-medium transition-colors capitalize",
+                            vinylConfig.lyricsWall.wall === wall
+                              ? "bg-sepia text-white"
+                              : "bg-black/5 dark:bg-white/5 text-ink dark:text-cream hover:bg-black/10 dark:hover:bg-white/10"
+                          )}
+                        >
+                          {wall}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <ColorField
+                    label="Text Color"
+                    value={vinylConfig.lyricsWall.textColor}
+                    defaultValue="#f5f1e8"
+                    onChange={(value) => saveVinylConfig({ lyricsWall: { ...vinylConfig.lyricsWall, textColor: value ?? "#f5f1e8" } })}
+                  />
+                  <ColorField
+                    label="Glow Color"
+                    value={vinylConfig.lyricsWall.glowColor}
+                    defaultValue="#c8a96e"
+                    onChange={(value) => saveVinylConfig({ lyricsWall: { ...vinylConfig.lyricsWall, glowColor: value ?? "#c8a96e" } })}
+                  />
+                  <p className="font-body text-[11px] text-ink-400 dark:text-ink-300">
+                    Lines come from each track&apos;s lyrics on the release and are timed by length across the recording —
+                    close, not exact.
+                  </p>
+                </>
+              )}
+            </div>
+
+            <input
+              ref={turntableModelInputRef}
+              type="file"
+              accept=".glb,model/gltf-binary"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUploadTurntableModel(file);
                 e.target.value = "";
               }}
             />

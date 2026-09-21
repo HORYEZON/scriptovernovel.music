@@ -23,8 +23,7 @@ import {
   BookOpen,
   Gamepad2,
   Shirt,
-  Lock,
-} from "lucide-react";
+  Lock, Disc3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdminAccordion } from "@/components/admin/AdminAccordion";
 import toast from "@/lib/toast";
@@ -53,7 +52,7 @@ export type AdminRoomType = Exclude<MuseumRoomType, "ABOUT" | "FREEDOM_WALL" | "
 /** The subset of AdminRoomType an admin can actually pick when creating a
  * room — everything except the provisioned mirror rooms (Services, Stories,
  * Arcade, Cosplay), each of which is its own singleton marker row. */
-export type CreatableRoomType = Exclude<AdminRoomType, "SERVICES" | "STORIES" | "ARCADE" | "COSPLAY">;
+export type CreatableRoomType = Exclude<AdminRoomType, "SERVICES" | "STORIES" | "ARCADE" | "COSPLAY" | "VINYL">;
 
 export interface RoomConfig {
   id: string;
@@ -97,6 +96,17 @@ export interface RoomConfig {
    * from the published Cosplays (lib/museum/cosplayRoom.ts). Read-only here for
    * the same reason `stories` is. */
   cosplays?: RoomCosplayEntry[];
+  /** Only ever non-empty on the Vinyl Room — one entry per record sleeve,
+   * mirrored from the published Vinyls (lib/museum/vinylRoom.ts). Read-only
+   * here for the same reason `stories` is. */
+  vinyls?: RoomVinylEntry[];
+}
+
+/** One sleeve's worth of what RoomsTab needs to show — see RoomConfig.vinyls. */
+export interface RoomVinylEntry {
+  id: string;
+  displayOrder: number;
+  vinyl: { id: string; sideLabel: string | null; release: { id: string; title: string; coverImageUrl: string } };
 }
 
 /** One podium's worth of what RoomsTab needs to show — see RoomConfig.stories. */
@@ -186,6 +196,7 @@ const ROOM_TYPE_LABEL: Record<AdminRoomType, string> = {
   STORIES: "Tales",
   ARCADE: "Arcade",
   COSPLAY: "Cosplay",
+  VINYL: "Vinyl Room",
 };
 
 const ROOM_TYPE_ICON: Record<AdminRoomType, typeof Landmark> = {
@@ -196,13 +207,14 @@ const ROOM_TYPE_ICON: Record<AdminRoomType, typeof Landmark> = {
   STORIES: BookOpen,
   ARCADE: Gamepad2,
   COSPLAY: Shirt,
+  VINYL: Disc3,
 };
 
 /** The provisioned mirror rooms — real corridor rooms an admin can reorder and
  *  restyle, but never create, retype or delete, so the "Fixed Rooms" group is
  *  where they belong even though they live in the same `rooms` list as the
  *  curated ones. */
-const MIRROR_ROOM_TYPES: AdminRoomType[] = ["SERVICES", "STORIES", "ARCADE", "COSPLAY"];
+const MIRROR_ROOM_TYPES: AdminRoomType[] = ["SERVICES", "STORIES", "ARCADE", "COSPLAY", "VINYL"];
 
 /** Freedom Wall + About ScriptOverNovel + Stairs — the three fixed cards written
  *  straight into the Fixed Rooms group rather than coming from `rooms`, and so
@@ -600,11 +612,15 @@ export function RoomsTab({
     // the other three mirror rooms — every action except retyping, picking
     // contents and deleting — mirroring the published Cosplays instead.
     const isCosplay = room.roomType === "COSPLAY";
+    // The provisioned vinyl room (lib/museum/vinylRoom.ts) — mirroring the
+    // published Vinyls, on the same terms as the four above.
+    const isVinyl = room.roomType === "VINYL";
     // Every mirror room: contents are synced, not chosen, so none gets
     // the artwork picker or the Trash button.
-    const isMirrorRoom = isServices || isStories || isArcade || isCosplay;
+    const isMirrorRoom = isServices || isStories || isArcade || isCosplay || isVinyl;
     const storyCount = room.stories?.length ?? 0;
     const cosplayCount = room.cosplays?.length ?? 0;
+    const vinylCount = room.vinyls?.length ?? 0;
     // Standees line the walls, each with a photo panel hung behind it (see
     // standeePlacement.ts), so what runs out here is wall run rather than floor
     // area. Past roughly this many the perimeter starts to feel shoulder-to-
@@ -653,6 +669,11 @@ export function RoomsTab({
                   Fixed · Cosplay
                 </span>
               )}
+              {isVinyl && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] uppercase tracking-wider bg-black/5 dark:bg-white/10 text-ink-400 dark:text-ink-300 border border-black/10 dark:border-white/10">
+                  Fixed · Vinyl
+                </span>
+              )}
               {room.isEntryRoom && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                   <Star size={9} fill="currentColor" />
@@ -685,6 +706,10 @@ export function RoomsTab({
                 // Standees, not wall frames — `artworks` is always empty here.
                 <>
                   {cosplayCount} standee{cosplayCount === 1 ? "" : "s"}
+                </>
+              ) : isVinyl ? (
+                <>
+                  {vinylCount} record{vinylCount === 1 ? "" : "s"}
                 </>
               ) : (
                 <>
@@ -728,6 +753,23 @@ export function RoomsTab({
                 {storyCount > 0 && (
                   <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1.5 truncate">
                     {room.stories?.map((entry) => entry.story.title).join(" · ")}
+                  </p>
+                )}
+              </>
+            )}
+            {isVinyl && (
+              <>
+                <p className="font-body text-xs text-ink-400 dark:text-ink-300 mt-1">
+                  Hangs every <strong>published</strong> record from{" "}
+                  <strong>Music → Vinyls</strong> on the wall — no picking needed. A
+                  visitor takes one, carries it to the turntable and plays it, with the
+                  Lyrics Wall following along. Unpublish or delete a vinyl and its sleeve
+                  leaves the wall. Place the sleeves and the turntable, set the default
+                  effects and the Lyrics Wall in <strong>Edit Scene</strong>.
+                </p>
+                {vinylCount > 0 && (
+                  <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1.5 truncate">
+                    {room.vinyls?.map((entry) => entry.vinyl.release.title).join(" · ")}
                   </p>
                 )}
               </>

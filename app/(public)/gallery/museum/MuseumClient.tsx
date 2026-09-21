@@ -32,6 +32,7 @@ import type { MiniMapFrameState } from "./components/MiniMapTracker";
 import { useMuseumAchievements } from "@/lib/museum/useMuseumAchievements";
 import { playSoundEffect } from "@/lib/sound/engine";
 import { pauseSiteMusicForMuseum, resumeSiteMusicAfterMuseum } from "@/lib/site-music-controller";
+import { registerMuseumMusicControls, unregisterMuseumMusicControls } from "@/lib/museum/museumMusicController";
 import type { RoomTravelRequest } from "./components/roomLayout";
 
 // Three.js must never touch the server bundle — this is the one and only
@@ -144,6 +145,7 @@ export function MuseumClient({
   storiesRoomId = null,
   arcadeRoomId = null,
   cosplayRoomId = null,
+  vinylRoomId = null,
   freedomWallRoomId = null,
   freedomWallNotes: initialFreedomWallNotes = [],
   freedomWallEventTitle = null,
@@ -205,6 +207,8 @@ export function MuseumClient({
   arcadeRoomId?: string | null;
   /** Id of the Cosplay / standee room — null when the room is disabled. */
   cosplayRoomId?: string | null;
+  /** Id of the Vinyl Room — null when the room is disabled. */
+  vinylRoomId?: string | null;
   /** Id of the Freedom Wall room — null when the room is disabled. */
   freedomWallRoomId?: string | null;
   /** Server-fetched initial notes for the active event. */
@@ -216,7 +220,7 @@ export function MuseumClient({
   freedomWallAcceptingNotes?: boolean;
   /**
    * Deep-link slug from the page's ?room= search param ("freedom-wall" |
-   * "about" | "services" | "stories" | "arcade" | "cosplay") — fires a
+   * "about" | "services" | "stories" | "arcade" | "cosplay" | "vinyl") — fires a
    * travelRequest on mount so the visitor lands directly in that room instead
    * of the entry room.
    */
@@ -268,6 +272,27 @@ export function MuseumClient({
 
   const museumAudioRef = useRef<HTMLAudioElement | null>(null);
   const [musicPlaying, setMusicPlaying] = useState(false);
+  // Let the Vinyl Room's deck pause / resume this soundtrack without prop
+  // drilling (lib/museum/museumMusicController.ts).
+  useEffect(() => {
+    const handle = {
+      pause: () => {
+        museumAudioRef.current?.pause();
+        setMusicPlaying(false);
+      },
+      resume: () => {
+        const audio = museumAudioRef.current;
+        if (!audio) return;
+        audio.play().then(() => setMusicPlaying(true)).catch(() => setMusicPlaying(false));
+      },
+      isPlaying: () => {
+        const audio = museumAudioRef.current;
+        return Boolean(audio && !audio.paused);
+      },
+    };
+    registerMuseumMusicControls(handle);
+    return () => unregisterMuseumMusicControls(handle);
+  }, []);
 
   function toggleMuseumMusic() {
     const audio = museumAudioRef.current;
@@ -522,6 +547,7 @@ export function MuseumClient({
       : deepLinkRoom === "stories" ? storiesRoomId
       : deepLinkRoom === "arcade" ? arcadeRoomId
       : deepLinkRoom === "cosplay" ? cosplayRoomId
+      : deepLinkRoom === "vinyl" ? vinylRoomId
       : null);
     if (!target) return;
     const t = setTimeout(() => {

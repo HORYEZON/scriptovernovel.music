@@ -43,6 +43,8 @@ import { ensureCosplayRoom, syncCosplayRoomEntries, ensureCosplayStandeeModel } 
 import { ensureRoomBanner } from "@/lib/museum/roomBannerProvision";
 import { ROOM_BANNER_KIND } from "@/lib/museum/roomBanner";
 import { COSPLAY_STANDEE_MODEL_KIND, parseCosplayStandeeConfig } from "@/lib/museum/cosplayStandee";
+import { ensureVinylConfig, ensureVinylRoom, syncVinylRoomRecords } from "@/lib/museum/vinylRoom";
+import { VINYL_CONFIG_KIND, parseVinylConfig } from "@/lib/museum/vinylConfig";
 import { DIVIDER_KIND } from "@/lib/museum/wallDivider";
 import { BANNER_KIND } from "@/lib/museum/sceneBanner";
 import { parseVisionFilterConfig, resolveVisionFilters } from "@/lib/museum/visionFilters";
@@ -175,7 +177,7 @@ async function getMuseum() {
         // COSPLAY is excluded for the same reason as STORIES/ARCADE — its
         // standee rows are reconciled against the published Cosplays before
         // they're read, and it's merged back in by displayOrder below.
-        where: { enabled: true, deletedAt: null, roomType: { notIn: ["ABOUT", "FREEDOM_WALL", "STAIRS", "SERVICES", "STORIES", "ARCADE", "COSPLAY"] } },
+        where: { enabled: true, deletedAt: null, roomType: { notIn: ["ABOUT", "FREEDOM_WALL", "STAIRS", "SERVICES", "STORIES", "ARCADE", "COSPLAY", "VINYL"] } },
         orderBy: { displayOrder: "asc" },
         select: ROOM_CONTENT_SELECT,
       },
@@ -341,6 +343,37 @@ const ROOM_CONTENT_SELECT = {
       scale: true,
       lightsEnabled: true,
       cosplay: { select: COSPLAY_SELECT },
+    },
+  },
+  // Vinyl sleeves — only ever non-empty on the VINYL room. The record's
+  // release carries the cover, title and tracks (with lyrics for the Lyrics
+  // Wall); the record itself carries the audio file the deck plays.
+  vinyls: {
+    orderBy: { displayOrder: "asc" as const },
+    where: { vinyl: { published: true, deletedAt: null, release: { published: true, deletedAt: null } } },
+    select: {
+      id: true,
+      displayOrder: true,
+      positionX: true,
+      positionY: true,
+      positionZ: true,
+      rotationY: true,
+      scale: true,
+      vinyl: {
+        select: {
+          id: true,
+          audioUrl: true,
+          sideLabel: true,
+          release: {
+            select: {
+              title: true,
+              coverImageUrl: true,
+              slug: true,
+              tracks: { orderBy: { trackNumber: "asc" as const }, select: { title: true, durationSec: true, lyrics: true } },
+            },
+          },
+        },
+      },
     },
   },
 } as const;
@@ -511,6 +544,22 @@ function mapRoomContent(
       lightsEnabled: entry.lightsEnabled,
       cosplay: entry.cosplay,
     })),
+    vinyls: room.vinyls.map((entry) => ({
+      entryId: entry.id,
+      vinylId: entry.vinyl.id,
+      displayOrder: entry.displayOrder,
+      positionX: entry.positionX,
+      positionY: entry.positionY,
+      positionZ: entry.positionZ,
+      rotationY: entry.rotationY,
+      scale: entry.scale,
+      title: entry.vinyl.release.title,
+      coverImageUrl: entry.vinyl.release.coverImageUrl,
+      releaseSlug: entry.vinyl.release.slug,
+      audioUrl: entry.vinyl.audioUrl,
+      sideLabel: entry.vinyl.sideLabel,
+      tracks: entry.vinyl.release.tracks,
+    })),
   };
 }
 
@@ -549,7 +598,7 @@ export default async function DigitalMuseumPage({
   // which fires a travelRequest on mount.
   const resolvedParams = await searchParams;
   const roomParam = typeof resolvedParams?.room === "string" ? resolvedParams.room : null;
-  const deepLinkRoom = (["freedom-wall", "about", "services", "stories", "arcade", "cosplay"] as const).find(
+  const deepLinkRoom = (["freedom-wall", "about", "services", "stories", "arcade", "cosplay", "vinyl"] as const).find(
     (slug) => slug === roomParam
   ) ?? null;
   // ?roomId=<MuseumRoom.id> — the same deep link by id rather than by slug,
@@ -692,6 +741,20 @@ export default async function DigitalMuseumPage({
     cosplayContent?.sceneObjects.find((o) => o.kind === COSPLAY_STANDEE_MODEL_KIND)?.modelUrl
   );
 
+  // ── Vinyl Room ─────────────────────────────────────────────────────────
+  // The records (lib/museum/vinylRoom.ts). Same shape as the Cosplay Room:
+  // an ordinary corridor slot, contents mirrored from Music → Vinyls before
+  // they're read, one config row for the deck and the Lyrics Wall.
+  const vinylRow = await ensureVinylRoom();
+  await ensureVinylConfig(vinylRow.id).catch(() => {});
+  await syncVinylRoomRecords(vinylRow.id).catch(() => {});
+  const vinylContent = vinylRow.enabled
+    ? await prisma.museumRoom.findUnique({ where: { id: vinylRow.id }, select: ROOM_CONTENT_SELECT })
+    : null;
+  const vinylConfig = parseVinylConfig(
+    vinylContent?.sceneObjects.find((o) => o.kind === VINYL_CONFIG_KIND)?.modelUrl
+  );
+
   // ── Respawn room's wall clock ──────────────────────────────────────────
   // The room a visitor spawns into gets the same working clock the About
   // room has (lib/museum/wallClock.ts) — it is the first wall anyone sees.
@@ -714,6 +777,7 @@ export default async function DigitalMuseumPage({
     ...(storiesContent ? [{ displayOrder: storiesContent.displayOrder, room: storiesContent }] : []),
     ...(arcadeContent ? [{ displayOrder: arcadeContent.displayOrder, room: arcadeContent }] : []),
     ...(cosplayContent ? [{ displayOrder: cosplayContent.displayOrder, room: cosplayContent }] : []),
+    ...(vinylContent ? [{ displayOrder: vinylContent.displayOrder, room: vinylContent }] : []),
   ]
     .sort((a, b) => a.displayOrder - b.displayOrder)
     .map((entry) => {
@@ -757,6 +821,9 @@ export default async function DigitalMuseumPage({
               ],
             }
           : base;
+      if (entry.room.roomType === "VINYL") {
+        return { ...mapped, vinylConfig };
+      }
       if (entry.room.roomType === "ARCADE") {
         return {
           ...mapped,
@@ -920,6 +987,7 @@ export default async function DigitalMuseumPage({
           miniGames: [],
           // Standees only ever exist in the Cosplay Room.
           cosplays: [],
+          vinyls: [],
         }),
     // Client-facing identity stays this fixed constant rather than the
     // real row's own cuid — MuseumScene.tsx, useWallFocus.ts,
@@ -1053,7 +1121,7 @@ export default async function DigitalMuseumPage({
   const freedomWallRoom: MuseumRoomPublic = {
     ...(freedomWallRoomContent
       ? mapRoomContent(freedomWallRoomContent)
-      : { floor: 0, customObjects: [], artworkPlacementOverrides: {}, artworks: [], stories: [], miniGames: [], cosplays: [] }),
+      : { floor: 0, customObjects: [], artworkPlacementOverrides: {}, artworks: [], stories: [], miniGames: [], cosplays: [], vinyls: [] }),
     id: freedomWallRow.id,
     name: freedomWallRoomContent?.name ?? "Freedom Wall",
     slug: freedomWallRoomContent?.slug ?? "freedom-wall",
@@ -1115,7 +1183,7 @@ export default async function DigitalMuseumPage({
     stairsRoom = {
       ...(stairsContent
         ? mapRoomContent(stairsContent)
-        : { customObjects: [], artworkPlacementOverrides: {}, artworks: [], stories: [], miniGames: [], cosplays: [] }),
+        : { customObjects: [], artworkPlacementOverrides: {}, artworks: [], stories: [], miniGames: [], cosplays: [], vinyls: [] }),
       id: stairsRow.id,
       name: stairsContent?.name ?? "Stairs",
       slug: stairsContent?.slug ?? "stairs-connector",
@@ -1170,6 +1238,7 @@ export default async function DigitalMuseumPage({
         storiesRoomId={storiesRow.enabled ? storiesRow.id : null}
         arcadeRoomId={arcadeRow.enabled ? arcadeRow.id : null}
         cosplayRoomId={cosplayRow.enabled ? cosplayRow.id : null}
+        vinylRoomId={vinylRow.enabled ? vinylRow.id : null}
         freedomWallRoomId={freedomWallEnabled ? freedomWallRoom.id : null}
         freedomWallNotes={freedomWallEnabled ? freedomWallNotes : []}
         freedomWallEventTitle={freedomWallEventTitle}

@@ -17,9 +17,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 7. [About & Band Members](#7-about--band-members)
 8. [Store (Products)](#8-store-products)
 9. [Mini Games](#9-mini-games)
-10. [Homepage](#10-homepage)
-11. [Glossary — Confusing Terms Explained](#11-glossary--confusing-terms-explained)
-12. [Quick Troubleshooting](#12-quick-troubleshooting)
+10. [Vinyl Room (Digital Museum)](#10-vinyl-room-digital-museum)
+11. [Homepage](#11-homepage)
+12. [Glossary — Confusing Terms Explained](#12-glossary--confusing-terms-explained)
+13. [Quick Troubleshooting](#13-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -209,7 +210,37 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 10. Homepage
+## 10. Vinyl Room (Digital Museum)
+
+**What this is for:** a room in the Digital Museum where your records hang on the wall. A visitor walks up to a sleeve, presses **[E]** (or taps) to take the record, carries it to the turntable, and puts it on. It plays — through effects they can turn (reverb, lo-fi, crackle, echo, 33 / 45 / 78 speed) — while the **Lyrics Wall** shows the song's words line by line.
+
+### 10.1 Adding a record
+
+1. **Music → Vinyls → + New vinyl.**
+2. **Release** — pick the record. Its cover becomes the sleeve, its tracklist and lyrics feed the Lyrics Wall. (Add lyrics under Releases → track → Lyrics.)
+3. **Audio file** — upload the recording (MP3 / WAV / OGG / AAC / M4A, up to 15 MB). The whole release as one file, or one side of it.
+4. **Side label** (optional, e.g. "Side A") and **Published**. **Add vinyl**.
+
+> Published records hang on the wall the next time the room is opened. ↑ ↓ sets the order along the wall; 🗑 moves it to **Trash → Music → Vinyls** (emptying Trash also deletes the audio file).
+
+### 10.2 Turning the room on and laying it out
+
+1. **Digital Museum → Rooms** — the **Vinyl Room** is created for you but starts **off**. Turn it on with its toggle (it can't be deleted).
+2. **Edit Scene** on that room:
+   - Click a **sleeve** to move it along a wall, raise or lower it, pick another wall, or resize it. **Save** when done.
+   - Click the **turntable** to drag it anywhere on the floor (Move) or turn it (Rotate). It saves as you move it.
+   - **Turntable & Lyrics Wall** card: upload your own turntable `.glb`, set the **default effects** a visitor starts from, and switch the **Lyrics Wall** on or off, pick its wall (north / east / west) and its colours.
+
+### 10.3 Good to know
+
+- The museum's own soundtrack pauses while a record plays and comes back when it's taken off.
+- A visitor's effect settings last for their visit; the room's defaults are yours.
+- **Lyrics timing is approximate**: the lyrics have no timestamps, so lines are spread across the recording by length (and across tracks by their durations, when set). Close, not karaoke-exact.
+- **VR**: the room, the wall and the sound work in a headset, but the deck's sliders don't — take the headset off to tweak effects.
+
+---
+
+## 11. Homepage
 
 **What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
 
@@ -225,7 +256,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 11. Glossary — Confusing Terms Explained
+## 12. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -235,7 +266,7 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 12. Quick Troubleshooting
+## 13. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

@@ -95,6 +95,7 @@ const NAV: NavEntry[] = [
     children: [
       { href: "/admin/releases", label: "Releases", icon: Disc3 },
       { href: "/admin/videos", label: "Videos", icon: Clapperboard },
+      { href: "/admin/vinyls", label: "Vinyls", icon: Disc3 },
     ],
   },
   {

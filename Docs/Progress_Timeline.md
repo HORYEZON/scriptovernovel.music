@@ -188,6 +188,38 @@ not a release of its own.
 
 ---
 
+## September 21, 2026 — v0.8
+
+### Admin Side
+
+- **Vinyls** (Music → Vinyls): a record = one release + one uploaded audio
+  file (≤ 15 MB, the museum soundtrack's R2 upload), an optional side label,
+  published switch, ordering, Trash (purge removes the audio). Wired into
+  Global Search, admin search, the sidebar and `/admin/api-docs`
+- **Vinyl Room** in Digital Museum → Rooms: a provisioned mirror room (off
+  by default) that hangs every published vinyl. Its Scene Editor places
+  sleeves like frames (wall picker, height, size), drags the turntable, and
+  has a **Turntable & Lyrics Wall** card — turntable `.glb`, default effects,
+  Lyrics Wall on/off, wall and colours (one `vinyl-room-config` scene object)
+
+### Public Side
+
+- **Vinyl Room**: take a record off the wall ([E] / tap; a held-item card
+  shows what you're carrying), put it on the turntable and it plays through
+  a Web Audio chain — reverb, lo-fi, crackle, echo, 33 / 45 / 78 rpm with
+  fine speed (pitch follows, like a real deck). The deck panel has transport,
+  a seek bar, the tracklist and the current lyric; the museum soundtrack
+  pauses while a record plays. Settings persist for the visit
+- **Lyrics Wall**: a glass panel projecting the playing track's lyrics line
+  by line, timed proportionally across the recording (approximate — lyrics
+  carry no timestamps). Not in VR: the room and sound are, the sliders aren't
+
+### Infra / DB
+
+- `MuseumRoomType.VINYL`, new `VinylRecord` and `MuseumRoomVinyl` tables
+  (migration `20260921090000_vinyl_room`)
+- New API: `/api/vinyls` (+ `[id]`, `reorder`), `/api/digital-museum/room-vinyls/[id]`
+
 ## September 20, 2026 — v0.7
 
 ### Admin Side
