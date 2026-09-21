@@ -11,7 +11,7 @@ import { AnimatePresence, motion } from "framer-motion";
 // ("View Museum Map") rather than duplicating this component.
 export function InteractionPrompt({
   visible,
-  label = "View Artwork",
+  label = "View",
   title,
   isCoarsePointer,
   onActivate,

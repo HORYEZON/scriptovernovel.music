@@ -33,7 +33,7 @@ export function ArtworksTabs({
   }, [searchParams]);
 
   const TABS = [
-    { id: "artworks" as const, label: "Artworks", icon: ImagePlus },
+    { id: "artworks" as const, label: "Pieces", icon: ImagePlus },
     { id: "sections" as const, label: "Sections", icon: FolderOpen },
   ];
 
@@ -42,7 +42,7 @@ export function ArtworksTabs({
       {/* Page Tabs — scrollable on mobile so they never overflow */}
       <div
         role="tablist"
-        aria-label="Artworks view"
+        aria-label="Museum Pieces view"
         className="flex gap-1 p-1 rounded-2xl admin-input border overflow-x-auto no-scrollbar mb-6"
       >
         {TABS.map(({ id, label, icon: Icon }) => (

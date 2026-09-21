@@ -21,8 +21,8 @@ const CATEGORY_META: Record<
   { icon: typeof Footprints; label: string; describe: (threshold: number) => string }
 > = {
   steps: { icon: Footprints, label: "Wanderer", describe: (t) => `Walked ${t.toLocaleString()} steps` },
-  views: { icon: Eye, label: "Art Enthusiast", describe: (t) => `Viewed ${t.toLocaleString()} artworks` },
-  wishlist: { icon: Heart, label: "Collector", describe: (t) => `Wishlisted ${t.toLocaleString()} artworks` },
+  views: { icon: Eye, label: "Art Enthusiast", describe: (t) => `Viewed ${t.toLocaleString()} pieces` },
+  wishlist: { icon: Heart, label: "Collector", describe: (t) => `Wishlisted ${t.toLocaleString()} pieces` },
   time: { icon: Clock, label: "Time Explorer", describe: (t) => `Spent ${t.toLocaleString()} minute${t === 1 ? "" : "s"} exploring` },
 };
 

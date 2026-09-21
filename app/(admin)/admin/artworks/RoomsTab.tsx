@@ -530,7 +530,7 @@ export function RoomsTab({
       toast.success(`"${entry.artwork.title}" added to room`);
       router.refresh();
     } catch {
-      toast.error("Failed to add artwork");
+      toast.error("Failed to add piece");
     } finally {
       setPendingArtworkId(null);
     }
@@ -551,7 +551,7 @@ export function RoomsTab({
       router.refresh();
     } catch {
       if (previous) patchRoom(roomId, { artworks: previous });
-      toast.error("Failed to remove artwork");
+      toast.error("Failed to remove piece");
     } finally {
       setPendingArtworkId(null);
     }
@@ -713,7 +713,7 @@ export function RoomsTab({
                 </>
               ) : (
                 <>
-                  {room.artworks.length} artwork{room.artworks.length === 1 ? "" : "s"}
+                  {room.artworks.length} piece{room.artworks.length === 1 ? "" : "s"}
                 </>
               )}
             </p>
@@ -853,7 +853,7 @@ export function RoomsTab({
                     ? "bg-sepia/10 text-sepia"
                     : "text-ink-400 hover:text-ink dark:hover:text-cream hover:bg-black/5 dark:hover:bg-white/5"
                 )}
-                title="Manage artworks"
+                title="Manage pieces"
               >
                 <Images size={14} />
               </button>
@@ -879,7 +879,7 @@ export function RoomsTab({
             <Link
               href={`/admin/artworks/museum-editor/${room.id}`}
               className="p-1.5 rounded-lg text-ink-400 hover:text-ink dark:hover:text-cream hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-              title="Edit scene (artwork placement)"
+              title="Edit scene (frame placement)"
             >
               <Move3d size={14} />
             </Link>
@@ -1533,8 +1533,8 @@ export function RoomsTab({
               <ul className="font-body text-xs text-ink-500 dark:text-ink-300 space-y-1 list-disc list-inside">
                 <li>The room &quot;{deleteConfirm.name}&quot;</li>
                 <li>
-                  <strong>{deleteConfirm.artworks.length}</strong> artwork
-                  {deleteConfirm.artworks.length !== 1 ? "s" : ""} stay in your library — only their
+                  <strong>{deleteConfirm.artworks.length}</strong> piece
+                  {deleteConfirm.artworks.length !== 1 ? "s" : ""} stay in Museum Pieces — only their
                   placement in this room goes away
                 </li>
               </ul>

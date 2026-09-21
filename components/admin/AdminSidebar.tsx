@@ -105,7 +105,7 @@ const NAV: NavEntry[] = [
     children: [
       // Artworks owns a "Sections" tab now (the old /admin/sections route
       // redirects there); Minigames and Digital Museum are their own routes.
-      { href: "/admin/artworks", label: "Artworks", icon: ImagePlus },
+      { href: "/admin/artworks", label: "Museum Pieces", icon: ImagePlus },
       { href: "/admin/minigames", label: "Minigames", icon: Gamepad2 },
       // Same icon the museum's own favicon uses (lib/favicon.ts's
       // MUSEUM_FAVICON_ICON = "lucide:landmark") so the sidebar and the

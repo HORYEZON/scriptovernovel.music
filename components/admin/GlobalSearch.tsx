@@ -62,7 +62,7 @@ import { cn, formatPrice, ORDER_STATUS_COLORS } from "@/lib/utils";
 import { storyTypeLabel } from "@/lib/stories";
 
 type PageGroupLabel =
-  "Overview" | "Music" | "Artworks" | "Tales" | "Content" | "Shop" | "Site" | "Settings" | "Trash";
+  "Overview" | "Music" | "Museum" | "Tales" | "Content" | "Shop" | "Site" | "Settings" | "Trash";
 type AdminPage = {
   label: string;
   href: string;
@@ -78,7 +78,7 @@ type AdminPage = {
 const PAGE_GROUP_ORDER: PageGroupLabel[] = [
   "Overview",    // Dashboard, Notifications
   "Music",       // Releases (Videos next)
-  "Artworks",    // Artworks + Digital Museum + Mini Games tabs
+  "Museum",      // Museum Pieces + Digital Museum + Mini Games + Freedom Wall
   "Tales",       // Books, novels, comics & manga
   "Content",     // Sections, Announcements, FAQ Chatbox
   "Shop",        // Products, Orders
@@ -134,25 +134,25 @@ const ADMIN_PAGES: AdminPage[] = [
   },
   // ── Artworks (main page + tab-based sub-modules) ──────────────────────────
   {
-    label: "Artworks",
+    label: "Museum Pieces",
     href: "/admin/artworks",
     icon: ImagePlus,
-    keywords: "artworks gallery art pieces upload manage",
-    group: "Artworks",
+    keywords: "museum pieces artworks photos posters press shots cover art upload manage",
+    group: "Museum",
   },
   {
     label: "Mini Games",
     href: "/admin/minigames",
     icon: Gamepad2,
     keywords: "mini games puzzle leaderboard rewards highscore",
-    group: "Artworks",
+    group: "Museum",
   },
   {
     label: "Digital Museum",
     href: "/admin/museum",
     icon: Building2,
     keywords: "digital museum 3d gallery rooms exhibitions walkthrough splash",
-    group: "Artworks",
+    group: "Museum",
   },
   // Has both a dedicated route (sidebar) and a Digital Museum sub-tab; the
   // standalone page is the canonical target here since it deep-links cleanly.
@@ -161,7 +161,7 @@ const ADMIN_PAGES: AdminPage[] = [
     href: "/admin/freedom-wall",
     icon: StickyNote,
     keywords: "freedom wall sticky notes events messages visitors board pin",
-    group: "Artworks",
+    group: "Museum",
   },
   // ── Stories ──────────────────────────────────────────────────────────────
   {
@@ -185,7 +185,7 @@ const ADMIN_PAGES: AdminPage[] = [
     href: "/admin/artworks?tab=sections",
     icon: FolderOpen,
     keywords: "sections collections categories",
-    group: "Artworks",
+    group: "Museum",
   },
   {
     label: "Announcements",
@@ -589,19 +589,16 @@ export function GlobalSearch() {
     if (results.artworks.length > 0) {
       list.push({
         key: "artworks",
-        label: "Artworks",
+        label: "Museum Pieces",
         icon: ImagePlus,
         items: results.artworks.map((a) => ({
           key: a.id,
           title: a.title,
           href: "/admin/artworks",
           image: a.imageUrl,
-          badge:
-            a.status === "SOLD"
-              ? { label: "Sold", className: DRAFT_BADGE }
-              : a.published
-                ? { label: "Published", className: ACTIVE_BADGE }
-                : { label: "Draft", className: INACTIVE_BADGE },
+          badge: a.published
+            ? { label: "Published", className: ACTIVE_BADGE }
+            : { label: "Draft", className: INACTIVE_BADGE },
         })),
       });
     }

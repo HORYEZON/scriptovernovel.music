@@ -1,7 +1,7 @@
 "use client";
 
 const KEYS: { key: string; label: string }[] = [
-  { key: "E", label: "View Artwork" },
+  { key: "E", label: "View / Interact" },
   { key: "M", label: "Open Map" },
   { key: "L", label: "Light / Dark" },
   { key: "H", label: "Hide HUD" },

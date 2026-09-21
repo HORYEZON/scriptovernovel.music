@@ -87,7 +87,7 @@ export function MuseumGridFallback({
 
       {activeRoom.artworks.length === 0 ? (
         <p className="font-body text-sm text-white/50 text-center py-16">
-          No artworks in this room yet.
+          Nothing hung in this room yet.
         </p>
       ) : (
         <Masonry

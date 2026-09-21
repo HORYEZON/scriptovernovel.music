@@ -188,6 +188,23 @@ not a release of its own.
 
 ---
 
+## September 21, 2026 — v0.8.1
+
+### Admin Side
+
+- **Artworks → Museum Pieces**: the inherited art-gallery module is now the
+  museum's picture library (live photos, gig posters, press shots, cover
+  art). Sold / Available, "New Release", price sorting and the "Go to
+  Gallery" link are gone from the admin; **Medium → Kind** with presets
+  that read on the museum plaque. Sidebar, Global Search, Dashboard, Trash
+  and the Rooms picker say "pieces". No schema change — the columns stay
+
+### Public Side
+
+- Museum prompt reads **[E] View** (not "View Artwork"); map and
+  achievements count "pieces"; the piece page drops the Sold / Available
+  line and its "New Release" badge
+
 ## September 21, 2026 — v0.8
 
 ### Admin Side

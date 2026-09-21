@@ -6,7 +6,7 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminGoToMenu } from "@/components/admin/AdminGoToMenu";
 import { ArtworksTabs } from "./ArtworksTabs";
 
-export const metadata: Metadata = { title: "Artworks" };
+export const metadata: Metadata = { title: "Museum Pieces" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminArtworksPage() {
@@ -44,16 +44,19 @@ export default async function AdminArtworksPage() {
   return (
     <div>
       <AdminPageHeader
-        title="Artworks"
+        title="Museum Pieces"
         description={
           <>
             <span className="font-bold tabular-nums">{artworks.length}</span>{" "}
-            work{artworks.length !== 1 ? "s" : ""} in collection
+            piece{artworks.length !== 1 ? "s" : ""} — live photos, gig posters, press shots and cover art to hang in the Digital Museum&apos;s rooms
           </>
         }
         action={
           <AdminGoToMenu
-            links={[{ label: "Go to Gallery Page", href: "/gallery" }]}
+            links={[
+              { label: "Digital Museum", href: "/gallery/museum" },
+              { label: "Museum Rooms (admin)", href: "/admin/museum?museumTab=rooms" },
+            ]}
             icon={<Palette size={16} />}
           />
         }
