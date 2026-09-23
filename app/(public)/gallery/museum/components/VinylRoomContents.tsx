@@ -182,8 +182,7 @@ export function VinylRoomContents({
         <LyricsWall
           wall={config.lyricsWall.wall}
           depth={depth}
-          textColor={config.lyricsWall.textColor}
-          glowColor={config.lyricsWall.glowColor}
+          style={config.lyricsWall}
           currentLine={lyrics.currentLine}
           previousLine={lyrics.previousLine}
           nextLine={lyrics.nextLine}

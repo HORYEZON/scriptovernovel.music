@@ -256,9 +256,34 @@ The preview card **stays on screen** while you scroll the controls under it, so 
 2. **Edit Scene** on that room:
    - Click a **sleeve** to move it along a wall, raise or lower it, pick another wall, or resize it. **Save** when done.
    - Click the **turntable** to drag it anywhere on the floor (Move) or turn it (Rotate). It saves as you move it.
-   - **Turntable & Lyrics Wall** card: upload your own turntable `.glb`, set the **default effects** a visitor starts from, and switch the **Lyrics Wall** on or off, pick its wall (north / east / west) and its colours.
+   - **Turntable & Lyrics Wall** card: upload your own turntable `.glb`, set the **default effects** a visitor starts from, and switch the **Lyrics Wall** on or off, pick its wall (north / east / west) and style it — see below.
 
-### 11.3 Good to know
+### 11.3 Styling the Lyrics Wall
+
+With the wall switched on, the same card carries every control the museum's other plaques have. Nothing here changes the words — only how the screen they sit on looks.
+
+**Type**
+
+- **Font** — any of the museum's faces. Applies to every line on the wall.
+- **Text Size** — 50–200%. The wall already fits a long lyric to the panel on its own; this scales that result, so turning it up makes the words bigger without pushing them off the edges.
+- **Text Color** — the lyric lines.
+- **Glow Color** — the lit trim, the halo around the words and the track caption. It brightens on its own with the deck's reverb and lo-fi while a record plays.
+
+**Panel**
+
+- **Panel Color** / **Edge Color** / **Edge Width** — the screen and its raised border. Zero width is no border at all.
+- **Panel Texture** — upload an image stretched across the whole wall (a screen surface, a paper grain, a projection scrim). The Panel colour still tints it, so **set Panel Color to white to show the image exactly as uploaded**.
+- **Brightness** — 0–200%. Lifts the wall out of a dim room. The lyrics are left alone, so this changes how the wall sits rather than washing out the words.
+
+**Glassmorphism**
+
+- **Glassmorphism** — a frosted translucent screen instead of a solid painted one. This is the look the wall ships with.
+- **Glass Opacity** — how solid the glass reads (only while Glassmorphism is on).
+- **Shimmer** — a band of light travelling across the glass, with its own **Speed** and **Strength**. Glass only; every shimmering panel in the museum sweeps in step.
+
+> 💡 A room you have never styled looks exactly as it always did — the defaults are the wall's original near-black glass with its gold trim.
+
+### 11.4 Good to know
 
 - The museum's own soundtrack pauses while a record plays and comes back when it's taken off.
 - A visitor's effect settings last for their visit; the room's defaults are yours.

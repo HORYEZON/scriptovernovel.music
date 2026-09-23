@@ -1,6 +1,7 @@
 // types/index.ts
 
 import type { AboutBlockOffsets } from "@/lib/museum/aboutRoomBlocks";
+import type { VinylRoomConfig } from "@/lib/museum/vinylConfig";
 import type { StoryType } from "@/lib/stories";
 import type { PublicGame } from "@/lib/minigames/types";
 
@@ -272,12 +273,15 @@ export interface MuseumVinylSleeve {
   tracks: { title: string; durationSec: number | null; lyrics: string | null }[];
 }
 
-export interface VinylRoomConfigPublic {
-  turntableModelUrl: string | null;
-  turntable: { x: number; z: number; rotationY: number } | null;
-  defaultEffects: { reverb: number; lofi: number; crackle: number; delay: number; speed: 33 | 45 | 78; fine: number };
-  lyricsWall: { enabled: boolean; wall: "north" | "east" | "west"; textColor: string; glowColor: string };
-}
+/**
+ * The room config as it reaches the browser. This was a hand-copied structural
+ * twin of VinylRoomConfig, which drifted the moment the Lyrics Wall grew its
+ * panel controls — the public type still described four fields while the parser
+ * produced sixteen. It is an alias now: the payload *is* the parsed config
+ * (museum/page.tsx hands parseVinylConfig's output straight over), and
+ * vinylConfig.ts is client-safe, so there is nothing to keep apart.
+ */
+export type VinylRoomConfigPublic = VinylRoomConfig;
 
 // Public payload for one room — see app/(public)/gallery/museum/page.tsx.
 // Each room carries its own already-filtered (published, non-deleted)

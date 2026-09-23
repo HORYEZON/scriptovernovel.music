@@ -188,6 +188,41 @@ not a release of its own.
 
 ---
 
+## September 23, 2026 — v0.10
+
+### Admin Side
+
+- **Scene Editor → Vinyl Room → Turntable & Lyrics Wall**: the Lyrics Wall is
+  styleable. It had two colour pickers; it now carries the full plaque
+  treatment every other panel in the museum already had —
+  - **Type**: font (any museum face), text size 50–200%, lyric colour, glow
+    colour. Size is a multiplier on the wall's own fit-to-panel result, so
+    turning it up enlarges the words without pushing a long line off the edges
+  - **Panel**: panel and edge colours, edge width, an uploaded **panel
+    texture** stretched across the wall (the panel colour tints it — white
+    shows the image as uploaded), and brightness 0–200%
+  - **Glassmorphism**: frosted-translucent mode with its own opacity, plus a
+    **shimmer** sweep and its speed/strength, in step with every other
+    shimmering panel in the museum
+- A room that has never been styled is unchanged: the defaults restate the
+  wall's original near-black glass, gold trim and DM Sans
+
+### Public Side
+
+- Nothing moves on its own — the wall looks exactly as it did until a room is
+  actually styled
+
+### Infra / DB
+
+- No migration. `lyricsWall` grew from four keys to sixteen inside the Vinyl
+  Room's existing `vinyl-room-config` scene object; unknown/missing keys fall
+  back to the shipped look, so old rows read correctly
+- `LyricsWallConfig` extends `BannerFinish` (`lib/museum/roomBanner.ts`) and
+  the wall is drawn by `BannerPanel.tsx`, so there is still exactly one frosted
+  panel implementation in the codebase
+- `VinylRoomConfigPublic` in `types/index.ts` was a hand-copied structural twin
+  of `VinylRoomConfig` and had already drifted — it is an alias now
+
 ## September 23, 2026 — v0.9
 
 ### Admin Side
