@@ -73,6 +73,7 @@ import {
   parseVinylConfig,
   serializeVinylConfig,
   type VinylRoomConfig,
+  type LyricsWallConfig,
 } from "@/lib/museum/vinylConfig";
 import {
   ARCADE_CONFIG_KIND,
@@ -3033,6 +3034,15 @@ export function MuseumEditorClient({
       "Failed to save the Vinyl Room settings",
       successMessage
     );
+  }
+
+  /** Patches the Lyrics Wall alone. Its own helper because every one of the
+   *  wall's ~16 controls would otherwise spell out the same
+   *  `{ lyricsWall: { ...vinylConfig.lyricsWall, … } }` spread, and a single
+   *  one of them written as `{ lyricsWall: { … } }` by mistake would wipe the
+   *  rest of the wall's settings on that save. */
+  function saveLyricsWall(next: Partial<LyricsWallConfig>, successMessage?: string) {
+    saveVinylConfig({ lyricsWall: { ...vinylConfig.lyricsWall, ...next } }, successMessage);
   }
 
   /** Uploads a .glb and makes it this room's deck — same signed-upload path
@@ -7960,19 +7970,273 @@ export function MuseumEditorClient({
                       ))}
                     </div>
                   </div>
-                  <ColorField
-                    label="Text Color"
-                    value={vinylConfig.lyricsWall.textColor}
-                    defaultValue="#f5f1e8"
-                    onChange={(value) => saveVinylConfig({ lyricsWall: { ...vinylConfig.lyricsWall, textColor: value ?? "#f5f1e8" } })}
-                  />
-                  <ColorField
-                    label="Glow Color"
-                    value={vinylConfig.lyricsWall.glowColor}
-                    defaultValue="#c8a96e"
-                    onChange={(value) => saveVinylConfig({ lyricsWall: { ...vinylConfig.lyricsWall, glowColor: value ?? "#c8a96e" } })}
-                  />
-                  <p className="font-body text-[11px] text-ink-400 dark:text-ink-300">
+                  {/* ── Type ──────────────────────────────────────────── */}
+                  <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                        Font
+                      </label>
+                      <select
+                        value={vinylConfig.lyricsWall.fontFamily}
+                        onChange={(e) => {
+                          snapshot();
+                          saveLyricsWall({ fontFamily: e.target.value }, "Lyrics font updated");
+                        }}
+                        className="admin-input border rounded-xl px-2 py-1.5 font-body text-xs text-ink dark:text-cream"
+                      >
+                        {Object.entries(PLAQUE_FONT_OPTIONS).map(([name, path]) => (
+                          <option key={path} value={path}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                          Text Size
+                        </label>
+                        <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                          {Math.round(vinylConfig.lyricsWall.fontScale * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={MIN_BANNER_FONT_SCALE}
+                        max={MAX_BANNER_FONT_SCALE}
+                        step={0.05}
+                        value={vinylConfig.lyricsWall.fontScale}
+                        onPointerDown={snapshot}
+                        onChange={(e) => saveLyricsWall({ fontScale: Number(e.target.value) })}
+                        {...sliderCommit("Lyrics text size updated")}
+                        className="w-full touch-none"
+                      />
+                      <p className="font-body text-[10px] text-ink-400 dark:text-ink-300 mt-0.5">
+                        A multiplier on the size the wall works out for itself — a long lyric is
+                        still fitted to the panel first, so this scales the wall rather than
+                        pushing words off it.
+                      </p>
+                    </div>
+                    <ColorField
+                      label="Text Color"
+                      value={vinylConfig.lyricsWall.textColor}
+                      defaultValue="#f5f1e8"
+                      onChange={(value) => saveLyricsWall({ textColor: value ?? "#f5f1e8" })}
+                    />
+                    <ColorField
+                      label="Glow Color"
+                      value={vinylConfig.lyricsWall.glowColor}
+                      defaultValue="#c8a96e"
+                      onChange={(value) => saveLyricsWall({ glowColor: value ?? "#c8a96e" })}
+                    />
+                    <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+                      Glow is the lit trim, the halo on the words and the track caption — it
+                      brightens with the deck&apos;s reverb and lo-fi while a record plays.
+                    </p>
+                  </div>
+
+                  {/* ── Panel ─────────────────────────────────────────── */}
+                  <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 space-y-2">
+                    <ColorField
+                      label="Panel Color"
+                      value={vinylConfig.lyricsWall.panelColor}
+                      defaultValue="#08080a"
+                      onChange={(value) => saveLyricsWall({ panelColor: value ?? "#08080a" })}
+                    />
+                    <ColorField
+                      label="Edge Color"
+                      value={vinylConfig.lyricsWall.edgeColor}
+                      defaultValue="#c8a96e"
+                      onChange={(value) => saveLyricsWall({ edgeColor: value ?? "#c8a96e" })}
+                    />
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                          Edge Width
+                        </label>
+                        <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                          {vinylConfig.lyricsWall.edgeThickness === 0
+                            ? "None"
+                            : `${Math.round(vinylConfig.lyricsWall.edgeThickness * 100)}cm`}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={MIN_BANNER_EDGE}
+                        max={MAX_BANNER_EDGE}
+                        step={0.005}
+                        value={vinylConfig.lyricsWall.edgeThickness}
+                        onPointerDown={snapshot}
+                        onChange={(e) => saveLyricsWall({ edgeThickness: Number(e.target.value) })}
+                        {...sliderCommit("Edge width updated")}
+                        className="w-full touch-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ── Surface ───────────────────────────────────────── */}
+                  <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 space-y-2">
+                    <TextureField
+                      label="Panel Texture"
+                      value={vinylConfig.lyricsWall.textureUrl}
+                      onChange={(url) =>
+                        saveLyricsWall(
+                          { textureUrl: url },
+                          url ? "Panel Texture updated" : "Panel Texture removed"
+                        )
+                      }
+                    />
+                    <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+                      Stretched across the whole wall — a screen surface, a paper grain, a
+                      projection scrim. The Panel colour above still tints it, so set that to
+                      white to show the image as uploaded.
+                    </p>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                          Brightness
+                        </label>
+                        <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                          {Math.round(vinylConfig.lyricsWall.brightness * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={MIN_BANNER_BRIGHTNESS}
+                        max={MAX_BANNER_BRIGHTNESS}
+                        step={0.05}
+                        value={vinylConfig.lyricsWall.brightness}
+                        onPointerDown={snapshot}
+                        onChange={(e) => saveLyricsWall({ brightness: Number(e.target.value) })}
+                        {...sliderCommit("Brightness updated")}
+                        className="w-full touch-none"
+                      />
+                      <p className="font-body text-[10px] text-ink-400 dark:text-ink-300 mt-0.5">
+                        Lifts the panel out of a dim room. The lyrics are left alone, so this
+                        changes how the wall sits rather than washing out its contrast.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* ── Glassmorphism ─────────────────────────────────── */}
+                  <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 space-y-2">
+                    <label className="flex items-center justify-between gap-2 cursor-pointer">
+                      <span className="font-jakarta text-xs font-medium text-ink dark:text-cream">
+                        Glassmorphism
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={vinylConfig.lyricsWall.glassEnabled}
+                        onChange={(e) => {
+                          snapshot();
+                          saveLyricsWall(
+                            { glassEnabled: e.target.checked },
+                            e.target.checked ? "Glass panel on" : "Glass panel off"
+                          );
+                        }}
+                        className="accent-emerald-500 w-4 h-4"
+                      />
+                    </label>
+                    <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+                      A frosted translucent screen instead of a solid painted one — the wall&apos;s
+                      own look, and what the shimmer below rides on.
+                    </p>
+                    {vinylConfig.lyricsWall.glassEnabled && (
+                      <>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                              Glass Opacity
+                            </label>
+                            <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                              {Math.round(vinylConfig.lyricsWall.glassOpacity * 100)}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={MIN_BANNER_GLASS_OPACITY}
+                            max={MAX_BANNER_GLASS_OPACITY}
+                            step={0.01}
+                            value={vinylConfig.lyricsWall.glassOpacity}
+                            onPointerDown={snapshot}
+                            onChange={(e) => saveLyricsWall({ glassOpacity: Number(e.target.value) })}
+                            {...sliderCommit("Glass opacity updated")}
+                            className="w-full touch-none"
+                          />
+                        </div>
+
+                        <label className="flex items-center justify-between gap-2 cursor-pointer pt-1">
+                          <span className="font-jakarta text-xs font-medium text-ink dark:text-cream">
+                            Shimmer
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={vinylConfig.lyricsWall.shimmerEnabled}
+                            onChange={(e) => {
+                              snapshot();
+                              saveLyricsWall(
+                                { shimmerEnabled: e.target.checked },
+                                e.target.checked ? "Shimmer on" : "Shimmer off"
+                              );
+                            }}
+                            className="accent-emerald-500 w-4 h-4"
+                          />
+                        </label>
+                        <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+                          A band of light travelling across the glass, in step with every other
+                          shimmering panel in the museum.
+                        </p>
+                        {vinylConfig.lyricsWall.shimmerEnabled && (
+                          <>
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                                  Shimmer Speed
+                                </label>
+                                <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                                  {vinylConfig.lyricsWall.shimmerSpeed.toFixed(2)}/s
+                                </span>
+                              </div>
+                              <input
+                                type="range"
+                                min={MIN_BANNER_SHIMMER_SPEED}
+                                max={MAX_BANNER_SHIMMER_SPEED}
+                                step={0.05}
+                                value={vinylConfig.lyricsWall.shimmerSpeed}
+                                onPointerDown={snapshot}
+                                onChange={(e) => saveLyricsWall({ shimmerSpeed: Number(e.target.value) })}
+                                {...sliderCommit("Shimmer speed updated")}
+                                className="w-full touch-none"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                                  Shimmer Strength
+                                </label>
+                                <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                                  {Math.round(vinylConfig.lyricsWall.shimmerStrength * 100)}%
+                                </span>
+                              </div>
+                              <input
+                                type="range"
+                                min={MIN_BANNER_SHIMMER_STRENGTH}
+                                max={MAX_BANNER_SHIMMER_STRENGTH}
+                                step={0.05}
+                                value={vinylConfig.lyricsWall.shimmerStrength}
+                                onPointerDown={snapshot}
+                                onChange={(e) => saveLyricsWall({ shimmerStrength: Number(e.target.value) })}
+                                {...sliderCommit("Shimmer strength updated")}
+                                className="w-full touch-none"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <p className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 font-body text-[11px] text-ink-400 dark:text-ink-300">
                     Lines come from each track&apos;s lyrics on the release and are timed by length across the recording —
                     close, not exact.
                   </p>

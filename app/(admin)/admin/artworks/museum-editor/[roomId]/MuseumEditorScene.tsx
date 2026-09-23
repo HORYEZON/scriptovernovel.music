@@ -1792,8 +1792,7 @@ export function MuseumEditorScene({
         <LyricsWall
           wall={vinylConfig.lyricsWall.wall}
           depth={depth}
-          textColor={vinylConfig.lyricsWall.textColor}
-          glowColor={vinylConfig.lyricsWall.glowColor}
+          style={vinylConfig.lyricsWall}
           currentLine={null}
           glow={0.3}
         />
