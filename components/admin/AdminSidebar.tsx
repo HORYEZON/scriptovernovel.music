@@ -181,6 +181,10 @@ export function AdminSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [colorIndex, setColorIndex] = useState(0);
+  // Whether the collapsed brand icon is under the pointer. The colour cycle
+  // used to be the icon's only colour; now it only overrides the drifting
+  // brand glow while a mouse is actually on it.
+  const [hovered, setHovered] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const hoverColors =
     sidebarIconColors && sidebarIconColors.length > 0
@@ -408,13 +412,13 @@ export function AdminSidebar({
           <Menu size={20} />
         </button>
         <span className="group/logo font-badaboom font-light inline-flex items-center justify-center w-full text-lg tracking-[0.02em] uppercase text-ink dark:text-cream">
-          <span className="transition-colors duration-200 hover:text-[#FFE135]">
+          <span className="transition-colors duration-200 hover:text-[#E5AD06]">
             Ka
           </span>
-          <span className="transition-colors duration-200 hover:text-[#44D700]">
+          <span className="transition-colors duration-200 hover:text-[#B8B8B8]">
             la
           </span>
-          <span className="transition-colors duration-200 hover:text-[#FF6B9D]">
+          <span className="transition-colors duration-200 hover:text-[#FAF8F3]">
             m
           </span>
           {/* Squid stands in for the second "A" — kerned tight against the
@@ -450,7 +454,7 @@ export function AdminSidebar({
               />
             )}
           </span>
-          <span className="transition-colors duration-200 hover:text-[#5BC8F5]">
+          <span className="transition-colors duration-200 hover:text-[#B8B8B8]">
             ri
           </span>
         </span>
@@ -534,36 +538,43 @@ export function AdminSidebar({
             )}
           >
             {collapsed ? (
-              sidebarIconParsed ? (
-                <DynamicIcon
-                  platform={sidebarIconParsed.platform}
-                  name={sidebarIconParsed.name}
-                  className="w-7 h-7 transition-colors duration-200 cursor-pointer shrink-0"
-                  style={{ color: hoverColors[colorIndex] }}
-                  onMouseEnter={() =>
-                    setColorIndex((i) => (i + 1) % hoverColors.length)
-                  }
+              // Collapsed, the icon is the only brand left on screen, so it
+              // gets the drifting glow either way. It used to be split: a
+              // custom icon sat on a hover-driven colour step (dead on touch,
+              // and the collapsed rail is mostly what you get on a narrow
+              // screen) while only the fallback squid animated. Same wrapper
+              // for both now — the hover step stays on top of it, so a mouse
+              // still advances the colour on a custom icon.
+              <span className="relative inline-flex items-center justify-center motion-safe:animate-squid-drift">
+                <span
+                  aria-hidden="true"
+                  style={{
+                    backgroundColor:
+                      "color-mix(in srgb, var(--squid-glow) 35%, transparent)",
+                  }}
+                  className="pointer-events-none absolute inset-0 scale-150 rounded-full opacity-70 blur-xl"
                 />
-              ) : (
-                // No custom sidebarIcon set — fall back to the squid, animated
-                // the same way as FooterWordmark.tsx / MaintenancePage.tsx
-                // (auto-cycling CSS animation) instead of the hover-driven
-                // colour cycle above, since hover never fires on mobile touch.
-                <span className="relative inline-flex items-center justify-center motion-safe:animate-squid-drift">
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      backgroundColor:
-                        "color-mix(in srgb, var(--squid-glow) 35%, transparent)",
+                {sidebarIconParsed ? (
+                  <DynamicIcon
+                    platform={sidebarIconParsed.platform}
+                    name={sidebarIconParsed.name}
+                    className="relative w-7 h-7 transition-colors duration-200 cursor-pointer shrink-0 motion-safe:animate-squid-glow"
+                    // Hovered: the admin's own cycle takes over. Untouched:
+                    // the drifting brand colour, same as the fallback.
+                    style={{ color: hovered ? hoverColors[colorIndex] : "var(--squid-glow)" }}
+                    onMouseEnter={() => {
+                      setHovered(true);
+                      setColorIndex((i) => (i + 1) % hoverColors.length);
                     }}
-                    className="pointer-events-none absolute inset-0 scale-150 rounded-full opacity-70 blur-xl"
+                    onMouseLeave={() => setHovered(false)}
                   />
+                ) : (
                   <SquidIcon
                     style={{ color: "var(--squid-glow)" }}
                     className="relative w-7 h-7 shrink-0 motion-safe:animate-squid-glow"
                   />
-                </span>
-              )
+                )}
+              </span>
             ) : (
               // Centred as a column: the logo (or the wordmark), the caption
               // under it and the theme toggle under that all share one axis.

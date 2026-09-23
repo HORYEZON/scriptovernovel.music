@@ -114,29 +114,31 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(0) rotate(0deg)" },
           "50%": { transform: "translateY(-1.5px) rotate(-3deg)" },
         },
-        // Yellow -> green -> blue -> pink, the four hex values the Footer
-        // wordmark already uses for its per-letter hovers. 4s per colour;
-        // 0% and 100% must match or the loop seams.
+        // The band logo's own three colours — gold, silver-grey, white — in
+        // place of the art site's yellow/green/blue/pink, which belonged to a
+        // squid and not to a record sleeve. Four stops rather than three so
+        // the loop still seams (0% and 100% must match) and gold, the logo's
+        // dominant colour, gets both ends of the cycle.
         squidCycle: {
-          "0%, 100%": { "--squid-glow": "#FFE135" },
-          "25%": { "--squid-glow": "#44D700" },
-          "50%": { "--squid-glow": "#5BC8F5" },
-          "75%": { "--squid-glow": "#FF6B9D" },
+          "0%, 100%": { "--squid-glow": "#E5AD06" },
+          "33%": { "--squid-glow": "#B8B8B8" },
+          "66%": { "--squid-glow": "#FAF8F3" },
         },
         splashShimmer: {
           "0%, 100%": { opacity: "0.5", transform: "scale(0.9)" },
           "50%": { opacity: "1", transform: "scale(1.08)" },
         },
-        // Glow tints itself from --squid-glow so callers that cycle the squid's
-        // colour can drive the halo too; falls back to brand cyan when unset.
+        // Glow tints itself from --squid-glow so callers that cycle the seal's
+        // colour can drive the halo too; falls back to the logo's gold when
+        // unset.
         squidGlow: {
           "0%, 100%": {
             filter:
-              "drop-shadow(0 0 1px color-mix(in srgb, var(--squid-glow, #5BC8F5) 35%, transparent))",
+              "drop-shadow(0 0 1px color-mix(in srgb, var(--squid-glow, #E5AD06) 35%, transparent))",
           },
           "50%": {
             filter:
-              "drop-shadow(0 0 4px color-mix(in srgb, var(--squid-glow, #5BC8F5) 70%, transparent)) drop-shadow(0 0 9px color-mix(in srgb, var(--squid-glow, #5BC8F5) 30%, transparent))",
+              "drop-shadow(0 0 4px color-mix(in srgb, var(--squid-glow, #E5AD06) 70%, transparent)) drop-shadow(0 0 9px color-mix(in srgb, var(--squid-glow, #E5AD06) 30%, transparent))",
           },
         },
       },
