@@ -188,6 +188,39 @@ not a release of its own.
 
 ---
 
+## September 23, 2026 — v0.9
+
+### Admin Side
+
+- **Site Design → Menu**: the live preview is **sticky** — it stays on screen
+  while you work the controls under it, instead of scrolling away the moment
+  you recolour a link or upload its photo. On a wide desktop the controls and
+  the preview sit side by side
+- Two new preview controls on that card: **Play loop** (keeps cycling close →
+  open so an effect can be judged without pressing a button between takes)
+  and **Backdrop brightness** — a 0–100% slider for the stand-in page the
+  menu opens over, so a pale panel or underline can be checked against a
+  light page. Preview only, never saved
+- **Videos**: the YouTube thumbnail in the New / Edit video modal is centred
+  under the link field instead of hugging the left edge
+
+### Public Side
+
+- **Site Design → Homepage Hero is a takeover now.** Switched on, it wins the
+  homepage outright — a hand-designed splash for a launch or an announcement.
+  Switched off (the default), the homepage keeps resolving itself: the
+  featured release, else the band hero. It used to sit *below* the release,
+  which made it unreachable on any site that had published one — exactly when
+  you'd reach for it
+- The header goes **fully transparent over every homepage hero**, not just the
+  custom one, so a full-bleed hero runs under it uninterrupted. Over a photo
+  hero the header's type switches to cream, since the admin's near-black
+  default would have disappeared into the dark wash
+- The band hero (shown when nothing is published yet) leads with the **About →
+  Headline** and the first line of the bio. The band's name is gone from it —
+  the header wordmark is already on screen, and the same words twice on one
+  screen read as a mistake
+
 ## September 21, 2026 — v0.8.1
 
 ### Admin Side

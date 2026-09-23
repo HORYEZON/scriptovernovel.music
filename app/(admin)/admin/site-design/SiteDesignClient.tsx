@@ -9,7 +9,7 @@
 // half-finished recolour is never live.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
-import { Moon, Play, RotateCcw, Save, Search, Sun } from "lucide-react";
+import { Moon, Play, Repeat, RotateCcw, Save, Search, Square, Sun } from "lucide-react";
 import toast from "@/lib/toast";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { UnsavedChangesBar } from "@/components/admin/UnsavedChangesBar";
@@ -271,6 +271,26 @@ export function SiteDesignClient({
   }, [playMenuOpen, settings.menuCloseSpeedMs]);
   useEffect(() => () => { if (replayTimer.current) clearTimeout(replayTimer.current); }, []);
 
+  // "Play loop": keeps cycling close → open so an effect can be judged
+  // without reaching for the button between every take. playMenuClose already
+  // re-opens once the close has finished, so one cycle is close + open + the
+  // 400ms it waits between them, plus a beat to read the open panel.
+  const LOOP_HOLD_MS = 900;
+  const [menuLoop, setMenuLoop] = useState(false);
+  useEffect(() => {
+    if (!menuLoop || activeTab !== "menu") return;
+    const cycle = settings.menuCloseSpeedMs + 400 + settings.menuOpenSpeedMs + LOOP_HOLD_MS;
+    playMenuClose();
+    const id = setInterval(playMenuClose, cycle);
+    return () => clearInterval(id);
+  }, [menuLoop, activeTab, settings.menuCloseSpeedMs, settings.menuOpenSpeedMs, playMenuClose]);
+
+  // Stand-in for the page the menu opens over. The public overlay sits on the
+  // live site, which is usually light; the preview frame is ink, so a pale
+  // panel or a light underline reads wrong here and nowhere else. Preview
+  // only — never saved.
+  const [menuPreviewBrightness, setMenuPreviewBrightness] = useState(8);
+
   const firstMenuRender = useRef(true);
   useEffect(() => {
     if (firstMenuRender.current) {
@@ -435,11 +455,16 @@ export function SiteDesignClient({
 
       {/* ══ MENU ════════════════════════════════════════════════════════════ */}
       {activeTab === "menu" && (
-        <div className="space-y-5">
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,40%)]">
+          {/* Sticky: the frame stays on screen while the controls scroll under
+              it. Recolouring a link or uploading its photo used to mean
+              scrolling back up to find out what it did. First in the DOM so it
+              is on top on a phone; `order` moves it beside the controls at xl. */}
+          <div className="sticky top-2 z-20 md:top-4 xl:order-2">
           <div className="admin-card rounded-2xl border p-4 shadow-sm backdrop-blur-md sm:p-6">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <SectionTitle>Live preview — hover a link to see its colour, photo and underline</SectionTitle>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={playMenuOpen}
@@ -456,10 +481,29 @@ export function SiteDesignClient({
                   <Play size={12} />
                   Play close
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setMenuLoop((v) => !v)}
+                  aria-pressed={menuLoop}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-body text-xs transition-colors",
+                    menuLoop
+                      ? "border-sepia bg-sepia/10 text-sepia"
+                      : "border-black/10 text-ink-500 hover:border-sepia hover:text-ink dark:border-white/10 dark:text-ink-300 dark:hover:text-cream"
+                  )}
+                >
+                  {menuLoop ? <Square size={12} /> : <Repeat size={12} />}
+                  {menuLoop ? "Stop loop" : "Play loop"}
+                </button>
                 {restoreButton("menu")}
               </div>
             </div>
-            <ScaledPreview width={1440} height={900}>
+            <ScaledPreview
+              width={1440}
+              height={900}
+              maxHeight={420}
+              background={`hsl(0 0% ${menuPreviewBrightness}%)`}
+            >
               <MenuOpenTransition
                 openEffect={settings.menuOpenEffect}
                 openSpeedMs={settings.menuOpenSpeedMs}
@@ -472,8 +516,35 @@ export function SiteDesignClient({
                 <MenuPanel settings={settings} items={menuItems} socialLinks={socialLinks} preview revealed={menuPreviewLanded} sheetShown={menuPreviewShown} closing={menuPreviewClosing} />
               </MenuOpenTransition>
             </ScaledPreview>
+
+            <div className="mt-3">
+              <label
+                htmlFor="menu-preview-brightness"
+                className="mb-2 block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300"
+              >
+                Backdrop brightness (preview only) —{" "}
+                <span className="font-mono normal-case tracking-normal text-ink dark:text-cream">
+                  {menuPreviewBrightness}%
+                </span>
+              </label>
+              <input
+                id="menu-preview-brightness"
+                type="range"
+                min={0}
+                max={100}
+                value={menuPreviewBrightness}
+                onChange={(e) => setMenuPreviewBrightness(Number(e.target.value))}
+                className="w-full cursor-pointer accent-sepia"
+              />
+              <p className="mt-1.5 font-body text-[11px] text-ink-400 dark:text-ink-300">
+                The stand-in page the menu opens over — slide it to white to check a pale
+                panel or underline against a light page. Nothing here is saved.
+              </p>
+            </div>
+          </div>
           </div>
 
+          <div className="space-y-5 xl:order-1">
           <SettingsAccordion
             title="Open & close animation"
             description="How the menu enters when MENU is pressed and how it leaves when × is pressed — each its own effect and speed."
@@ -776,6 +847,7 @@ export function SiteDesignClient({
             </p>
             <ToggleRow label="Social icons" description="Your links from Profile → About → Social Links." value={settings.menuShowSocialLinks} onChange={(v) => set("menuShowSocialLinks", v)} words={{ on: "shown", off: "hidden" }} />
           </SettingsAccordion>
+          </div>
         </div>
       )}
 

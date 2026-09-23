@@ -232,7 +232,7 @@ export function VideosClient({ initialVideos, releases }: { initialVideos: Video
                 </p>
                 {parsed?.thumbnailUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={parsed.thumbnailUrl} alt="" className="mt-3 aspect-video w-full max-w-sm rounded-xl object-cover" />
+                  <img src={parsed.thumbnailUrl} alt="" className="mx-auto mt-3 aspect-video w-full max-w-sm rounded-xl object-cover" />
                 )}
               </div>
               <TextField label="Title" value={form.title} onChange={(v) => set("title", v)} maxLength={MAX_VIDEO_TITLE} placeholder="Song title — Official video" />
