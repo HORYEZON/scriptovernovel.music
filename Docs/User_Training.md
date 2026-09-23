@@ -55,6 +55,8 @@ _(Add one numbered entry per module as it ships — sub-sections go in parenthes
 
 > 💡 The header wordmark (Site Design → Header → Wordmark) is also what the footer and the entrance splash show now — one place to change the band's name or logo.
 
+> **The footer is always lettered.** It spells the **Wordmark text** out — *script (◎)ver novel*, with your footer icon standing in for the O — and ignores the uploaded logo image on purpose. Uploading a logo used to replace the footer wordmark with the picture, which erased the only place on the site the band's name was actually written. Change the words under Site Design → Header → Wordmark; the icon is Preferences → Branding → Footer Icon.
+
 ### 2.3 Wordmark text size
 
 **Site Design → Header → Wordmark → Fallback size** is a slider (1–4rem; the readout also shows pixels). It sizes the text wordmark shown when no logo image is uploaded. Phones automatically cap it so it can't crowd the MENU button.

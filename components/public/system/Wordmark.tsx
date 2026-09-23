@@ -24,6 +24,7 @@ export function Wordmark({
   image,
   icon,
   iconPlacement = "left",
+  iconSplit = "O",
   /** Fixed colour for the icon; default is the drifting brand cycle. */
   iconColor,
   className,
@@ -33,7 +34,16 @@ export function Wordmark({
   fontFamily?: string;
   image?: string | null;
   icon?: string | null;
-  iconPlacement?: "left" | "above" | "none";
+  /**
+   * Where the seal sits. "inline" sets it *into* the word in place of
+   * `iconSplit` — SCRIPT (O)VER NOVEL — the way the sidebar's squid stands in
+   * for KALAMARI's second A. Falls back to "left" when the letter isn't in
+   * the text, so renaming the band can't leave the lockup with no icon.
+   */
+  iconPlacement?: "left" | "above" | "inline" | "none";
+  /** The letter "inline" replaces, matched case-insensitively on its first
+   *  occurrence. Only read when iconPlacement is "inline". */
+  iconSplit?: string;
   iconColor?: string;
   /** Sizes everything — the icon is 1em of the text. Default text-4xl. */
   className?: string;
@@ -42,10 +52,23 @@ export function Wordmark({
   const parsedIcon = parseIconValue(icon);
   const iconCls = "relative h-[1em] w-[1em] shrink-0 transition-transform duration-300 motion-safe:animate-squid-glow group-hover/logo:scale-110";
   const iconStyle = { color: "var(--squid-glow)" } as CSSProperties;
+
+  // Where the seal lands in the word, for "inline". -1 (and an empty split
+  // letter) means it can't be set into the text, so the lockup keeps the
+  // seal on the left rather than dropping it.
+  const splitAt = iconPlacement === "inline" && iconSplit
+    ? text.toLowerCase().indexOf(iconSplit.toLowerCase())
+    : -1;
+  const inline = splitAt >= 0;
+
   const seal = iconPlacement !== "none" && (
     <span
       className={cn(
         "relative inline-flex items-center justify-center",
+        // Kerned tight against its neighbours when it is standing in for a
+        // letter, so it reads as part of the word instead of a gap with a
+        // picture in it.
+        inline && "-mx-[0.04em] align-baseline",
         iconColor ? "motion-safe:animate-squid-bob" : "motion-safe:animate-squid-drift"
       )}
       style={iconColor ? ({ "--squid-glow": iconColor } as CSSProperties) : undefined}
@@ -68,6 +91,36 @@ export function Wordmark({
       )}
     </span>
   );
+
+  // Set into the word: the two halves of the text either side of the seal,
+  // with no flex gap — the kerning above is what spaces it. An uploaded logo
+  // image is deliberately ignored here; an image and a lettered lockup are two
+  // answers to the same question, and a caller asking for the seal *inside*
+  // the word has already picked the letters.
+  if (inline) {
+    const before = text.slice(0, splitAt);
+    const after = text.slice(splitAt + iconSplit.length);
+    return (
+      <span
+        className={cn(
+          "group/logo inline-flex items-center leading-none text-cream",
+          className ?? "text-4xl"
+        )}
+        // The seal is a picture standing in for a letter, so the accessible
+        // name has to put that letter back or the band's name is misspelled
+        // to a screen reader.
+        aria-label={text}
+      >
+        <span aria-hidden="true" className={cn("whitespace-nowrap", textClassName)} style={{ fontFamily }}>
+          {before}
+        </span>
+        {seal}
+        <span aria-hidden="true" className={cn("whitespace-nowrap", textClassName)} style={{ fontFamily }}>
+          {after}
+        </span>
+      </span>
+    );
+  }
 
   return (
     <span

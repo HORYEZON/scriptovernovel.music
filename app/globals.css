@@ -47,7 +47,7 @@ img {
 @property --squid-glow {
   syntax: "<color>";
   inherits: true;
-  initial-value: #5bc8f5;
+  initial-value: #e5ad06;
 }
 
 /* Cursor glow trail (components/public/CursorGlow.tsx). An 8s colour cycle
@@ -79,16 +79,16 @@ img {
      are the factory default so this still works before that renders. */
   0%,
   100% {
-    --squid-glow: var(--cursor-glow-1, #ffe135);
+    --squid-glow: var(--cursor-glow-1, #e5ad06);
   }
   25% {
-    --squid-glow: var(--cursor-glow-2, #44d700);
+    --squid-glow: var(--cursor-glow-2, #b8b8b8);
   }
   50% {
-    --squid-glow: var(--cursor-glow-3, #5bc8f5);
+    --squid-glow: var(--cursor-glow-3, #faf8f3);
   }
   75% {
-    --squid-glow: var(--cursor-glow-4, #ff6b9d);
+    --squid-glow: var(--cursor-glow-4, #b8b8b8);
   }
 }
 

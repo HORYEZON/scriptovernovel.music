@@ -29,11 +29,17 @@ export function Footer({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           {/* Brand */}
           <div>
+            {/* Lettered on purpose, and `image` is deliberately not passed:
+                the header already shows the uploaded logo, and when one was
+                set here it *replaced* the name — the footer was the only place
+                the band was spelled out, so uploading a logo silently deleted
+                it. The icon stands in for the O of "Over" instead, the same
+                trick the admin sidebar plays with KALAMARI's second A. */}
             <Wordmark
               text={wordmark.headerLogoText}
               fontFamily={wordmark.headerLogoFontFamily}
-              image={wordmark.headerLogoImage}
               icon={footerIcon}
+              iconPlacement="inline"
               className="text-4xl"
             />
             {/* "Ambience" is the unmarked door to the admin — same trick as

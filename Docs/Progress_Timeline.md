@@ -188,6 +188,39 @@ not a release of its own.
 
 ---
 
+## September 23, 2026 — v0.11
+
+### Admin Side
+
+- The **collapsed sidebar's** brand icon drifts and glows like the expanded
+  one. A custom icon used to sit on a hover-driven colour step instead, which
+  never fires on touch — and the collapsed rail is most of what a narrow
+  screen shows. Hovering with a mouse still steps the colour
+- The sidebar wordmark's per-letter hover colours follow the new palette
+
+### Public Side
+
+- **The footer spells the band out again.** Uploading a logo used to replace
+  the footer wordmark with the image, and the footer was the only place the
+  name was written — so the upload silently deleted it. The footer is lettered
+  now: **script (◎)ver novel**, with the icon standing in for the O. The
+  uploaded logo stays in the header, where it was always the point
+- **New glow colours** — the logo's own gold, silver-grey and white, replacing
+  the inherited yellow / green / blue / pink. Applies to the footer seal, the
+  entrance splash, the admin sidebar icon and the cursor trail's fallback
+  (a cursor palette set under Theme → Cursor Effects still wins)
+
+### Infra / DB
+
+- No migration. `Wordmark` grew an `iconPlacement="inline"` mode that sets the
+  seal into the text in place of a letter (`iconSplit`, default "O"), falling
+  back to the left-hand seal when that letter isn't in the name, so renaming
+  the band can't leave the lockup iconless. `aria-label` restores the letter
+  for screen readers
+- The palette lives in `squidCycle` (tailwind.config.ts) and
+  `cursorGlowCycle` (globals.css); the admin-wide `DEFAULT_HOVER_COLORS` is
+  untouched — it is the icon/social/skill palette, not the wordmark's
+
 ## September 23, 2026 — v0.10
 
 ### Admin Side
