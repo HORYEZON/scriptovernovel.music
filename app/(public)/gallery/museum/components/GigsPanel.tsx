@@ -72,6 +72,11 @@ export function GigsPanel({
         <div className={cn("overflow-y-auto flex-1 min-h-0", landscape ? "p-3" : "p-4 sm:p-5")}>
           <EventsMap
             events={gigs}
+            // The panel is a rotated container and the modal is meant to stay
+            // inside it — portalling to <body> (which is what the public
+            // /about map needs, see EventModal's `portalled`) would drop it
+            // flat over the museum instead.
+            portalModal={false}
             // The panel is only as tall as the phone is wide in landscape;
             // the default 300px map plus the header is already more than
             // that, and `md:` would read the pre-rotation width (the phone's

@@ -14,7 +14,8 @@
 // L.divIcon rendering our own SVG/CSS instead of Leaflet's default marker
 // image, so the pulsing "Next Event" treatment is just CSS, not a second
 // icon asset to ship.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { X, Calendar, MapPin as MapPinIcon, Star, Film, ImageIcon } from "lucide-react";
 import Image from "@/components/ui/SafeImage";
@@ -58,16 +59,41 @@ function formatEventDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
-function EventModal({ event, onClose }: { event: PublicEvent; onClose: () => void }) {
+function EventModal({
+  event,
+  onClose,
+  portalled,
+}: {
+  event: PublicEvent;
+  onClose: () => void;
+  /**
+   * Render into <body> instead of in place.
+   *
+   * `position: fixed` is relative to the nearest ancestor carrying a
+   * transform, filter or `contain` — not to the viewport. On /about this
+   * modal sits inside a <Reveal>, whose fade-up *is* a transform, so a pin
+   * clicked before that animation settles gets a modal measured against the
+   * section's box rather than the screen: it opens with its header — and its
+   * close button — above the top of the window, with no way to shut it.
+   * Reveal drops its transform after ~1.3s, which is why this was
+   * intermittent rather than constant.
+   *
+   * Off for the museum's Gigs panel, which is deliberately inside a rotated
+   * container and wants the modal to stay in it.
+   */
+  portalled: boolean;
+}) {
   // Full-image lightbox on click — same pattern as the admin's
   // TrashClient.tsx (setPreviewImage), adapted for the public site's dark
   // theme. Video tiles already have their own native controls/fullscreen,
   // so only IMAGE media opens this.
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   useLockBodyScroll(true);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const dateLabel = formatEventDate(event.eventDate);
 
-  return (
+  const modal = (
     <div
       // Leaflet's own panes/controls use z-index up to 1000 (see its
       // default CSS) — this modal has to clear that or the map behind it
@@ -201,13 +227,22 @@ function EventModal({ event, onClose }: { event: PublicEvent; onClose: () => voi
       )}
     </div>
   );
+
+  // Portals can't render during SSR, so the first paint stays in place and
+  // the modal moves to <body> on mount. It is only ever opened by a click,
+  // which is necessarily after mount.
+  return portalled && mounted ? createPortal(modal, document.body) : modal;
 }
 
 export function EventsMap({
   events,
   heightClass = "h-[300px] md:h-[500px]",
+  portalModal = true,
 }: {
   events: PublicEvent[];
+  /** See EventModal's `portalled`. The museum's Gigs panel turns this off
+   *  because its rotated container is meant to contain the modal. */
+  portalModal?: boolean;
   /** Height of the (non-fullscreen) map box. Overridable because the museum's
    * Timeline & Gigs panel hosts this inside a modal on a forced-landscape
    * phone, where the whole panel is only as tall as the phone is wide — and
@@ -281,7 +316,7 @@ export function EventsMap({
         />
       </div>
 
-      {selected && <EventModal event={selected} onClose={() => setSelected(null)} />}
+      {selected && <EventModal event={selected} onClose={() => setSelected(null)} portalled={portalModal} />}
     </div>
   );
 }
