@@ -20,8 +20,9 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 10. [Museum Pieces (Digital Museum)](#10-museum-pieces-digital-museum)
 11. [Vinyl Room (Digital Museum)](#11-vinyl-room-digital-museum)
 12. [Homepage](#12-homepage)
-13. [Glossary — Confusing Terms Explained](#13-glossary--confusing-terms-explained)
-14. [Quick Troubleshooting](#14-quick-troubleshooting)
+13. [Picking dates anywhere in the admin](#13-picking-dates-anywhere-in-the-admin)
+14. [Glossary — Confusing Terms Explained](#14-glossary--confusing-terms-explained)
+15. [Quick Troubleshooting](#15-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -312,7 +313,26 @@ With the wall switched on, the same card carries every control the museum's othe
 
 ---
 
-## 13. Glossary — Confusing Terms Explained
+## 13. Picking dates anywhere in the admin
+
+**What this is for:** every date field in the admin — Releases, Events, About, Announcements, Marquee Banners, Release Notes — is the same control, and it's the same calendar that sits behind the sidebar clock.
+
+**Two ways in, use whichever is faster:**
+
+- **Type it.** The field is a normal text box. `Sep 23, 2026`, `September 23, 2026`, `9/23/2026` and `2026-09-23` all work — press **Enter** or click away and it's set. Get it wrong and the field tells you and *keeps the date it already had*, so a typo never empties it.
+- **Pick it.** Click the 📅 icon for the calendar. **Today** is outlined in gold, your chosen day is filled in gold.
+
+**Inside the calendar:**
+
+- **Jump to any month or year** with the two dropdowns at the top. A 1998 release date is one click away — it used to mean clicking ‹ a few hundred times.
+- The ‹ › arrows still step one month at a time, and **Today** at the bottom jumps straight back.
+- Fields that need a **time** as well show a small **Time** box. Picking a day keeps whatever time is already set.
+- **✕ clears** any field that's allowed to be empty.
+- Click outside, or press **Esc**, to close it — **Esc closes only the calendar**, not the form behind it.
+
+---
+
+## 14. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -322,7 +342,7 @@ With the wall switched on, the same card carries every control the museum's othe
 
 ---
 
-## 14. Quick Troubleshooting
+## 15. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

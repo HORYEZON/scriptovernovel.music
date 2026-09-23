@@ -188,6 +188,33 @@ not a release of its own.
 
 ---
 
+## September 23, 2026 — v0.12
+
+### Admin Side
+
+- **Every date field takes a typed date.** The control was a button, so the
+  calendar was the only way in — fine for "next Tuesday", tedious for a date
+  you already know. It is a real text box now: `Sep 23, 2026`,
+  `September 23, 2026`, `9/23/2026` and `2026-09-23` all parse, on Enter or
+  on blur. A date that can't be read leaves the old value alone and says so,
+  rather than clearing the field on a typo
+- **The calendar jumps to any month or year** — two dropdowns where its
+  header used to be a label. A 1998 release date meant clicking ‹ over three
+  hundred times; it is one click now. The arrows still step a month at a
+  time, and **Today** still jumps back
+- Reaches every date in the admin at once — Releases, Events, About,
+  Announcements, Marquees, Release Notes and the sidebar clock's own calendar
+  all draw the same panel
+
+### Infra / DB
+
+- No migration and no API change — the stored value is still `YYYY-MM-DD` /
+  `YYYY-MM-DDTHH:mm`. Typed text is parsed ISO-first on purpose:
+  `new Date("2026-09-23")` is UTC midnight, which lands a day early in Manila,
+  while every other accepted spelling parses as local
+- `components/admin/AdminDatePicker.tsx` and `CalendarPanel.tsx` are kept
+  byte-identical with kalamari.arts's copies
+
 ## September 23, 2026 — v0.11
 
 ### Admin Side
