@@ -63,6 +63,33 @@ function formatTrigger(d: Date, withTime: boolean) {
   });
 }
 
+/**
+ * What someone typed -> a Date, or null if it isn't one.
+ *
+ * The field used to be a button, so the only way in was the calendar — fine
+ * for "next Tuesday", tedious for a date you already know. Typing is now the
+ * fast path, which means accepting the forms a keyboard actually produces
+ * rather than one canonical spelling.
+ *
+ * The ISO regex has to run first: `new Date("2026-09-23")` is parsed as UTC
+ * midnight, so east of Greenwich it lands on the 22nd. Every other form
+ * (`9/23/2026`, `Sep 23 2026`, `September 23, 2026 7:30 PM`) is parsed by the
+ * browser as local time, which is what we want — so the fallback is safe
+ * precisely because the ISO case never reaches it.
+ */
+function parseTyped(text: string): { date: Date; hasTime: boolean } | null {
+  const s = text.trim();
+  if (!s) return null;
+  const iso = parseValue(s);
+  if (iso) return { date: iso, hasTime: /[T ]\d{1,2}:\d{2}/.test(s) };
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  // A bare date parses to local midnight; treat a literal clock in the text as
+  // the only evidence of an intended time, so "Sep 23" doesn't silently mean
+  // 00:00 on a datetime field.
+  return { date: d, hasTime: /\d{1,2}:\d{2}/.test(s) };
+}
+
 export function AdminDatePicker({
   id,
   value,
@@ -91,9 +118,15 @@ export function AdminDatePicker({
   const reactId = useId();
   const fieldId = id ?? reactId;
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  // What is being typed, or null when the field is just showing its value.
+  // Held separately so a half-finished "Sep 2" isn't parsed on every keystroke
+  // and thrown away as unparseable.
+  const [draft, setDraft] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState(false);
 
   const selected = parseValue(value);
   // Time is kept on the value, not in state — so a caller resetting the form
@@ -161,7 +194,38 @@ export function AdminDatePicker({
     };
   }, [open]);
 
+  /** Take what was typed, if anything, and either apply it or put the field
+   *  back the way it was. Called on blur and on Enter. */
+  function commitTyped() {
+    if (draft === null) return;
+    const text = draft.trim();
+    setDraft(null);
+    if (!text) {
+      setInvalid(false);
+      // Clearing by emptying the box is the obvious gesture, but not every
+      // field may legally be empty — a required bound keeps its old value.
+      if (clearable) onChange("");
+      return;
+    }
+    const parsed = parseTyped(text);
+    if (!parsed) {
+      // Left as it was rather than cleared: a typo should cost a retype, not
+      // the date that was already in the field.
+      setInvalid(true);
+      return;
+    }
+    setInvalid(false);
+    if (!withTime) {
+      onChange(toDatePart(parsed.date));
+      return;
+    }
+    const base = parsed.hasTime ? parsed.date : (selected ?? new Date());
+    onChange(`${toDatePart(parsed.date)}T${pad(base.getHours())}:${pad(base.getMinutes())}`);
+  }
+
   function commitDate(date: Date) {
+    setDraft(null);
+    setInvalid(false);
     if (!withTime) {
       onChange(toDatePart(date));
       setOpen(false);
@@ -187,33 +251,62 @@ export function AdminDatePicker({
   return (
     <>
       <div className="relative">
-        <button
-          id={fieldId}
+        {/* A real text box, not the button this used to be. The calendar is
+            still one click away on the icon, but a date you already know is
+            now faster to type than to navigate to. The wrapper carries the
+            field styling so the icon, the input and the clear button read as
+            one control. */}
+        <div
           ref={triggerRef}
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-label={ariaLabel}
-          className={`w-full flex items-center gap-2 rounded-xl admin-input border text-left transition-colors focus:outline-none ${
-            open ? "border-sepia" : "focus:border-sepia"
+          className={`w-full flex items-center gap-2 rounded-xl admin-input border transition-colors ${
+            invalid ? "border-red-500/60" : open ? "border-sepia" : "focus-within:border-sepia"
           } ${clearable && selected ? "pr-9" : "pr-3"} ${className}`}
         >
-          <CalendarDays size={14} className="shrink-0 text-ink-400" />
-          <span
-            className={`min-w-0 flex-1 truncate ${
-              selected ? "text-ink dark:text-cream" : "text-ink-400 dark:text-ink-300"
-            }`}
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label={open ? "Close calendar" : "Open calendar"}
+            className="shrink-0 -my-1 -ml-1 p-1 rounded-md text-ink-400 hover:text-sepia hover:bg-sepia/10 transition-colors"
           >
-            {selected
-              ? formatTrigger(selected, withTime)
-              : (placeholder ?? (withTime ? "Pick a date & time" : "Pick a date"))}
-          </span>
-        </button>
+            <CalendarDays size={14} />
+          </button>
+          <input
+            id={fieldId}
+            ref={inputRef}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            aria-label={ariaLabel}
+            value={draft ?? (selected ? formatTrigger(selected, withTime) : "")}
+            placeholder={placeholder ?? (withTime ? "Sep 23, 2026, 7:30 PM" : "Sep 23, 2026")}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (invalid) setInvalid(false);
+            }}
+            onBlur={commitTyped}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitTyped();
+                setOpen(false);
+              } else if (e.key === "ArrowDown" && !open) {
+                e.preventDefault();
+                setOpen(true);
+              }
+            }}
+            className={`min-w-0 flex-1 bg-transparent border-0 p-0 focus:outline-none focus:ring-0 placeholder:text-ink-400 dark:placeholder:text-ink-300 ${
+              selected || draft !== null ? "text-ink dark:text-cream" : "text-ink-400 dark:text-ink-300"
+            }`}
+          />
+        </div>
         {clearable && selected && (
           <button
             type="button"
             onClick={() => {
+              setDraft(null);
+              setInvalid(false);
               onChange("");
               setOpen(false);
             }}
@@ -222,6 +315,11 @@ export function AdminDatePicker({
           >
             <X size={13} />
           </button>
+        )}
+        {invalid && (
+          <p role="alert" className="mt-1 font-body text-[11px] text-red-500">
+            Not a date we could read — try {withTime ? "Sep 23, 2026, 7:30 PM" : "Sep 23, 2026"} or 2026-09-23.
+          </p>
         )}
         {/* The value the browser validates and a submit reads, mirrored out of
             the button above. `required` on a <button> means nothing, so a

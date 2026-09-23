@@ -28,6 +28,14 @@ const MONTH_LABELS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+// How far the year menu reaches either side of today. Back far enough for a
+// band member's birth year or a back-catalogue release date, forward far
+// enough to schedule against. The viewed year is folded in on top of this, so
+// a stored date outside the window is still selectable rather than being
+// silently missing from its own menu.
+const YEARS_BACK = 100;
+const YEARS_FORWARD = 20;
+
 export function isSameDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -86,25 +94,61 @@ export function CalendarPanel({
     setViewDate(new Date(year, month + delta, 1));
   }
 
+  // The month and year are pickable rather than only pageable. The arrows were
+  // the only way across the calendar, so any date more than a few months off
+  // — a 1998 release, a gig next spring — meant clicking ◀ or ▶ dozens of
+  // times. `min`/`max` fold the viewed year in so a stored date outside the
+  // window still appears in its own menu.
+  const firstYear = Math.min(today.getFullYear() - YEARS_BACK, year);
+  const lastYear = Math.max(today.getFullYear() + YEARS_FORWARD, year);
+  const years: number[] = [];
+  for (let y = lastYear; y >= firstYear; y--) years.push(y);
+
+  const jumpClass =
+    'appearance-none cursor-pointer rounded-lg bg-transparent px-1.5 py-1 font-jakarta text-sm font-semibold text-ink dark:text-cream tracking-tight hover:bg-sepia/10 focus:outline-none focus:ring-1 focus:ring-sepia transition-colors';
+
   return (
     <>
       {/* Month header + nav */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between gap-1 mb-3">
         <button
           type="button"
           onClick={() => goToMonth(-1)}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-ink-400 dark:text-ink-300 hover:bg-sepia/10 hover:text-sepia transition-colors"
+          className="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-ink-400 dark:text-ink-300 hover:bg-sepia/10 hover:text-sepia transition-colors"
           aria-label="Previous month"
         >
           <ChevronLeft size={16} strokeWidth={2} />
         </button>
-        <p className="font-jakarta text-sm font-semibold text-ink dark:text-cream tracking-tight">
-          {MONTH_LABELS[month]} {year}
-        </p>
+        <div className="flex min-w-0 items-center justify-center gap-0.5">
+          <select
+            value={month}
+            onChange={(e) => setViewDate(new Date(year, Number(e.target.value), 1))}
+            aria-label="Month"
+            className={jumpClass}
+          >
+            {MONTH_LABELS.map((label, i) => (
+              <option key={label} value={i}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={year}
+            onChange={(e) => setViewDate(new Date(Number(e.target.value), month, 1))}
+            aria-label="Year"
+            className={jumpClass}
+          >
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="button"
           onClick={() => goToMonth(1)}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-ink-400 dark:text-ink-300 hover:bg-sepia/10 hover:text-sepia transition-colors"
+          className="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-ink-400 dark:text-ink-300 hover:bg-sepia/10 hover:text-sepia transition-colors"
           aria-label="Next month"
         >
           <ChevronRight size={16} strokeWidth={2} />
