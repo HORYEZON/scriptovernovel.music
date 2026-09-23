@@ -188,6 +188,29 @@ not a release of its own.
 
 ---
 
+## September 23, 2026 — v0.13.1
+
+### Admin Side
+
+- **Fixed: the Vinyl Room called itself a Cosplay room.** Its Room Type field
+  read "Cosplay — fixed" with a t-shirt icon, directly under a badge correctly
+  saying FIXED · VINYL. The field was an if-chain over the fixed room types
+  ending in a bare Cosplay fallback, and the Vinyl Room had been added to the
+  list without a branch of its own. It reads from the same label/icon maps the
+  rest of the tab uses now, which are exhaustive over the room types — so the
+  next one added fails to compile rather than inheriting a wrong name
+
+### Public Side
+
+- **Fixed: a show's details could open where you couldn't close them.** On
+  About → Shows, clicking a pin soon after the section faded in put the modal's
+  header — and its ✕ — above the top of the window. `position: fixed` measures
+  against the nearest transformed ancestor rather than the screen, and the
+  section's own fade-up is a transform; it settles after about a second, which
+  is why this came and went. The modal is rendered into the page body now, so
+  it can't be caught by it. The museum's Gigs panel keeps the old behaviour on
+  purpose — its map is inside a rotated container that is meant to contain it
+
 ## September 23, 2026 — v0.13
 
 ### Admin Side

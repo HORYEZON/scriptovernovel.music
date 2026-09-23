@@ -923,16 +923,23 @@ export function RoomsTab({
                   Room Type
                 </label>
                 {isMirrorRoom ? (
-                  <div className="admin-input w-full px-3 py-2 rounded-xl text-sm opacity-60 flex items-center gap-2">
-                    {isServices ? <ShoppingBag size={14} /> : isStories ? <BookOpen size={14} /> : isArcade ? <Gamepad2 size={14} /> : <Shirt size={14} />}
-                    {isServices
-                      ? "Services — fixed"
-                      : isStories
-                        ? "Tales — fixed"
-                        : isArcade
-                          ? "Arcade — fixed"
-                          : "Cosplay — fixed"}
-                  </div>
+                  // Read from the same two maps the rest of this file uses,
+                  // rather than the if-chain this was. That chain ended in a
+                  // bare `: "Cosplay — fixed"`, so the Vinyl Room — added to
+                  // MIRROR_ROOM_TYPES without a branch of its own — announced
+                  // itself as a Cosplay room, with a t-shirt icon, directly
+                  // under a badge correctly reading FIXED · VINYL. The maps are
+                  // Record<AdminRoomType, …>, so the next room type added
+                  // fails to compile instead of quietly inheriting a label.
+                  (() => {
+                    const Icon = ROOM_TYPE_ICON[room.roomType] ?? ImageIcon;
+                    return (
+                      <div className="admin-input w-full px-3 py-2 rounded-xl text-sm opacity-60 flex items-center gap-2">
+                        <Icon size={14} />
+                        {ROOM_TYPE_LABEL[room.roomType] ?? "Gallery"} — fixed
+                      </div>
+                    );
+                  })()
                 ) : (
                   <div className="relative">
                     <select
