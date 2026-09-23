@@ -79,6 +79,13 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 > 💡 The preview at the top of the tab replays automatically whenever you change an effect or a speed — or press **Play open** / **Play close**. The link entrance only starts once the sheet has fully arrived, on the live site and in the preview alike.
 
+### 3.2 Working with the preview
+
+The preview card **stays on screen** while you scroll the controls under it, so recolouring a link or uploading its photo no longer means scrolling back up to see what it did. On a wide desktop the controls move to the left and the preview sits beside them.
+
+- **Play loop** — keeps cycling close → open until you press **Stop loop**. Use it to judge an effect without pressing a button between every take.
+- **Backdrop brightness** — the menu opens over your live site, which is usually light, while the preview frame is dark. Slide this towards white to check a pale panel or a light underline the way a visitor will actually see it. It only moves the preview's stand-in backdrop — nothing here is saved.
+
 ---
 
 ## 4. Preferences — Site Background Effects
@@ -264,7 +271,9 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 **What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
 
-- **Hero** — the featured release (else the newest published one): its cover blurred behind the title, LISTEN into its player, WATCH to Videos. With no releases yet: the band's name (Site Design → Header → Wordmark), the genres (About → Skills, relabelled Genres / tags; falls back to the band's four), the tagline (About → Headline) — or, if **Site Design → Homepage Hero** is switched on, your custom hero.
+- **Hero** — three answers, in this order. **Site Design → Homepage Hero** switched on wins outright: that is your own hand-designed splash, meant for a launch or an announcement. Switched off (the default), the hero is the featured release (else the newest published one): its cover blurred behind the title, LISTEN into its player, WATCH to Videos. With no releases yet: your tagline (About → Headline) over the site background photo, with the genres above it (About → Skills, relabelled Genres / tags; falls back to the band's four) and the first line of your bio under it.
+
+> ⚠️ Before you switch **Homepage Hero** on for the first time, open that tab and press **Restore defaults** — the heading and button still carry the old art-site wording ("The new collection", VIEW NOW → Gallery) until you do.
 - **Latest release** — the same release in full (player, tracklist, links), right under the hero.
 - **Upcoming shows** — Shows / Events with a date in the future (up to three). Hidden when there are none.
 - **Videos** — the four newest videos, featured first. Hidden when there are none.

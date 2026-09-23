@@ -1,13 +1,19 @@
 // components/public/home/ReleaseHero.tsx
 //
 // The homepage's first screen. Resolution order:
-//   1. the featured (else newest) published Release — its cover as the hazy
+//   1. the admin's own custom hero from Site Design → Homepage Hero, when it
+//      is switched on (HomeHero, unchanged). It wins outright: the point of
+//      the switch is a takeover — a hand-designed splash for a launch or an
+//      announcement — and it would be useless if the release below could
+//      outrank it, since a release is exactly when you'd reach for it;
+//   2. the featured (else newest) published Release — its cover as the hazy
 //      backdrop, LISTEN into its player on /music, WATCH → /videos (a
 //      release's own video, once Videos ship);
-//   2. the admin's own custom hero from Site Design → Homepage Hero, when
-//      it is switched on (HomeHero, unchanged);
-//   3. the band: name and tagline over the site's background photo, with
-//      LISTEN → /music and WATCH → /videos.
+//   3. the band: the Profile headline as the title over the site's
+//      background photo, the bio's first line under it, with LISTEN → /music
+//      and WATCH → /videos. The band's name is deliberately *not* the title
+//      here — the header wordmark is already on screen, and the same words
+//      twice on one screen read as a mistake.
 // Genres in the eyebrow come from Profile's skills list (relabelled
 // "Genres / tags" in the admin) and fall back to the band's four.
 import { prisma } from "@/lib/prisma";
@@ -20,6 +26,8 @@ import { PageHero } from "@/components/public/system/PageHero";
 import { CtaButton } from "@/components/public/system/CtaButton";
 
 const DEFAULT_GENRES = ["Shoegaze", "Dreampop", "Math rock", "Post-rock"];
+// Title of the band hero when the Profile headline is blank.
+const DEFAULT_HEADLINE = "New music, shows and videos";
 
 export async function ReleaseHero() {
   const [siteDesign, profile, skills, release] = await Promise.all([
@@ -30,6 +38,8 @@ export async function ReleaseHero() {
   ]);
   const { settings } = siteDesign;
   const cta = { bg: settings.heroCtaBgColor, text: settings.heroCtaTextColor };
+
+  if (settings.heroEnabled) return <HomeHero settings={settings} />;
 
   if (release) {
     const player = primaryEmbed(release);
@@ -58,9 +68,11 @@ export async function ReleaseHero() {
     );
   }
 
-  if (settings.heroEnabled) return <HomeHero settings={settings} />;
-
   const genres = skills.length > 0 ? skills.map((s) => s.name) : DEFAULT_GENRES;
+  const headline = profile?.headline?.trim() || DEFAULT_HEADLINE;
+  // First line of the bio, unless it's just the headline again.
+  const bioLine = profile?.bio?.split("\n").map((l) => l.trim()).find(Boolean) ?? null;
+  const subtitle = bioLine && bioLine !== headline ? bioLine : profile?.basedIn || null;
 
   return (
     <PageHero
@@ -68,15 +80,8 @@ export async function ReleaseHero() {
       image={profile?.backgroundImage}
       blur="lg"
       eyebrow={genres.join(" · ")}
-      title={
-        settings.headerLogoImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img draggable={false} src={settings.headerLogoImage} alt={settings.headerLogoText} className="mx-auto h-[1.2em] w-auto max-w-[90vw] object-contain" />
-        ) : (
-          <span style={{ fontFamily: settings.headerLogoFontFamily }}>{settings.headerLogoText}</span>
-        )
-      }
-      subtitle={profile?.headline || null}
+      title={headline}
+      subtitle={subtitle}
     >
       <CtaButton href="/music" colors={cta}>
         Listen

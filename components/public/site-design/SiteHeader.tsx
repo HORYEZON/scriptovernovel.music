@@ -111,8 +111,15 @@ export function SiteHeader({
   // Over the hero at the top of the homepage the bar goes fully transparent
   // (no tint, no blur) so the hero's colour/texture runs under it
   // uninterrupted (the reference look); it frosts over as soon as the page
-  // scrolls, and everywhere else.
-  const overHero = pathname === "/" && settings.heroEnabled && !scrolled;
+  // scrolls, and everywhere else. Every homepage hero is full-bleed now (the
+  // custom one, the release, the band fallback), so this is no longer tied to
+  // heroEnabled — that only picks *which* hero, not whether there is one.
+  const overHero = pathname === "/" && !scrolled;
+  // …but which hero decides the type colour. The custom Homepage Hero is a
+  // light colour field, so the admin's own header colour is right over it.
+  // The other two are PageHero: a blurred photo under a dark wash with cream
+  // type, where the admin's near-black default would disappear.
+  const overPhotoHero = overHero && !settings.heroEnabled;
   // The admin's Header colours reach the light-mode utilities through CSS
   // vars so the `dark:` classes can override them — an inline
   // background-color/color would beat any class. Kalamari's tint opacities
@@ -122,7 +129,7 @@ export function SiteHeader({
   const chrome = {
     "--header-glass": withAlpha(settings.headerBgColor, 0.6),
     "--header-glass-scrolled": withAlpha(settings.headerBgColor, 0.5),
-    "--header-text": settings.headerTextColor,
+    "--header-text": overPhotoHero ? "#FAF8F3" : settings.headerTextColor,
     "--logo-size": settings.headerLogoFontSize,
   } as CSSProperties;
   const iconBtn =
