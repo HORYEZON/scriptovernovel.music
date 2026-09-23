@@ -19,11 +19,27 @@
 // frame so what the admin sees is literally what visitors get.
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
-import { X } from "lucide-react";
+import { Gamepad2, Landmark, PenLine, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SOCIAL_ICON_REGISTRY } from "@/lib/social-icons";
 import { ScribbleUnderline } from "./ScribbleUnderline";
 import type { SiteDesignSettings, SiteMenuItem } from "@/lib/site-design";
+
+/**
+ * The three "go and do something" destinations, pinned above the panel foot.
+ *
+ * Hard-coded rather than admin-editable menu rows on purpose: each is a
+ * feature of this codebase at a fixed address, not a page an admin composed,
+ * and putting them in Site Design → Menu → Links would let them be renamed
+ * into nothing or pointed somewhere they don't exist. Mini games have no
+ * route — the launcher is an overlay on the homepage — so that one is an
+ * anchor at MuseumBlock's `id="arcade"`.
+ */
+const DESTINATIONS = [
+  { href: "/wall", label: "Fan Wall", Icon: PenLine },
+  { href: "/#arcade", label: "Mini Games", Icon: Gamepad2 },
+  { href: "/gallery/museum", label: "Digital Museum", Icon: Landmark },
+] as const;
 
 // Per lib/site-design.ts's CLOSE_HOVER_EFFECTS — the button's colours are
 // transitioned alongside, in the same 300ms.
@@ -265,6 +281,45 @@ export function MenuPanel({
             );
           })}
         </nav>
+
+        {/* ── Destinations ───────────────────────────────────────────────
+            The three places that aren't pages in the usual sense — a wall
+            visitors write on, an arcade, a room you walk through. They were
+            reachable only from the footer or by scrolling the homepage, which
+            put the most distinctive things on the site behind the most
+            traffic. Set apart from the nav list above on purpose: those are
+            the band's pages, these are things to go and do. */}
+        <div
+          className={cn(
+            "flex shrink-0 flex-wrap gap-2",
+            preview ? "px-10 pb-5" : "px-6 pb-5 md:px-10"
+          )}
+          style={{
+            color: textColor,
+            ...entrance(visible.length),
+            transition: `${entrance(visible.length).transition ?? ""}${itemsEffect === "none" ? "" : ", "}color 300ms`,
+          }}
+        >
+          {DESTINATIONS.map(({ href, label, Icon }) => {
+            const body = (
+              <>
+                <Icon className="h-3.5 w-3.5 shrink-0 opacity-70 transition-opacity group-hover/dest:opacity-100" />
+                {label}
+              </>
+            );
+            const cls =
+              "group/dest inline-flex items-center gap-2 rounded-full border border-current/25 px-3.5 py-1.5 font-body text-[10px] font-medium uppercase tracking-[0.14em] opacity-80 transition-all duration-200 hover:border-current/70 hover:opacity-100";
+            return preview ? (
+              <span key={href} className={cls}>
+                {body}
+              </span>
+            ) : (
+              <Link key={href} href={href} onClick={onNavigate} className={cls}>
+                {body}
+              </Link>
+            );
+          })}
+        </div>
 
         {/* ── Panel foot: mailing line + socials ─────────────────────────── */}
         <div

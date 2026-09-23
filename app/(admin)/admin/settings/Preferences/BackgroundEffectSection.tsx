@@ -26,12 +26,34 @@ import {
   type BgEffect,
 } from "@/lib/theme";
 
-// Stand-in for a site with no background photo uploaded yet — a gradient
-// with enough shape in it that zoom/drift/parallax visibly move something.
+// Stand-in for a site with no background photo uploaded yet.
 // (globals.css's own --bg-image fallback points at a file that isn't
 // shipped, so it can't be borrowed here.)
-const PLACEHOLDER_BACKGROUND =
-  "radial-gradient(circle at 30% 35%, rgba(200,169,110,0.55), transparent 40%), radial-gradient(circle at 75% 70%, rgba(217,79,56,0.45), transparent 45%), linear-gradient(135deg, #2a1420, #0d0d0d 60%, #16162a)";
+//
+// The ruled grid on top of the gradient is the point, not decoration. Zoom
+// travels scale(1) → scale(1.12) and drift ±2.5%, which on a soft radial
+// gradient is invisible — there is no edge anywhere in the image for the eye
+// to track, so the card read as "this effect does nothing" while the
+// animation was in fact running the whole time. Straight lines give the
+// motion something to be measured against.
+const PLACEHOLDER_BACKGROUND = [
+  "repeating-linear-gradient(0deg, rgba(255,255,255,0.10) 0 1px, transparent 1px 40px)",
+  "repeating-linear-gradient(90deg, rgba(255,255,255,0.10) 0 1px, transparent 1px 40px)",
+  "radial-gradient(circle at 30% 35%, rgba(200,169,110,0.55), transparent 40%)",
+  "radial-gradient(circle at 75% 70%, rgba(217,79,56,0.45), transparent 45%)",
+  "linear-gradient(135deg, #2a1420, #0d0d0d 60%, #16162a)",
+].join(", ");
+
+// Preview-only playback multipliers. A "Normal" loop is 20s each way — 40s
+// round trip — which is right on a page someone lives with and useless in a
+// card you are tuning: you cannot judge a motion you have to wait half a
+// minute to see. Speeding the *preview* keeps the saved value honest while
+// making the shape of the effect legible.
+const PREVIEW_SPEEDS = [
+  { label: "1×", factor: 1 },
+  { label: "4×", factor: 4 },
+  { label: "10×", factor: 10 },
+] as const;
 
 export interface BackgroundEffectValue {
   bgEffect: BgEffect;
@@ -60,6 +82,7 @@ export function BackgroundEffectSection({
   // from the box instead of the window.
   const [parallax, setParallax] = useState(0);
   const scrollBox = useRef<HTMLDivElement>(null);
+  const [previewFactor, setPreviewFactor] = useState(1);
 
   const isParallax = value.bgEffect === "parallax";
   const loops = bgEffectLoops(value.bgEffect);
@@ -77,7 +100,9 @@ export function BackgroundEffectSection({
 
   const photoStyle: CSSProperties = {
     backgroundImage: imageUrl ? `url('${imageUrl}')` : PLACEHOLDER_BACKGROUND,
-    ...bgEffectCss(value.bgEffect, value.bgEffectSpeedMs),
+    // The saved speed divided by the preview multiplier — the real value is
+    // never touched, only how fast this box replays it.
+    ...bgEffectCss(value.bgEffect, Math.round(value.bgEffectSpeedMs / previewFactor)),
   };
 
   return (
@@ -127,6 +152,27 @@ export function BackgroundEffectSection({
               />
               {/* The public site's page wash, so brightness reads as it will. */}
               <div className="absolute inset-0 bg-[rgba(6,6,10,0.55)]" aria-hidden="true" />
+              {/* Stand-in page furniture, held still over the moving photo.
+                  Every one of these effects moves the *background* while the
+                  page sits on top of it, so with nothing on top there was
+                  nothing for the motion to be relative to — the reason a
+                  running effect could look like no effect. A header rule, a
+                  couple of cards and a footer rule are enough to see the
+                  photo travelling behind them. */}
+              <div aria-hidden="true" className="absolute inset-0 flex flex-col justify-between p-4">
+                <div className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cream/50" />
+                  <span className="h-px flex-1 bg-cream/20" />
+                  <span className="h-1.5 w-6 rounded-full bg-cream/30" />
+                </div>
+                <div className="flex items-end gap-2">
+                  <div className="h-12 w-12 shrink-0 rounded-md border border-cream/25 bg-cream/10" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-1.5 w-2/3 rounded-full bg-cream/25" />
+                    <div className="h-1.5 w-1/3 rounded-full bg-cream/15" />
+                  </div>
+                </div>
+              </div>
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center">
                 <span className="font-jakarta text-2xl font-light tracking-tight text-cream">ScriptOverNovel</span>
                 <span className="font-body text-[10px] tracking-widest uppercase text-cream/60">
@@ -143,10 +189,37 @@ export function BackgroundEffectSection({
               </div>
             )}
           </div>
+          {/* Preview playback speed — the saved value is never touched. */}
+          {loops && (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="font-body text-[11px] text-ink-400 dark:text-ink-300">
+                Preview speed
+              </span>
+              <div className="flex gap-1">
+                {PREVIEW_SPEEDS.map((s) => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => setPreviewFactor(s.factor)}
+                    className={`rounded-lg border px-2.5 py-1 font-body text-[10px] uppercase tracking-wider transition-all ${
+                      previewFactor === s.factor
+                        ? "border-sepia bg-sepia text-white font-medium"
+                        : "border-black/10 text-ink-400 hover:border-black/30 dark:border-white/10 dark:text-ink-300 dark:hover:border-white/30"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="mt-1.5 font-body text-[11px] text-ink-400 dark:text-ink-300">
             {imageUrl
               ? "Plays on your uploaded background photo."
               : "No background photo uploaded yet — shown on a stand-in."}{" "}
+            {loops
+              ? "These effects are deliberately slow — a full loop is under a minute on the real site, which is why the preview can be run faster. Speeding it up changes nothing that gets saved."
+              : ""}{" "}
             Visitors who have asked their device for reduced motion see the photo still.
           </p>
         </div>

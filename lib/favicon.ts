@@ -33,7 +33,11 @@ import { SquidIcon } from "@/components/ui/SquidIcon";
 // Matches the old static favicon's backdrop/accent so a custom icon isn't
 // also a brand-color change.
 export const FAVICON_BG = "#0b0b0f";
-export const FAVICON_STROKE_DEFAULT = "#E8D5A8";
+// The logo's gold. This is the still favicon every browser reads before the
+// animated one takes over (and the only one a browser that ignores dynamic
+// <link rel="icon"> swaps ever sees), so it is the first colour of
+// AnimatedFavicon's cycle rather than a shade of its own.
+export const FAVICON_STROKE_DEFAULT = "#E5AD06";
 
 // The Digital Museum's own favicon while a visitor is on /gallery/museum —
 // swapped in by app/(public)/gallery/museum/icon.tsx (the static/no-JS tab

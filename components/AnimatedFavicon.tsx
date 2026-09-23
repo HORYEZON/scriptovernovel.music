@@ -27,7 +27,13 @@ import { MUSEUM_FAVICON_ICON } from "@/lib/favicon";
  * still cycling through the exact same colors — a shape override scoped to
  * that route, not a second color scheme.
  */
-const DEFAULT_COLORS = ["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"];
+// The band logo's gold / silver-grey / white, the same cycle the footer seal
+// and the sidebar icon run on (squidCycle in tailwind.config.ts). Gold takes
+// two of the four steps because it is the logo's dominant colour and, at 32
+// pixels, the grey and the white are nearly the same swatch — three equal
+// steps read as a flicker between two of them.
+// Overridden per-site by Profile.faviconIconColors when an admin has set one.
+const DEFAULT_COLORS = ["#E5AD06", "#B8B8B8", "#E5AD06", "#FAF8F3"];
 const STEP_MS = 2500;
 
 export default function AnimatedFavicon({

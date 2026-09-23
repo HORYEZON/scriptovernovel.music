@@ -188,6 +188,66 @@ not a release of its own.
 
 ---
 
+## September 23, 2026 — v0.13
+
+### Admin Side
+
+- **Site Background Effects preview actually shows the effect.** Zoom travels
+  scale(1)→1.12 and drift ±2.5% over twenty seconds, which on a soft radial
+  gradient with no edge anywhere in it is invisible — the card read as
+  "nothing happens" while the animation had been running the whole time. The
+  stand-in now carries a ruled grid, the frame holds still page furniture over
+  it (a header rule, a card, a footer rule) so the motion has something to be
+  relative to, and a **preview speed** control (1× / 4× / 10×) makes a
+  forty-second round trip judgeable. The saved speed is untouched
+- **Entrance Splash → Icon Color** gains **Auto glow**, which leaves the seal
+  drifting through the logo's gold / grey / white instead of pinned to one hex
+- **Blur / Glass Intensity**: the **Heavy** preset is gone. It sat at 18px
+  while the slider runs to 24, so from the top of the range the chip that
+  sounds strongest *lowered* the blur and nothing was highlighted at 24. The
+  slider was always the way past Frosted
+
+### Public Side
+
+- **The entrance splash shows the band's name again.** Uploading a logo made
+  it render the picture *instead of* the wordmark, so every word typed under
+  Preferences → Branding → Entrance Splash was invisible and the splash looked
+  like it ignored its own settings. It is the lettered lockup now —
+  **script (◎)ver novel** — with the words and font from Site Design → Header
+  and the seal on the brand glow
+- **Album covers open full size** on /music and the homepage. Clicking one
+  lifts the original out of its 18rem square; Esc or a click away closes it
+- **A single's player is the right height.** A single is an album of one track
+  on every service, so its URL asks for the tall tracklist widget and the
+  player left a slab of black under its one row
+- **Fan Wall, Mini Games and Digital Museum** are in the menu, above the
+  social links — the three things you *do* on the site, previously reachable
+  only from the footer or by scrolling the homepage
+- **Page mastheads are shorter.** Music, Store, Videos and About opened on
+  55–60svh of blurred photo for what is usually one word; the first release
+  is on screen with the title now
+- **The light/dark switch is a record** that slides and spins between the sun
+  and the moon, in the logo's gold
+- The favicon's colour cycle follows the logo too
+- **Fixed: the page jumped sideways when the menu opened.** Locking the page
+  removes the scrollbar, which hands the layout ~15px of extra width — so
+  everything, the fixed header included, slid across as the overlay appeared
+  and slid back on close. The scrollbar's column is reserved permanently now
+  (`scrollbar-gutter: stable`), so the lock changes no widths at all. Every
+  modal and overlay on the site benefits, not just the menu
+- The collapsed sidebar icon no longer steps through a second, unrelated
+  palette on hover — the brand glow is its colour, full stop
+
+### Infra / DB
+
+- No migration. `Wordmark`'s `iconPlacement="inline"` (added in v0.11) now
+  serves the splash as well, and `logoImage` is gone from the splash chain
+  entirely rather than passed and ignored
+- `introSquidColor: ""` is the new "auto" sentinel — the column is already a
+  String, so this needed no schema change
+- New `components/public/system/ImageLightbox.tsx`, lifted out of
+  GalleryClient where the only lightbox on the site had been welded in
+
 ## September 23, 2026 — v0.12
 
 ### Admin Side

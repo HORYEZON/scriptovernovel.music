@@ -211,7 +211,18 @@ export function sanitizeIntroGlowColor(value: unknown): string {
     : INTRO_DEFAULTS.introGlowColor;
 }
 
+/**
+ * The splash seal's colour — or the empty string, meaning "leave it on the
+ * brand glow".
+ *
+ * A stored hex pins the icon to one colour, which is what this setting was
+ * for. But it was *always* a hex (the default is cream), so the seal could
+ * never do what the same seal does in the footer and the sidebar: drift
+ * through the logo's gold / grey / white. "" is the opt-in to that, and it
+ * costs no migration — the column is already a String.
+ */
 export function sanitizeIntroSquidColor(value: unknown): string {
+  if (value === "") return "";
   return typeof value === "string" && isHexColor(value)
     ? value.trim()
     : INTRO_DEFAULTS.introSquidColor;

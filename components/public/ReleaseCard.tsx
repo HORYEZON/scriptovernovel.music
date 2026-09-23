@@ -7,11 +7,12 @@
 // pills for every platform that isn't the player. Used by /music and the
 // homepage's Latest release section.
 import { useState } from "react";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { ChevronDown, Expand, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { imageVariantUrl } from "@/lib/images/variants";
 import { GlassPanel } from "@/components/public/system/GlassPanel";
 import { EmbedFrame } from "@/components/public/system/EmbedFrame";
+import { ImageLightbox } from "@/components/public/system/ImageLightbox";
 import { EMBED_PROVIDER_LABELS } from "@/lib/embeds";
 import {
   RELEASE_TYPE_LABELS,
@@ -43,12 +44,23 @@ export function ReleaseCard({ release, compact = false }: { release: ReleaseCard
   const player = primaryEmbed(release);
   const others = releaseEmbeds(release).filter((e) => e.provider !== player?.provider);
   const [openLyrics, setOpenLyrics] = useState<string | null>(null);
+  const [coverOpen, setCoverOpen] = useState(false);
 
   return (
     <GlassPanel as="article" padding="page" id={release.slug ?? release.id} className="scroll-mt-24">
       <div className={cn("grid grid-cols-1 gap-8", compact ? "md:grid-cols-[14rem_minmax(0,1fr)]" : "md:grid-cols-[18rem_minmax(0,1fr)] md:gap-12")}>
         <div>
-          <div className="relative aspect-square overflow-hidden rounded-xl border border-white/10 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)]">
+          {/* The cover opens full-size. It is the artwork of the record — the
+              one picture on this page someone might actually want to look at
+              — and it was shown at 18rem, cropped square, with no way through
+              to the original. The grid tile stays a `medium` variant; the
+              lightbox loads the full file only once it is asked for. */}
+          <button
+            type="button"
+            onClick={() => setCoverOpen(true)}
+            aria-label={`View ${release.title} cover full size`}
+            className="group relative block aspect-square w-full overflow-hidden rounded-xl border border-white/10 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)] transition-transform duration-300 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-sepia"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imageVariantUrl(release.coverImageUrl, "medium")}
@@ -57,7 +69,13 @@ export function ReleaseCard({ release, compact = false }: { release: ReleaseCard
               className="h-full w-full object-cover"
               loading="lazy"
             />
-          </div>
+            <span className="pointer-events-none absolute inset-0 flex items-end justify-end bg-gradient-to-t from-ink/70 via-transparent to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-ink/70 px-3 py-1.5 font-body text-[10px] uppercase tracking-[0.18em] text-cream backdrop-blur-sm">
+                <Expand size={11} />
+                View
+              </span>
+            </span>
+          </button>
         </div>
 
         <div className="min-w-0">
@@ -70,7 +88,14 @@ export function ReleaseCard({ release, compact = false }: { release: ReleaseCard
             <p className="mt-4 max-w-2xl whitespace-pre-line font-body text-sm leading-relaxed text-cream/70">{release.description}</p>
           )}
 
-          {player && <EmbedFrame url={player.canonicalUrl} title={release.title} className="mt-6" />}
+          {player && (
+            <EmbedFrame
+              url={player.canonicalUrl}
+              title={release.title}
+              className="mt-6"
+              compact={release.tracks.length <= 1}
+            />
+          )}
 
           {others.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -129,6 +154,17 @@ export function ReleaseCard({ release, compact = false }: { release: ReleaseCard
           )}
         </div>
       </div>
+
+      {coverOpen && (
+        // `full`, not the `medium` variant the tile uses — opening it is the
+        // request for the original.
+        <ImageLightbox
+          src={imageVariantUrl(release.coverImageUrl, "full")}
+          alt={`${release.title} cover`}
+          caption={release.title}
+          onClose={() => setCoverOpen(false)}
+        />
+      )}
     </GlassPanel>
   );
 }

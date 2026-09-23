@@ -46,7 +46,14 @@ export function PageHero({
     <section
       className={cn(
         "relative isolate flex w-full flex-col justify-end overflow-hidden",
-        size === "full" ? "min-h-[100svh] pt-14 md:pt-16" : "min-h-[55svh] pt-24 md:min-h-[60svh] md:pt-28",
+        // The inner hero used to stand at 55–60svh for what is usually one
+        // word. On the homepage a whole screen of atmosphere is the point;
+        // on Music or Store it is a screen of blurred photo between the visitor
+        // and the thing they navigated to. Tall enough to still read as a
+        // masthead, short enough that the first release is on screen with it.
+        size === "full"
+          ? "min-h-[100svh] pt-14 md:pt-16"
+          : "min-h-[34svh] pt-20 md:min-h-[38svh] md:pt-24",
         className
       )}
     >
@@ -78,15 +85,21 @@ export function PageHero({
 
       <div
         className={cn(
-          "section-padding relative w-full pb-16 md:pb-24",
+          "section-padding relative w-full",
+          // The full-screen hero keeps its generous foot; an inner masthead
+          // sits closer to the content it introduces.
+          size === "full" ? "pb-16 md:pb-24" : "pb-10 md:pb-14",
           align === "center" ? "flex flex-col items-center text-center" : "flex flex-col items-start text-left"
         )}
       >
-        {eyebrow && <Eyebrow className="mb-5 motion-safe:animate-fade-up-slow">{eyebrow}</Eyebrow>}
+        {eyebrow && <Eyebrow className={cn("motion-safe:animate-fade-up-slow", size === "full" ? "mb-5" : "mb-3")}>{eyebrow}</Eyebrow>}
         <h1
           className={cn(
             "max-w-5xl font-fraunces font-light leading-[1] tracking-[-0.02em] text-cream drop-shadow-[0_2px_24px_rgba(0,0,0,0.35)] motion-safe:animate-fade-up-slow",
-            size === "full" ? "text-5xl sm:text-6xl md:text-7xl lg:text-8xl" : "text-4xl md:text-6xl"
+            size === "full"
+              ? "text-5xl sm:text-6xl md:text-7xl lg:text-8xl"
+              // One word at 6xl was filling a third of the viewport on its own.
+              : "text-3xl sm:text-4xl md:text-5xl"
           )}
           style={{ animationDelay: "120ms" }}
         >
@@ -94,7 +107,10 @@ export function PageHero({
         </h1>
         {subtitle && (
           <p
-            className="mt-5 max-w-xl font-body text-sm leading-relaxed text-cream/70 md:text-base motion-safe:animate-fade-up-slow"
+            className={cn(
+              "max-w-xl font-body text-sm leading-relaxed text-cream/70 md:text-base motion-safe:animate-fade-up-slow",
+              size === "full" ? "mt-5" : "mt-3"
+            )}
             style={{ animationDelay: "240ms" }}
           >
             {subtitle}

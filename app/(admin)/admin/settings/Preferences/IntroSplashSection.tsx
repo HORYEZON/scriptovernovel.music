@@ -823,16 +823,39 @@ export function IntroSplashSection({
           >
             Icon Color
           </label>
-          <HexColorField
-            id="intro-squid-color"
-            value={value.introSquidColor}
-            onChange={(introSquidColor) => onChange({ introSquidColor })}
-            resetTo={INTRO_DEFAULTS.introSquidColor}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                onChange({
+                  introSquidColor:
+                    value.introSquidColor === "" ? INTRO_DEFAULTS.introSquidColor : "",
+                })
+              }
+              aria-pressed={value.introSquidColor === ""}
+              className={`shrink-0 rounded-lg border px-2.5 py-1.5 font-body text-[10px] uppercase tracking-wider transition-all ${
+                value.introSquidColor === ""
+                  ? "border-sepia bg-sepia text-white font-medium"
+                  : "border-black/10 text-ink-400 hover:border-black/30 dark:border-white/10 dark:text-ink-300 dark:hover:border-white/30"
+              }`}
+            >
+              Auto glow
+            </button>
+            {value.introSquidColor !== "" && (
+              <HexColorField
+                id="intro-squid-color"
+                value={value.introSquidColor}
+                onChange={(introSquidColor) => onChange({ introSquidColor })}
+                resetTo={INTRO_DEFAULTS.introSquidColor}
+              />
+            )}
+          </div>
           <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1.5">
-            The icon above the band name (picked under Icons → Entrance Splash
-            Icon). Its halo is drawn from this too, so both move together.
-            The wordmark text itself comes from Site Design → Header.
+            The icon standing in for the <strong>O</strong> in the band name (picked under
+            Icons → Entrance Splash Icon). Its halo is drawn from this too, so both move
+            together. <strong>Auto glow</strong> leaves it drifting through the logo&apos;s
+            gold, grey and white — the same cycle the footer and the sidebar icon run on.
+            The wordmark&apos;s words and font come from Site Design → Header.
           </p>
         </div>
 
