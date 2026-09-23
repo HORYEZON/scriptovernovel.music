@@ -225,11 +225,16 @@ export interface BlurPreset {
   px: number;
 }
 
+// "Heavy" (18px) used to sit at the end of this list and read as broken: the
+// slider runs to MAX_BG_BLUR (24), so from the top of the range the chip that
+// sounds like the strongest setting *lowered* the blur, and at 24 no chip was
+// highlighted at all. Removed rather than re-pointed at the maximum — the
+// slider is already the way to go past Frosted, and a preset whose whole job
+// is "the end of the slider" earns nothing.
 export const BG_BLUR_PRESETS: BlurPreset[] = [
   { name: "None", px: 0 },
   { name: "Subtle", px: 6 },
   { name: "Frosted (default)", px: 10 },
-  { name: "Heavy", px: 18 },
 ];
 
 /** "10px" -> 10; anything unparsable/out-of-range falls back to 0. */

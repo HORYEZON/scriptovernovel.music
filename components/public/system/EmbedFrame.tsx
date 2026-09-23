@@ -15,12 +15,21 @@ import { EMBED_PROVIDER_LABELS, parseEmbed, type ParsedEmbed } from "@/lib/embed
 
 const ALLOW = "autoplay; encrypted-media; picture-in-picture; clipboard-write; fullscreen";
 
-/** Spotify/SoundCloud players are fixed-height widgets; video is 16:9. */
-function frameHeight(embed: ParsedEmbed): string {
+/**
+ * Spotify/SoundCloud players are fixed-height widgets; video is 16:9.
+ *
+ * `compact` forces the one-row height onto an album/playlist embed. A single
+ * is an *album* with one track on every one of these services, so its URL is
+ * `/album/...` and the tall tracklist player gets reserved for a widget that
+ * only ever draws one row — the rest showing as a slab of dead black under
+ * the player. The caller knows the track count; the URL doesn't.
+ */
+function frameHeight(embed: ParsedEmbed, compact: boolean): string {
   if (embed.provider === "youtube") return "aspect-video";
-  if (embed.provider === "spotify") return embed.kind === "track" ? "h-[152px]" : "h-[352px]";
-  if (embed.provider === "soundcloud") return embed.kind === "track" ? "h-[166px]" : "h-[300px]";
-  if (embed.provider === "applemusic") return embed.kind === "track" ? "h-[175px]" : "h-[450px]";
+  const single = compact || embed.kind === "track";
+  if (embed.provider === "spotify") return single ? "h-[152px]" : "h-[352px]";
+  if (embed.provider === "soundcloud") return single ? "h-[166px]" : "h-[300px]";
+  if (embed.provider === "applemusic") return single ? "h-[175px]" : "h-[450px]";
   return "h-[120px]";
 }
 
@@ -30,11 +39,15 @@ export function EmbedFrame({
   className,
   showOpenLink = true,
   autoplay = false,
+  compact = false,
 }: {
   url: string;
   title: string;
   className?: string;
   showOpenLink?: boolean;
+  /** Draw an album/playlist embed at its one-row height — for a release the
+   *  caller knows has a single track. See frameHeight. */
+  compact?: boolean;
   /** Skip the click-to-load poster and start playing at once — for a
    *  caller whose own click already was the consent (VideoCard). */
   autoplay?: boolean;
@@ -76,7 +89,7 @@ export function EmbedFrame({
 
   return (
     <div className={className}>
-      <div className={cn("relative w-full overflow-hidden rounded-xl border border-white/10 bg-ink", frameHeight(embed))}>
+      <div className={cn("relative w-full overflow-hidden rounded-xl border border-white/10 bg-ink", frameHeight(embed, compact))}>
         {poster ? (
           <button
             type="button"

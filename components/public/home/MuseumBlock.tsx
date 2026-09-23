@@ -41,8 +41,12 @@ export async function MuseumBlock() {
 
   // A plain section, not a Reveal: the launcher's overlays are `fixed` and a
   // transformed ancestor would clip them to this block.
+  //
+  // `id="arcade"` is what the menu's Mini games button aims at. The games are
+  // an overlay launched from this panel rather than a route of their own, so
+  // an anchor on the homepage is the only address they have.
   return (
-    <section className="section-padding">
+    <section id="arcade" className="section-padding scroll-mt-24">
       <div className={`grid grid-cols-1 gap-6 ${open && hasGames ? "md:grid-cols-2" : ""}`}>
         {open && (
           <GlassPanel padding="page" className="flex flex-col justify-between overflow-hidden">

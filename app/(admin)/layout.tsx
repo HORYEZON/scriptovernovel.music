@@ -77,7 +77,6 @@ export default async function AdminLayout({
         <AdminSidebar
           logoImage={profile?.logoImage}
           sidebarIcon={profile?.sidebarIcon}
-          sidebarIconColors={profile?.sidebarIconColors}
           sidebarMobileIcon={profile?.sidebarMobileIcon}
         />
         {/* Mounted once here (not per-page) so the pair floats over every

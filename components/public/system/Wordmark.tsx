@@ -65,10 +65,13 @@ export function Wordmark({
     <span
       className={cn(
         "relative inline-flex items-center justify-center",
-        // Kerned tight against its neighbours when it is standing in for a
-        // letter, so it reads as part of the word instead of a gap with a
-        // picture in it.
-        inline && "-mx-[0.04em] align-baseline",
+        // Standing in for a letter, so it sits in the word rather than beside
+        // it — but not kerned *tight*. The seal carries a blurred halo that
+        // spills past its own 1em box, and pulling it in by a negative margin
+        // (which is what this was) left the halo sitting on top of the
+        // preceding letter: "scrip(t◎)ver" rather than "script ◎ ver". The
+        // gap is the halo's room, not letterspacing.
+        inline && "mx-[0.09em] align-baseline",
         iconColor ? "motion-safe:animate-squid-bob" : "motion-safe:animate-squid-drift"
       )}
       style={iconColor ? ({ "--squid-glow": iconColor } as CSSProperties) : undefined}

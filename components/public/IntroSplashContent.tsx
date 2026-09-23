@@ -136,7 +136,6 @@ function Wordmark({
   squidColor,
   logoText,
   logoFontFamily,
-  logoImage,
 }: {
   text: string;
   textAbove: string;
@@ -144,7 +143,6 @@ function Wordmark({
   /** Site Design → Header → Wordmark: the band's lockup, same as the header. */
   logoText: string;
   logoFontFamily: string;
-  logoImage: string | null;
   taglineFontSize: string;
   taglineFontFamily: string;
   taglineColor: string;
@@ -232,16 +230,25 @@ function Wordmark({
           {textAbove}
         </span>
       )}
-      {/* The band's lockup — the header's own logo text/image (Site Design →
-          Header → Wordmark) with the splash icon as a seal above it, in the
-          admin's chosen icon colour. Sized per viewport by lockupClass. */}
+      {/* The band's lockup — the wordmark text and font from Site Design →
+          Header, with the splash icon set into the word in place of its O:
+          script (◎)ver novel, the same lockup the footer wears.
+
+          `image` is deliberately not passed, and this is the bug it fixes:
+          Wordmark renders an uploaded logo *instead of* the text, so once a
+          logo existed the splash showed the picture plus a floating seal and
+          none of the wording the admin had typed — every edit under
+          Preferences → Branding → Entrance Splash looked like it did nothing.
+
+          An empty squidColor means the admin left the seal on the brand glow,
+          so it drifts through the logo's gold/grey/white like the footer's;
+          a hex pins it. Sized per viewport by lockupClass. */}
       <BandWordmark
         text={logoText}
         fontFamily={logoFontFamily}
-        image={logoImage}
         icon={icon}
-        iconPlacement="above"
-        iconColor={squidColor}
+        iconPlacement="inline"
+        iconColor={squidColor || undefined}
         className={cn("relative z-10", lockupClass(viewport))}
       />
       {/* No `uppercase` here on purpose — the admin's typed casing is shown
@@ -293,7 +300,6 @@ export function IntroSplashContent({
   squidColor,
   logoText,
   logoFontFamily,
-  logoImage,
 }: {
   effect: IntroEffect;
   phase: "visible" | "exiting";
@@ -343,7 +349,6 @@ export function IntroSplashContent({
    *  any older caller render without threading Site Design through. */
   logoText?: string;
   logoFontFamily?: string;
-  logoImage?: string | null;
 }) {
   const exiting = phase === "exiting";
   const bg = bgColor || INTRO_DEFAULTS.introBgColor;
@@ -378,7 +383,6 @@ export function IntroSplashContent({
     squidColor: squidColor || INTRO_DEFAULTS.introSquidColor,
     logoText: logoText || DEFAULT_SITE_DESIGN.headerLogoText,
     logoFontFamily: logoFontFamily || DEFAULT_SITE_DESIGN.headerLogoFontFamily,
-    logoImage: logoImage ?? null,
   };
 
   if (splitOrientation) {

@@ -159,6 +159,22 @@ img {
   html {
     scroll-behavior: smooth;
     font-size: var(--theme-font-size-base);
+    /* Reserve the scrollbar's column whether or not a scrollbar is currently
+       drawn.
+
+       Every overlay on the site locks the page with `overflow: hidden` on
+       <body> (hooks/useLockBodyScroll). That removes the scrollbar, which
+       gives the page ~15px of extra width the instant a menu or modal opens —
+       so the whole layout, and every `fixed inset-x-0` element on top of it
+       (the header, the menu overlay itself), jumps sideways as it appears and
+       jumps back on close. Reported as "the scroll bar slides to the middle
+       and vanishes when the menu opens".
+
+       Compensating with padding inside the lock is the older fix and has to
+       be repeated for each fixed element that spans the viewport. Reserving
+       the gutter here means the lock changes nothing about the page's width,
+       so there is nothing to compensate for. */
+    scrollbar-gutter: stable;
   }
 
   /* Layer precedence means any element with an explicit Tailwind text-size

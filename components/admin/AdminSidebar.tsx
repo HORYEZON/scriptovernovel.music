@@ -56,10 +56,6 @@ const DynamicIcon = nextDynamic(
   }
 );
 
-// Kept in sync with IconHoverColorsEditor.tsx's DEFAULT_HOVER_COLORS — the
-// factory-default cycle used when the admin hasn't customized it.
-const DEFAULT_HOVER_COLORS = ["#FFE135", "#44D700", "#FF6B9D", "#5BC8F5"];
-
 type NavLeaf = {
   href: string;
   label: string;
@@ -166,12 +162,10 @@ function isLeafActive(item: NavLeaf, pathname: string) {
 export function AdminSidebar({
   logoImage,
   sidebarIcon,
-  sidebarIconColors,
   sidebarMobileIcon,
 }: {
   logoImage?: string | null;
   sidebarIcon?: string | null;
-  sidebarIconColors?: string[] | null;
   /** Separate from sidebarIcon — that one's the collapsed-desktop icon-only state; this is the mobile top bar's wordmark. */
   sidebarMobileIcon?: string | null;
 }) {
@@ -180,16 +174,7 @@ export function AdminSidebar({
   const { confirmLeave } = useAdminLeaveGuard();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [colorIndex, setColorIndex] = useState(0);
-  // Whether the collapsed brand icon is under the pointer. The colour cycle
-  // used to be the icon's only colour; now it only overrides the drifting
-  // brand glow while a mouse is actually on it.
-  const [hovered, setHovered] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const hoverColors =
-    sidebarIconColors && sidebarIconColors.length > 0
-      ? sidebarIconColors
-      : DEFAULT_HOVER_COLORS;
   const sidebarIconParsed = parseIconValue(sidebarIcon);
   const sidebarMobileIconParsed = parseIconValue(sidebarMobileIcon);
 
@@ -539,12 +524,12 @@ export function AdminSidebar({
           >
             {collapsed ? (
               // Collapsed, the icon is the only brand left on screen, so it
-              // gets the drifting glow either way. It used to be split: a
-              // custom icon sat on a hover-driven colour step (dead on touch,
-              // and the collapsed rail is mostly what you get on a narrow
-              // screen) while only the fallback squid animated. Same wrapper
-              // for both now — the hover step stays on top of it, so a mouse
-              // still advances the colour on a custom icon.
+              // gets the drifting glow whether or not a custom icon is set.
+              // It used to be split: a custom icon stepped through a second,
+              // unrelated palette on hover (dead on touch, and the collapsed
+              // rail is mostly what a narrow screen shows) while only the
+              // fallback squid animated. One treatment now — the brand glow,
+              // which is the whole point of having one.
               <span className="relative inline-flex items-center justify-center motion-safe:animate-squid-drift">
                 <span
                   aria-hidden="true"
@@ -561,12 +546,7 @@ export function AdminSidebar({
                     className="relative w-7 h-7 transition-colors duration-200 cursor-pointer shrink-0 motion-safe:animate-squid-glow"
                     // Hovered: the admin's own cycle takes over. Untouched:
                     // the drifting brand colour, same as the fallback.
-                    style={{ color: hovered ? hoverColors[colorIndex] : "var(--squid-glow)" }}
-                    onMouseEnter={() => {
-                      setHovered(true);
-                      setColorIndex((i) => (i + 1) % hoverColors.length);
-                    }}
-                    onMouseLeave={() => setHovered(false)}
+                    style={{ color: "var(--squid-glow)" }}
                   />
                 ) : (
                   <SquidIcon

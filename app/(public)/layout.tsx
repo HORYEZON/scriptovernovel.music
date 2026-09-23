@@ -146,7 +146,6 @@ export default async function PublicLayout({
       squidColor={sanitizeIntroSquidColor(profile?.introSquidColor)}
       logoText={siteDesign.settings.headerLogoText}
       logoFontFamily={siteDesign.settings.headerLogoFontFamily}
-      logoImage={siteDesign.settings.headerLogoImage}
     />
     <PublicThemeStyle theme={theme} />
     <NoImageDrag />
