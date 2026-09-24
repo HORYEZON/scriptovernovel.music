@@ -5,14 +5,25 @@
 // One record on the Vinyl Room's wall: a square sleeve (the release cover as
 // its texture, loaded through the same downscale+cache path as the wall
 // frames) with a thin frame and, while the record is still in it, a dark
-// disc peeking out of the top-right corner. Taking the record ([E] in
-// VinylRoomContents / MuseumScene) drops the disc and dims the sleeve so the
-// wall shows what's out.
+// disc peeking out of the top-right corner.
+//
+// The sleeve is a *case*, not a picture. Pressing [E] at it (MuseumScene's
+// handleActivate) doesn't open a modal — it opens the object itself: the
+// front cover swings on its left edge like a gatefold / CD case while the
+// record slides out of the open right edge and turns on the spot. The
+// record then goes to the visitor's hands (`taken`), leaving the case hanging
+// open and empty so the wall reads at a glance as "that one is out". Putting
+// it back runs the same animation backwards.
+//
+// Both halves of that are driven from one eased progress ref in useFrame —
+// no React state per frame, and `open` can flip mid-animation without a
+// snap because the lerp only ever chases the current target.
 //
 // Placement follows ArtworkFrame.tsx exactly — a FramePlacement on the wall
 // line, pushed FRAME_WALL_OFFSET into the room — so the Scene Editor's
 // wall-snapped dragging works on sleeves unchanged.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { loadDownscaledTexture } from "@/lib/museum/loadDownscaledTexture";
 import type { FramePlacement } from "./framePlacement";
@@ -23,8 +34,20 @@ import { BannerShimmer } from "./BannerPanel";
  *  across the room, the way the wall frames are. */
 export const SLEEVE_SIZE = 1.15;
 const DISC_RADIUS = SLEEVE_SIZE * 0.47;
-/** How far the disc peeks out of the sleeve. */
+/** How far the disc peeks out of the sleeve while the case is shut. */
 const DISC_PEEK = 0.09;
+/** How far the cover swings — past square, so the open case reads as open
+ *  from the side as well as head-on. */
+const OPEN_ANGLE = 2.15;
+/** Eased-approach constant for the open/close lerp. */
+const EASE = 7;
+/** How long the swing reads as finished, in ms — the eased approach never
+ *  mathematically arrives, so this is where it's close enough to hand the
+ *  record over. MuseumScene times its `heldVinyl` handover on this, which is
+ *  why it lives here rather than as a number copied into that file. */
+export const SLEEVE_OPEN_MS = 620;
+/** Turns per second the record makes while it hangs out of the case. */
+const DISC_SPIN = 0.45;
 
 export function VinylSleeve({
   coverImageUrl,
@@ -32,6 +55,7 @@ export function VinylSleeve({
   placement,
   active,
   taken,
+  open = false,
   scale = 1,
   shouldLoad = true,
 }: {
@@ -41,10 +65,16 @@ export function VinylSleeve({
   active: boolean;
   /** The record is out of the sleeve — in the visitor's hands or on the deck. */
   taken: boolean;
+  /** The case is open: cover swung back, record slid out (until `taken`). */
+  open?: boolean;
   scale?: number;
   shouldLoad?: boolean;
 }) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  const flapRef = useRef<THREE.Group>(null);
+  const discRef = useRef<THREE.Group>(null);
+  // 0 = shut, 1 = wide open. A ref, not state: it changes every frame.
+  const progress = useRef(0);
 
   useEffect(() => {
     if (!shouldLoad) return;
@@ -64,6 +94,32 @@ export function VinylSleeve({
   const [nx, , nz] = placement.wallNormal;
   const position: [number, number, number] = [px + nx * FRAME_WALL_OFFSET, py, pz + nz * FRAME_WALL_OFFSET];
 
+  useFrame((_, delta) => {
+    // Frame-rate independent ease toward the target, so the swing takes the
+    // same wall-clock time on a 144 Hz laptop and a throttled tab.
+    const k = 1 - Math.exp(-Math.min(delta, 0.1) * EASE);
+    progress.current += ((open ? 1 : 0) - progress.current) * k;
+    const p = progress.current;
+
+    if (flapRef.current) {
+      // Hinged on the sleeve's left edge: +Y rotation walks the free edge out
+      // of the wall and then round to the left, like opening a book.
+      flapRef.current.rotation.y = p * OPEN_ANGLE;
+    }
+    if (discRef.current) {
+      // Out of the open right edge, forward off the wall, and settling to
+      // centre height as it clears the sleeve.
+      discRef.current.position.set(
+        DISC_PEEK + p * (size * 0.72 - DISC_PEEK),
+        DISC_PEEK * (1 - p),
+        -0.008 + p * 0.105
+      );
+      discRef.current.rotation.z -= delta * DISC_SPIN * Math.PI * 2 * p;
+      // A touch of tilt so it catches the room light rather than reading flat.
+      discRef.current.rotation.y = p * 0.28;
+    }
+  });
+
   return (
     <group position={position} rotation={[0, placement.rotationY, 0]} name={`sleeve:${title}`}>
       <group scale={[scale, scale, scale]}>
@@ -73,12 +129,20 @@ export function VinylSleeve({
           <meshStandardMaterial color={active ? INTERACT_GLOW_COLOR : "#2c2620"} roughness={0.6} />
         </mesh>
 
-        {/* The disc, peeking out of the sleeve's top-right while it's home. */}
+        {/* The case's back half — plain inner card, seen only once the cover
+            swings off it. */}
+        <mesh position={[0, 0, -0.012]}>
+          <planeGeometry args={[size * 0.98, size * 0.98]} />
+          <meshStandardMaterial color="#1a1613" roughness={0.95} />
+        </mesh>
+
+        {/* The disc. Parked inside the shut case, slid out and turning while
+            the case is open, gone entirely once it's in the visitor's hands. */}
         {!taken && (
-          <group position={[DISC_PEEK, DISC_PEEK, -0.008]}>
+          <group ref={discRef} position={[DISC_PEEK, DISC_PEEK, -0.008]}>
             <mesh>
               <circleGeometry args={[DISC_RADIUS, 48]} />
-              <meshStandardMaterial color="#0b0b0d" roughness={0.35} metalness={0.2} />
+              <meshStandardMaterial color="#0b0b0d" roughness={0.35} metalness={0.2} side={THREE.DoubleSide} />
             </mesh>
             {/* Label — the same cover, small. */}
             <mesh position={[0, 0, 0.002]}>
@@ -94,24 +158,35 @@ export function VinylSleeve({
           </group>
         )}
 
-        {/* The sleeve itself. */}
-        <mesh>
-          <planeGeometry args={[size, size]} />
-          <meshStandardMaterial
-            key={texture ? texture.uuid : "placeholder"}
-            map={texture}
-            color={texture ? (taken ? "#8a8479" : "#ffffff") : "#d8d3c6"}
-            roughness={texture ? 0.9 : 1}
-            toneMapped={false}
-            side={THREE.DoubleSide}
-            transparent={taken}
-            opacity={taken ? 0.75 : 1}
-          />
-        </mesh>
+        {/* The cover, hinged on its left edge. The outer group is the hinge
+            (parked at -size/2); the inner one carries the art back out to
+            centre, so rotating the hinge swings the whole face. */}
+        <group ref={flapRef} position={[-size / 2, 0, 0.004]}>
+          <group position={[size / 2, 0, 0]}>
+            <mesh>
+              <planeGeometry args={[size, size]} />
+              <meshStandardMaterial
+                key={texture ? texture.uuid : "placeholder"}
+                map={texture}
+                color={texture ? "#ffffff" : "#d8d3c6"}
+                roughness={texture ? 0.9 : 1}
+                toneMapped={false}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+            {/* The cover's reverse — bare card, so a swung-open case doesn't
+                show a mirrored copy of the artwork. Nearer the viewer than
+                the art once the flap passes 90°, so depth does the hiding. */}
+            <mesh position={[0, 0, -0.003]} rotation={[0, Math.PI, 0]}>
+              <planeGeometry args={[size, size]} />
+              <meshStandardMaterial color="#2a241d" roughness={0.98} />
+            </mesh>
 
-        {active && !taken && (
-          <BannerShimmer width={size} height={size} speed={1} strength={0.35} color="#f5f1e8" band={0.35} active />
-        )}
+            {active && (
+              <BannerShimmer width={size} height={size} speed={1} strength={0.35} color="#f5f1e8" band={0.35} active />
+            )}
+          </group>
+        </group>
       </group>
     </group>
   );

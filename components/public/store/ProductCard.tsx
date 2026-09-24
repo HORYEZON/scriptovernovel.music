@@ -8,6 +8,8 @@ import { imageVariantUrl } from "@/lib/images/variants";
 import { formatPriceRange } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { productCategoryLabel } from "@/lib/store/categories";
+import { HoverShimmer } from "@/components/public/HoverShimmer";
+import { DEFAULT_HOVER_SHIMMER, type ShimmerSettings } from "@/lib/hover-shimmer";
 import type { PublicProduct } from "@/lib/store/public-product";
 
 export function productStockState(p: PublicProduct): "out" | "last" | "ok" {
@@ -17,7 +19,19 @@ export function productStockState(p: PublicProduct): "out" | "last" | "ok" {
   return "ok";
 }
 
-export function ProductCard({ product, className }: { product: PublicProduct; className?: string }) {
+export function ProductCard({
+  product,
+  className,
+  // Settings → Preferences → Branding → Hover Shimmer, "Shop" surface. That
+  // surface has existed in the admin since the shimmer was added but nothing
+  // rendered it here, so the setting did nothing on this page. The default
+  // keeps every other caller working without passing it.
+  shimmer = DEFAULT_HOVER_SHIMMER.shop,
+}: {
+  product: PublicProduct;
+  className?: string;
+  shimmer?: ShimmerSettings;
+}) {
   const [first, second] = product.images;
   const state = productStockState(product);
   const category = productCategoryLabel(product.category);
@@ -51,8 +65,11 @@ export function ProductCard({ product, className }: { product: PublicProduct; cl
         ) : (
           <div aria-hidden="true" className="h-full w-full bg-[radial-gradient(circle_at_40%_30%,rgba(200,169,110,0.2),transparent_55%)]" />
         )}
+        {/* Above the photos, under the stock badge — the sweep should cross
+            the image, not the label. */}
+        <HoverShimmer settings={shimmer} />
         {state !== "ok" && (
-          <span className="absolute left-3 top-3 rounded-full border border-cream/30 bg-ink/70 px-2.5 py-1 font-body text-[10px] uppercase tracking-[0.2em] text-cream backdrop-blur-md">
+          <span className="absolute left-3 top-3 z-10 rounded-full border border-cream/30 bg-ink/70 px-2.5 py-1 font-body text-[10px] uppercase tracking-[0.2em] text-cream backdrop-blur-md">
             {state === "out" ? "Sold out" : "Last one"}
           </span>
         )}

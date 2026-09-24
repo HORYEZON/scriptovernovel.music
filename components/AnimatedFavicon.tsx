@@ -3,7 +3,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { MUSEUM_FAVICON_ICON } from "@/lib/favicon";
+import { ADMIN_FAVICON_ICON, MUSEUM_FAVICON_ICON } from "@/lib/favicon";
 
 /**
  * Browsers render an SVG favicon as a single static snapshot — @keyframes
@@ -56,11 +56,22 @@ export default function AnimatedFavicon({
   // exact same colors — this is purely a shape override, not a separate
   // color scheme. app/(public)/gallery/museum/icon.tsx handles the static/
   // no-JS equivalent so the two never disagree.
+  //
+  // /admin works the same way with the record icon (ADMIN_FAVICON_ICON), with
+  // one difference: it also overrides an uploaded Site Design favicon image,
+  // which is a public-facing branding choice and has no business labelling the
+  // back office. That's why `adminRoute` is checked before `imageHref` below
+  // rather than alongside `iconOverride`.
   const pathname = usePathname();
-  const iconOverride = pathname?.startsWith("/gallery/museum") ? MUSEUM_FAVICON_ICON : null;
+  const adminRoute = Boolean(pathname?.startsWith("/admin"));
+  const iconOverride = pathname?.startsWith("/gallery/museum")
+    ? MUSEUM_FAVICON_ICON
+    : adminRoute
+      ? ADMIN_FAVICON_ICON
+      : null;
 
   useEffect(() => {
-    if (imageHref) {
+    if (imageHref && !adminRoute) {
       document.querySelectorAll<HTMLLinkElement>('link[rel="icon"]').forEach((l) => l.remove());
       const link = document.createElement("link");
       link.rel = "icon";
@@ -96,7 +107,7 @@ export default function AnimatedFavicon({
       window.clearInterval(id);
       link.remove();
     };
-  }, [colorsKey, iconOverride, imageHref]);
+  }, [colorsKey, iconOverride, imageHref, adminRoute]);
 
   return null;
 }

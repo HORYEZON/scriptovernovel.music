@@ -242,7 +242,9 @@ The preview card **stays on screen** while you scroll the controls under it, so 
 
 ## 11. Vinyl Room (Digital Museum)
 
-**What this is for:** a room in the Digital Museum where your records hang on the wall. A visitor walks up to a sleeve, presses **[E]** (or taps) to take the record, carries it to the turntable, and puts it on. It plays — through effects they can turn (reverb, lo-fi, crackle, echo, 33 / 45 / 78 speed) — while the **Lyrics Wall** shows the song's words line by line.
+**What this is for:** a room in the Digital Museum where your records hang on the wall. A visitor walks up to a sleeve and presses **[E]** (or taps): the cover swings open like a gatefold, the record slides out of it and lands in their hands. They carry it to the turntable and put it on. It plays — through effects they can turn (reverb, lo-fi, crackle, echo, a five-pedal shoegaze board, 33 / 45 / 78 speed, even backwards) — while the **Lyrics Wall** shows the song's words line by line.
+
+> A sleeve whose record is out stays hanging open and empty, so the wall shows at a glance what's been taken. Pressing **[E]** at it again slides the record back in and shuts the cover.
 
 ### 11.1 Adding a record
 
@@ -286,7 +288,33 @@ With the wall switched on, the same card carries every control the museum's othe
 
 > 💡 A room you have never styled looks exactly as it always did — the defaults are the wall's original near-black glass with its gold trim.
 
-### 11.4 Good to know
+### 11.4 The effects on the deck
+
+Opening the turntable's panel gives a visitor the knobs. They all start from
+**your** defaults (Scene Editor → Turntable & Lyrics Wall → Default effects);
+a visitor's own changes last for their visit only.
+
+**The old-record set** — Reverb (room size), Lo-fi (warmth and grit), Crackle
+(dust on the record) and Echo.
+
+**The shoegaze board** — five modulations in the order a guitarist would chain
+them: **Phaser** (swept notches), **Flanger** (the jet sweep), **Chorus** (a
+detuned wash), **Vibrato** (pitch wobble — a warped record at depth) and
+**Tremolo** (a volume pulse). Above them sits one **Drift** knob: it sets how
+fast every sweep moves. Each pedal runs at its own fraction of that speed, so
+turning two of them up sounds like two pedals rather than one blur.
+
+**Play it backwards** — backmasking. It picks up from wherever the song was,
+and the timer counts down instead of up. The deck has to read and reverse the
+whole recording first, so a long record takes a moment the first time; after
+that, flipping it is instant.
+
+> 💡 **You can set any of these as the room's starting sound**, including
+> "Start backmasked" — that one makes every record play in reverse from the
+> moment it lands on the deck. A curiosity rather than a default; most rooms
+> want it off.
+
+### 11.5 Good to know
 
 - The museum's own soundtrack pauses while a record plays and comes back when it's taken off.
 - A visitor's effect settings last for their visit; the room's defaults are yours.

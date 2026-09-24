@@ -66,12 +66,38 @@ export interface LyricsWallConfig extends BannerFinish {
   fontScale: number;
 }
 
-/** Effect amounts, 0–1, plus the platter speed in rpm. */
+/**
+ * Effect amounts, 0–1, plus the platter speed in rpm.
+ *
+ * The first four are the room's original "old record" set. The five after
+ * them are the shoegaze pedalboard — every classic modulation, in the order a
+ * player would chain them (see vinylAudio.ts), because that genre is built out
+ * of pitch and amplitude movement rather than EQ. `modRate` is one tempo for
+ * all of them: each stage runs its own LFO at its own multiple of it, so the
+ * board drifts together instead of five oscillators beating against each other.
+ */
 export interface VinylEffects {
   reverb: number;
   lofi: number;
   crackle: number;
   delay: number;
+  /** Detuned doubling — the wash under a wall of guitars. */
+  chorus: number;
+  /** Chorus with feedback and a much shorter delay: the jet sweep. */
+  flanger: number;
+  /** Swept allpass notches. */
+  phaser: number;
+  /** Amplitude pulse. */
+  tremolo: number;
+  /** Pitch wobble — a warped-record warble at depth. */
+  vibrato: number;
+  /** Shared LFO tempo for all five modulations, 0 = a slow drift (~0.2 Hz),
+   *  1 = a fast flutter (~6 Hz). */
+  modRate: number;
+  /** Backmasking: the record turns the other way. Unlike the amounts above
+   *  this is not a knob on the signal path — the player has to decode the
+   *  whole file and play a reversed copy of it (see vinylAudio.ts). */
+  reverse: boolean;
   speed: 33 | 45 | 78;
   /** ±0.08 fine adjustment on top of the nominal speed. */
   fine: number;
@@ -92,6 +118,16 @@ export const DEFAULT_VINYL_EFFECTS: VinylEffects = {
   lofi: 0,
   crackle: 0.15,
   delay: 0,
+  // The pedalboard starts flat: a record should sound like a record until
+  // someone reaches for the knobs. modRate sits mid-slow (~1.4 Hz) so the
+  // first modulation turned up already sounds like a pedal rather than a siren.
+  chorus: 0,
+  flanger: 0,
+  phaser: 0,
+  tremolo: 0,
+  vibrato: 0,
+  modRate: 0.2,
+  reverse: false,
   speed: 33,
   fine: 0,
 };
@@ -177,6 +213,13 @@ export function sanitizeVinylEffects(raw: unknown, base: VinylEffects = DEFAULT_
     lofi: clamp01(r.lofi, base.lofi),
     crackle: clamp01(r.crackle, base.crackle),
     delay: clamp01(r.delay, base.delay),
+    chorus: clamp01(r.chorus, base.chorus),
+    flanger: clamp01(r.flanger, base.flanger),
+    phaser: clamp01(r.phaser, base.phaser),
+    tremolo: clamp01(r.tremolo, base.tremolo),
+    vibrato: clamp01(r.vibrato, base.vibrato),
+    modRate: clamp01(r.modRate, base.modRate),
+    reverse: boolOr(r.reverse, base.reverse),
     speed,
     fine: Math.min(0.08, Math.max(-0.08, finiteOr(r.fine, base.fine))),
   };

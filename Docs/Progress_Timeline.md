@@ -469,3 +469,57 @@ not a release of its own.
 
 - `MiniGame.releaseId` + `secondaryImageUrl`, five new `MiniGameType` values
   (migration `20260920200000_music_minigames`)
+
+---
+
+## September 24, 2026 — v0.14 (sleeves that open, a pedalboard on the deck)
+
+### Public Side
+
+- **A record sleeve opens.** [E] at one on the Vinyl Room's wall no longer
+  just hands the record over: the cover swings on its left edge like a
+  gatefold, the disc slides out of the open right edge and turns on the spot,
+  and only then does it reach your hands. Putting it back runs the same
+  animation in reverse. A case whose record is out on the deck stays hanging
+  open, so the wall reads at a glance as "that one's out"
+- **The turntable has a shoegaze board.** Phaser, flanger, chorus, vibrato and
+  tremolo, chained in the order a player would, plus one **Drift** knob that
+  sets the tempo for all five — each pedal runs its own LFO at its own
+  multiple of it, so turning two up sounds like two pedals rather than one
+  blob
+- **Backmasking.** A record can be played backwards from the deck panel. It
+  picks up from wherever the song was, and the timer counts down
+- The Store's product cards have their hover light-sweep. The **Hover
+  Shimmer → Shop** setting has existed in the admin since the shimmer
+  shipped; nothing had ever rendered it there
+- The About page's genre chips react to a hover — they had no hover styling of
+  any kind
+- **Header search, tidied.** The panel showed two ✕ (the browser draws its own
+  inside a search input), stayed light-mode tan in dark mode, and let the page
+  scroll behind it. One ✕ now, frosted glass that follows the theme, and a
+  single scrollbar. Also ↑/↓ to walk the results and Enter to open one
+
+### Admin Side
+
+- The deck's default effects (Museum Editor → Vinyl) gain the five
+  modulations, the Drift knob and a **Start backmasked** switch
+- The admin panel's browser tab wears the record icon with the same colour
+  glow the public site has, regardless of an uploaded Site Design favicon —
+  that upload is public branding and has no business labelling the back office
+
+### Infra / DB
+
+- No migration. `VinylEffects` gains `chorus`/`flanger`/`phaser`/`tremolo`/
+  `vibrato`/`modRate`/`reverse`; the stored config is coerced through
+  `sanitizeVinylEffects` as always, so an existing row simply picks up the
+  new defaults. `lib/openapi.ts` updated
+- Backmasking swaps the player's *source* rather than adding a node: an
+  `<audio>` element can't play backwards at any rate, so the file is fetched,
+  decoded, reversed sample-by-sample and played from an `AudioBufferSourceNode`
+  into the same chain. The two modes hand the playhead to each other. A decode
+  needs CORS on the bucket — the same requirement the element already has —
+  and a failure keeps the record playing forwards and says so rather than
+  dropping into silence
+- `SLEEVE_OPEN_MS` is exported from `VinylSleeve.tsx` and imported by
+  `MuseumScene`, so the swing and the moment the record changes hands can't
+  drift apart

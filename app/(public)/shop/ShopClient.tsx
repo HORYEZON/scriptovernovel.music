@@ -7,11 +7,19 @@ import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/public/system/Reveal";
 import { ProductCard } from "@/components/public/store/ProductCard";
 import { PRODUCT_CATEGORIES } from "@/lib/store/categories";
+import { DEFAULT_HOVER_SHIMMER, type ShimmerSettings } from "@/lib/hover-shimmer";
 import type { PublicProduct } from "@/lib/store/public-product";
 
 const PAGE_SIZE = 12;
 
-export function ShopClient({ products }: { products: PublicProduct[] }) {
+export function ShopClient({
+  products,
+  shimmer = DEFAULT_HOVER_SHIMMER.shop,
+}: {
+  products: PublicProduct[];
+  /** The admin's Hover Shimmer settings for the Shop surface. */
+  shimmer?: ShimmerSettings;
+}) {
   const [category, setCategory] = useState<string>("ALL");
   const [page, setPage] = useState(1);
   const present = useMemo(() => new Set(products.map((p) => p.category ?? "other")), [products]);
@@ -55,7 +63,7 @@ export function ShopClient({ products }: { products: PublicProduct[] }) {
       <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
         {slice.map((p, i) => (
           <Reveal as="li" key={p.id} delayMs={(i % 4) * 60}>
-            <ProductCard product={p} />
+            <ProductCard product={p} shimmer={shimmer} />
           </Reveal>
         ))}
       </ul>

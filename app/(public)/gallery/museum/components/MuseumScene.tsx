@@ -49,6 +49,7 @@ import { computeStandeePlacements } from "./standeePlacement";
 import { STANDEE_COLLIDER_RADIUS } from "./CosplayStandee";
 import { CosplayInfoPanel } from "./CosplayInfoPanel";
 import { VinylRoomContents, type SleeveEntry, type VinylTarget } from "./VinylRoomContents";
+import { SLEEVE_OPEN_MS } from "./VinylSleeve";
 import { computeSleevePlacements, defaultTurntablePosition, wallNormalForRotation } from "./sleevePlacement";
 import { TURNTABLE_COLLIDER_RADIUS } from "./Turntable";
 import { TurntablePanel } from "./TurntablePanel";
@@ -964,9 +965,14 @@ export function MuseumScene({
   // keeps playing until it's taken off, which is the point of the room.
   const [activeVinylTarget, setActiveVinylTarget] = useState<VinylTarget | null>(null);
   const [heldVinyl, setHeldVinyl] = useState<MuseumVinylSleeve | null>(null);
+  // The sleeve currently swinging open on the wall. [E] doesn't hand the
+  // record over on the spot — it opens the case (VinylSleeve.tsx animates the
+  // cover and slides the disc out), and the record only lands in `heldVinyl`
+  // once that swing has finished, so the HUD card and the object agree.
+  const [openingSleeve, setOpeningSleeve] = useState<MuseumVinylSleeve | null>(null);
   const [deckVinyl, setDeckVinyl] = useState<MuseumVinylSleeve | null>(null);
   const [panelDeck, setPanelDeck] = useState(false);
-  const [deckState, setDeckState] = useState<VinylPlayerState>({ playing: false, currentTime: 0, duration: 0, ended: false, error: null });
+  const [deckState, setDeckState] = useState<VinylPlayerState>({ playing: false, currentTime: 0, duration: 0, ended: false, error: null, reversed: false, decoding: false });
   // Effects start from the room's defaults; a visitor's tweaks persist for
   // the visit (sessionStorage) so leaving and re-entering keeps their sound.
   const [vinylEffects, setVinylEffects] = useState<VinylEffects>(() => {
@@ -1019,6 +1025,19 @@ export function MuseumScene({
       return null;
     });
   }, []);
+  // Hand the record over when the case has finished opening. The delay is
+  // VinylSleeve's swing, not a guess at one — SLEEVE_OPEN_MS is exported from
+  // there so the two can't drift apart. Walking away mid-swing still delivers
+  // it: the press already happened.
+  useEffect(() => {
+    if (!openingSleeve) return;
+    const record = openingSleeve;
+    const timer = window.setTimeout(() => {
+      setHeldVinyl(record);
+      setOpeningSleeve(null);
+    }, SLEEVE_OPEN_MS);
+    return () => window.clearTimeout(timer);
+  }, [openingSleeve]);
   // The sleeves whose record is out — held or on the deck — so the wall
   // shows the gap.
   const takenEntryIds = useMemo(() => {
@@ -1434,12 +1453,17 @@ export function MuseumScene({
       if (entry) setPanelCosplay(entry.cosplay);
     } else if (activeVinylTarget?.kind === "sleeve") {
       const sleeve = activeVinylTarget.entry.vinyl;
-      if (heldVinyl && heldVinyl.entryId === sleeve.entryId) {
-        // Put it back where it came from.
+      if (openingSleeve) {
+        // Mid-swing — the record is already sliding out of the case. A second
+        // press mustn't restart it or hand over a different one.
+      } else if (heldVinyl && heldVinyl.entryId === sleeve.entryId) {
+        // Put it back where it came from: the disc slides in and the cover
+        // shuts behind it, the opening run backwards.
         setHeldVinyl(null);
       } else if (!heldVinyl && !takenEntryIds.has(sleeve.entryId)) {
-        // Take it off the wall — the held-item HUD shows it from here.
-        setHeldVinyl(sleeve);
+        // Open the case. The record is in hand once the cover has swung — see
+        // the openingSleeve effect above.
+        setOpeningSleeve(sleeve);
       }
       // Holding a different record, or this one is on the deck: nothing to do
       // at this sleeve (the prompt already says so).
@@ -1467,7 +1491,7 @@ export function MuseumScene({
       }
       // Empty deck, empty hands: nothing to do.
     }
-  }, [panelArtwork, panelCert, panelStory, panelCosplay, panelDeck, panelGame, playingGame, panelGigs, activeGigs, panelContact, activeContact, activeArcadeGame, activeIndex, artworks, activeCert, activePodium, storiesLayout, activeStandee, cosplayLayout, activeVinylTarget, heldVinyl, deckVinyl, takenEntryIds, vinylEffects, getVinylPlayer, onArtworkViewed, roomIds, servicesRoomId, releasePointer]);
+  }, [panelArtwork, panelCert, panelStory, panelCosplay, panelDeck, panelGame, playingGame, panelGigs, activeGigs, panelContact, activeContact, activeArcadeGame, activeIndex, artworks, activeCert, activePodium, storiesLayout, activeStandee, cosplayLayout, activeVinylTarget, heldVinyl, openingSleeve, deckVinyl, takenEntryIds, vinylEffects, getVinylPlayer, onArtworkViewed, roomIds, servicesRoomId, releasePointer]);
 
   // Report the starting room immediately — PlayerControls' onRoomChange
   // only fires on a *change*, so without this the HUD wouldn't know the
@@ -1705,10 +1729,13 @@ export function MuseumScene({
     if (!activeVinylTarget) return null;
     if (activeVinylTarget.kind === "sleeve") {
       const sleeve = activeVinylTarget.entry.vinyl;
+      // Mid-swing the press is a no-op, so the prompt narrates instead of
+      // offering — the case is doing the thing they asked for.
+      if (openingSleeve?.entryId === sleeve.entryId) return { label: "Sliding out…", title: sleeve.title };
       if (heldVinyl?.entryId === sleeve.entryId) return { label: "Put Back", title: sleeve.title };
       if (heldVinyl) return null;
       if (takenEntryIds.has(sleeve.entryId)) return { label: "On the deck", title: sleeve.title };
-      return { label: "Take Record", title: sleeve.title };
+      return { label: "Open Sleeve", title: sleeve.title };
     }
     if (heldVinyl) return { label: deckVinyl ? "Swap Record" : "Put On", title: heldVinyl.title };
     if (deckVinyl) return { label: "Open Deck", title: deckVinyl.title };
@@ -2201,6 +2228,7 @@ export function MuseumScene({
               activeTarget={activeVinylTarget}
               onActiveChange={setActiveVinylTarget}
               takenEntryIds={takenEntryIds}
+              openingEntryId={openingSleeve?.entryId ?? null}
               deckVinyl={deckVinyl}
               deckPlaying={deckState.playing}
               deckRpm={vinylEffects.speed === 33 ? 100 / 3 : vinylEffects.speed}

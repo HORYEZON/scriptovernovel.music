@@ -55,6 +55,7 @@ export function VinylRoomContents({
   activeTarget,
   onActiveChange,
   takenEntryIds,
+  openingEntryId,
   deckVinyl,
   deckPlaying,
   deckRpm,
@@ -72,6 +73,9 @@ export function VinylRoomContents({
   onActiveChange: (target: VinylTarget | null) => void;
   /** Sleeves whose record is out (held or on the deck). */
   takenEntryIds: ReadonlySet<string>;
+  /** The sleeve mid-way through its [E] opening swing — the record is still
+   *  in the case, sliding out, and hasn't reached the visitor's hands yet. */
+  openingEntryId: string | null;
   deckVinyl: MuseumVinylSleeve | null;
   deckPlaying: boolean;
   deckRpm: number;
@@ -163,6 +167,10 @@ export function VinylRoomContents({
           scale={entry.scale}
           active={activeSleeveId === entry.entryId}
           taken={takenEntryIds.has(entry.entryId)}
+          // A case stays open for as long as its record is out, so the wall
+          // keeps showing the gap; the opening swing itself is the window
+          // between the [E] press and the record reaching the hands.
+          open={openingEntryId === entry.entryId || takenEntryIds.has(entry.entryId)}
           shouldLoad={shouldLoad}
         />
       ))}
