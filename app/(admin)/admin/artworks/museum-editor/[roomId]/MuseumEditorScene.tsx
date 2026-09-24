@@ -1589,7 +1589,13 @@ export function MuseumEditorScene({
   const [orbitEnabled, setOrbitEnabled] = useState(true);
 
   return (
-    <Canvas camera={{ fov: 55, near: 0.1, far: 100, position: [0, depth * 0.55, depth * 0.75] }}>
+    <Canvas
+      camera={{ fov: 55, near: 0.1, far: 100, position: [0, depth * 0.55, depth * 0.75] }}
+      // A stacking context of its own, so a YouTube Lyrics Wall video (DOM
+      // layered behind the canvas — see LyricsWallVideo.tsx) can use z-index
+      // -1/0 without those numbers competing with the editor's panels.
+      style={{ isolation: "isolate" }}
+    >
       <color attach="background" args={[darkMode ? SCENE_BACKGROUND_DARK : SCENE_BACKGROUND_LIGHT]} />
       {/* No lights of the editor's own. MuseumRoom below brings the room's
           full lighting rig (ambient + hemisphere + point lights, at the same

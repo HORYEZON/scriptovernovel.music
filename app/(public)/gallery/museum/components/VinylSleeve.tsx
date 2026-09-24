@@ -11,9 +11,10 @@
 // handleActivate) doesn't open a modal — it opens the object itself: the
 // front cover swings on its left edge like a gatefold / CD case while the
 // record slides out of the open right edge and turns on the spot. The
-// record then goes to the visitor's hands (`taken`), leaving the case hanging
-// open and empty so the wall reads at a glance as "that one is out". Putting
-// it back runs the same animation backwards.
+// record then goes to the visitor's hands (`taken`) and the cover relaxes to
+// half-open (AJAR), artwork still facing the room, so the wall reads at a
+// glance as "that one is out" without the sleeve looking shut. Putting it
+// back runs the same animation backwards.
 //
 // Both halves of that are driven from one eased progress ref in useFrame —
 // no React state per frame, and `open` can flip mid-animation without a
@@ -36,9 +37,15 @@ export const SLEEVE_SIZE = 1.15;
 const DISC_RADIUS = SLEEVE_SIZE * 0.47;
 /** How far the disc peeks out of the sleeve while the case is shut. */
 const DISC_PEEK = 0.09;
-/** How far the cover swings — past square, so the open case reads as open
- *  from the side as well as head-on. */
+/** How far the cover swings while the record slides out — past square, so
+ *  the disc has a clear path and the open case reads as open from the side
+ *  as well as head-on. */
 const OPEN_ANGLE = 2.15;
+/** Where the cover settles once the record is out (fraction of OPEN_ANGLE,
+ *  ~50°). Fully swung, the cover shows its bare reverse and the artwork faces
+ *  the wall — from across the room an empty sleeve read as a closed one. Ajar,
+ *  the artwork stays facing the room and the gap still says "this one's out". */
+const AJAR = 0.42;
 /** Eased-approach constant for the open/close lerp. */
 const EASE = 7;
 /** How long the swing reads as finished, in ms — the eased approach never
@@ -98,7 +105,11 @@ export function VinylSleeve({
     // Frame-rate independent ease toward the target, so the swing takes the
     // same wall-clock time on a 144 Hz laptop and a throttled tab.
     const k = 1 - Math.exp(-Math.min(delta, 0.1) * EASE);
-    progress.current += ((open ? 1 : 0) - progress.current) * k;
+    // Wide open while the disc is on its way out, then relaxing to ajar once
+    // it's gone — the same lerp, so the settle is the tail of the swing rather
+    // than a second animation.
+    const target = open ? (taken ? AJAR : 1) : 0;
+    progress.current += (target - progress.current) * k;
     const p = progress.current;
 
     if (flapRef.current) {

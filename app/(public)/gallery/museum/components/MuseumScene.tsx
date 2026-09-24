@@ -50,6 +50,7 @@ import { STANDEE_COLLIDER_RADIUS } from "./CosplayStandee";
 import { CosplayInfoPanel } from "./CosplayInfoPanel";
 import { VinylRoomContents, type SleeveEntry, type VinylTarget } from "./VinylRoomContents";
 import { SLEEVE_OPEN_MS } from "./VinylSleeve";
+import { SleeveDetailsPanel } from "./SleeveDetailsPanel";
 import { computeSleevePlacements, defaultTurntablePosition, wallNormalForRotation } from "./sleevePlacement";
 import { TURNTABLE_COLLIDER_RADIUS } from "./Turntable";
 import { TurntablePanel } from "./TurntablePanel";
@@ -970,9 +971,12 @@ export function MuseumScene({
   // cover and slides the disc out), and the record only lands in `heldVinyl`
   // once that swing has finished, so the HUD card and the object agree.
   const [openingSleeve, setOpeningSleeve] = useState<MuseumVinylSleeve | null>(null);
+  // The details panel for a sleeve whose record is out on the deck — the one
+  // thing [E] can usefully do at an empty sleeve (SleeveDetailsPanel.tsx).
+  const [panelSleeve, setPanelSleeve] = useState<MuseumVinylSleeve | null>(null);
   const [deckVinyl, setDeckVinyl] = useState<MuseumVinylSleeve | null>(null);
   const [panelDeck, setPanelDeck] = useState(false);
-  const [deckState, setDeckState] = useState<VinylPlayerState>({ playing: false, currentTime: 0, duration: 0, ended: false, error: null, reversed: false, decoding: false });
+  const [deckState, setDeckState] = useState<VinylPlayerState>({ playing: false, currentTime: 0, duration: 0, ended: false, error: null, source: "element", decoding: false });
   // Effects start from the room's defaults; a visitor's tweaks persist for
   // the visit (sessionStorage) so leaving and re-entering keeps their sound.
   const [vinylEffects, setVinylEffects] = useState<VinylEffects>(() => {
@@ -1406,6 +1410,7 @@ export function MuseumScene({
     else if (panelStory) setPanelStory(null);
     else if (panelCosplay) setPanelCosplay(null);
     else if (panelDeck) setPanelDeck(false);
+    else if (panelSleeve) setPanelSleeve(null);
     else if (panelGame) setPanelGame(null);
     else if (panelGigs) setPanelGigs(false);
     else if (panelContact) setPanelContact(false);
@@ -1464,6 +1469,11 @@ export function MuseumScene({
         // Open the case. The record is in hand once the cover has swung — see
         // the openingSleeve effect above.
         setOpeningSleeve(sleeve);
+      } else if (deckVinyl?.entryId === sleeve.entryId && !isPresenting) {
+        // Its record is on the deck: show what's playing. DOM-only, like the
+        // deck's own panel, so a headset keeps the plain label instead.
+        releasePointer();
+        setPanelSleeve(sleeve);
       }
       // Holding a different record, or this one is on the deck: nothing to do
       // at this sleeve (the prompt already says so).
@@ -1491,7 +1501,7 @@ export function MuseumScene({
       }
       // Empty deck, empty hands: nothing to do.
     }
-  }, [panelArtwork, panelCert, panelStory, panelCosplay, panelDeck, panelGame, playingGame, panelGigs, activeGigs, panelContact, activeContact, activeArcadeGame, activeIndex, artworks, activeCert, activePodium, storiesLayout, activeStandee, cosplayLayout, activeVinylTarget, heldVinyl, openingSleeve, deckVinyl, takenEntryIds, vinylEffects, getVinylPlayer, onArtworkViewed, roomIds, servicesRoomId, releasePointer]);
+  }, [panelArtwork, panelCert, panelStory, panelCosplay, panelDeck, panelGame, playingGame, panelGigs, activeGigs, panelContact, activeContact, activeArcadeGame, activeIndex, artworks, activeCert, activePodium, storiesLayout, activeStandee, cosplayLayout, activeVinylTarget, heldVinyl, openingSleeve, panelSleeve, isPresenting, deckVinyl, takenEntryIds, vinylEffects, getVinylPlayer, onArtworkViewed, roomIds, servicesRoomId, releasePointer]);
 
   // Report the starting room immediately — PlayerControls' onRoomChange
   // only fires on a *change*, so without this the HUD wouldn't know the
@@ -1554,6 +1564,13 @@ export function MuseumScene({
   // Walking away from the deck closes its panel — the record keeps playing.
   useEffect(() => {
     if (activeVinylTarget?.kind !== "deck") setPanelDeck(false);
+  }, [activeVinylTarget]);
+  // Same for a sleeve's details: walking off to another sleeve or the deck
+  // closes them.
+  useEffect(() => {
+    setPanelSleeve((open) =>
+      open && activeVinylTarget?.kind === "sleeve" && activeVinylTarget.entry.entryId === open.entryId ? open : null
+    );
   }, [activeVinylTarget]);
   // Walking away from a cabinet closes its info panel — but never mid-round
   // (a running GameSession owns the screen; the visitor isn't walking).
@@ -1720,7 +1737,7 @@ export function MuseumScene({
   // the DOM pill additionally hides behind hudHidden and waits for pointer
   // lock, neither of which exists in VR.
   const anyPanelOpen = Boolean(
-    panelArtwork || panelCert || panelStory || panelCosplay || panelDeck || panelGame || playingGame || panelGigs || panelContact
+    panelArtwork || panelCert || panelStory || panelCosplay || panelDeck || panelSleeve || panelGame || playingGame || panelGigs || panelContact
   );
   // What [E] would do at the Vinyl Room's sleeve or deck right now — null
   // when nothing (empty deck with empty hands; a sleeve whose record is out
@@ -1734,7 +1751,10 @@ export function MuseumScene({
       if (openingSleeve?.entryId === sleeve.entryId) return { label: "Sliding out…", title: sleeve.title };
       if (heldVinyl?.entryId === sleeve.entryId) return { label: "Put Back", title: sleeve.title };
       if (heldVinyl) return null;
-      if (takenEntryIds.has(sleeve.entryId)) return { label: "On the deck", title: sleeve.title };
+      if (takenEntryIds.has(sleeve.entryId)) {
+        // A headset has no DOM panel to open, so there it stays a label.
+        return { label: isPresenting ? "On the deck" : "View Details", title: sleeve.title };
+      }
       return { label: "Open Sleeve", title: sleeve.title };
     }
     if (heldVinyl) return { label: deckVinyl ? "Swap Record" : "Put On", title: heldVinyl.title };
@@ -1818,6 +1838,12 @@ export function MuseumScene({
           powerPreference: "high-performance",
           preserveDrawingBuffer: !lowEnd,
         }}
+        // Makes R3F's wrapper div a stacking context. A YouTube Lyrics Wall
+        // video is real DOM layered *behind* the canvas (z-index -1, canvas 0
+        // — see LyricsWallVideo.tsx); isolated here, those numbers only order
+        // the canvas against that one video and can never lift the canvas
+        // over the HUD siblings that follow it.
+        style={{ isolation: "isolate" }}
         // The ceiling, not a fixed value — AdaptiveDpr still scales within
         // this range. Capping at 1.5 rather than 2 cuts an old phone's
         // fragment work by ~44% before it has had a chance to stutter, where
@@ -2485,6 +2511,29 @@ export function MuseumScene({
         onSeek={(seconds) => vinylPlayerRef.current?.seek(seconds)}
         onEffectsChange={applyVinylEffects}
         onResetEffects={() => applyVinylEffects(vinylConfig.defaultEffects ?? DEFAULT_VINYL_EFFECTS)}
+        landscape={touchLandscape}
+      />
+      <SleeveDetailsPanel
+        // Only while its record really is the one on the deck — taking it off
+        // from the turntable closes this rather than leaving stale details up.
+        vinyl={panelSleeve && deckVinyl?.entryId === panelSleeve.entryId && !isPresenting ? deckVinyl : null}
+        state={deckState}
+        currentTrackIndex={currentTrackIndex}
+        currentLine={lyricsLineIndex >= 0 ? lyricsTimeline[lyricsLineIndex].text : null}
+        onClose={() => setPanelSleeve(null)}
+        onPlayPause={() => {
+          const player = vinylPlayerRef.current;
+          if (!player) return;
+          if (player.isPlaying()) player.pause();
+          else {
+            pauseMuseumMusicForVinyl();
+            void player.play();
+          }
+        }}
+        onPutBack={() => {
+          takeRecordOffDeck(false);
+          setPanelSleeve(null);
+        }}
         landscape={touchLandscape}
       />
       <HeldVinylHud

@@ -70,6 +70,9 @@ import { computeSleevePlacements, defaultTurntablePosition } from "@/app/(public
 import {
   VINYL_CONFIG_KIND,
   DEFAULT_VINYL_EFFECTS,
+  MIN_LYRICS_VIDEO_BRIGHTNESS,
+  MAX_LYRICS_VIDEO_BRIGHTNESS,
+  backmaskWindowSec,
   parseVinylConfig,
   serializeVinylConfig,
   type VinylRoomConfig,
@@ -168,7 +171,7 @@ import {
   PLAQUE_FONT_SIZE_MAX,
   type BannerColors,
 } from "@/lib/museum/freedomWallBanner";
-import { ColorField, TextureField, Toggle } from "@/app/(admin)/admin/artworks/museum-ui";
+import { ColorField, TextureField, Toggle, VideoField, YoutubeUrlField } from "@/app/(admin)/admin/artworks/museum-ui";
 import { useAccordionState } from "@/components/admin/AdminAccordion";
 import {
   STORY_PODIUM_MODEL_KIND,
@@ -7944,20 +7947,71 @@ export function MuseumEditorClient({
                   />
                 </div>
               ))}
-              <div className="mt-3">
-                <Toggle
-                  label="Start backmasked"
-                  checked={vinylConfig.defaultEffects.reverse}
-                  onChange={(reverse) =>
-                    saveVinylConfig(
-                      { defaultEffects: { ...vinylConfig.defaultEffects, reverse } },
-                      reverse ? "Records start backwards" : "Records start forwards"
-                    )
-                  }
-                />
-                <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
-                  Every record plays in reverse from the moment it lands on the deck. The deck has to decode the whole
-                  file first, so long records take a second to start.
+              {/* The two reversed modes, mutually exclusive — each switch
+                  turns the other off, the same as the deck's own buttons.
+                  `reverse` kept its stored key when it was renamed from
+                  "backmasking" to "backward play", so existing rooms that had
+                  it on still start the way they did. */}
+              <div className="mt-3 space-y-3">
+                <div>
+                  <Toggle
+                    label="Start with backward play"
+                    checked={vinylConfig.defaultEffects.reverse}
+                    onChange={(reverse) =>
+                      saveVinylConfig(
+                        { defaultEffects: { ...vinylConfig.defaultEffects, reverse, backmask: false } },
+                        reverse ? "Records start playing backwards" : "Records start forwards"
+                      )
+                    }
+                  />
+                  <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
+                    The needle runs from the end of the record back to the start; the timer counts down.
+                  </p>
+                </div>
+                <div>
+                  <Toggle
+                    label="Start backmasked"
+                    checked={vinylConfig.defaultEffects.backmask}
+                    onChange={(backmask) =>
+                      saveVinylConfig(
+                        { defaultEffects: { ...vinylConfig.defaultEffects, backmask, reverse: false } },
+                        backmask ? "Records start backmasked" : "Records start forwards"
+                      )
+                    }
+                  />
+                  <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
+                    Every moment of the song sounds reversed, but the song still plays from start to finish.
+                  </p>
+                  {vinylConfig.defaultEffects.backmask && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                          Backmask window
+                        </label>
+                        <span className="font-body text-[11px] text-ink-400 dark:text-ink-300 tabular-nums">
+                          {backmaskWindowSec(vinylConfig.defaultEffects.backmaskWindow).toFixed(1)}s
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={Math.round(vinylConfig.defaultEffects.backmaskWindow * 100)}
+                        onChange={(e) =>
+                          saveVinylConfig({
+                            defaultEffects: { ...vinylConfig.defaultEffects, backmaskWindow: Number(e.target.value) / 100 },
+                          })
+                        }
+                        className="w-full touch-none"
+                      />
+                      <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-0.5">
+                        How much plays backwards at a time — short is a stutter, long lets a whole phrase run in reverse.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <p className="font-body text-[11px] text-ink-400 dark:text-ink-300">
+                  Either one makes the deck decode the whole file first, so a long record takes a second to start.
                 </p>
               </div>
               <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-2">
@@ -8139,6 +8193,117 @@ export function MuseumEditorClient({
                         changes how the wall sits rather than washing out its contrast.
                       </p>
                     </div>
+                  </div>
+
+                  {/* ── Video ─────────────────────────────────────────── */}
+                  <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/5 space-y-2">
+                    <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300 block">
+                      Video behind the lyrics
+                    </label>
+                    <div className="flex gap-1.5">
+                      {(
+                        [
+                          ["none", "None"],
+                          ["upload", "Upload"],
+                          ["youtube", "YouTube"],
+                        ] as const
+                      ).map(([source, label]) => (
+                        <button
+                          key={source}
+                          type="button"
+                          onClick={() => {
+                            snapshot();
+                            saveLyricsWall(
+                              { videoSource: source },
+                              source === "none" ? "Lyrics Wall video off" : `Lyrics Wall video: ${label}`
+                            );
+                          }}
+                          className={cn(
+                            "flex-1 px-3 py-2 rounded-xl font-jakarta text-xs font-medium transition-colors",
+                            vinylConfig.lyricsWall.videoSource === source
+                              ? "bg-sepia text-white"
+                              : "bg-black/5 dark:bg-white/5 text-ink dark:text-cream hover:bg-black/10 dark:hover:bg-white/10"
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {vinylConfig.lyricsWall.videoSource === "upload" && (
+                      <VideoField
+                        label="Video file"
+                        value={vinylConfig.lyricsWall.videoUrl}
+                        onChange={(url) => {
+                          snapshot();
+                          saveLyricsWall({ videoUrl: url }, url ? "Lyrics Wall video uploaded" : "Lyrics Wall video removed");
+                        }}
+                      />
+                    )}
+                    {vinylConfig.lyricsWall.videoSource === "youtube" && (
+                      <>
+                        <YoutubeUrlField
+                          label="YouTube link"
+                          value={vinylConfig.lyricsWall.videoYoutubeUrl}
+                          onChange={(url) => {
+                            snapshot();
+                            saveLyricsWall({ videoYoutubeUrl: url }, url ? "YouTube video set" : "YouTube video removed");
+                          }}
+                        />
+                        <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+                          Plays on the wall for visitors on a screen. A YouTube player can&apos;t be drawn inside the 3D
+                          room itself, so headset visitors see the plain wall — upload the clip instead if VR matters.
+                        </p>
+                      </>
+                    )}
+
+                    {vinylConfig.lyricsWall.videoSource !== "none" && (
+                      <>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="font-body text-[11px] uppercase tracking-widest text-ink-400 dark:text-ink-300">
+                              Video brightness
+                            </label>
+                            <span className="font-body text-[11px] tabular-nums text-ink-400 dark:text-ink-300">
+                              {Math.round(vinylConfig.lyricsWall.videoBrightness * 100)}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={MIN_LYRICS_VIDEO_BRIGHTNESS}
+                            max={MAX_LYRICS_VIDEO_BRIGHTNESS}
+                            step={0.05}
+                            value={vinylConfig.lyricsWall.videoBrightness}
+                            onPointerDown={snapshot}
+                            onChange={(e) => saveLyricsWall({ videoBrightness: Number(e.target.value) })}
+                            {...sliderCommit("Video brightness updated")}
+                            className="w-full touch-none"
+                          />
+                          <p className="font-body text-[10px] text-ink-400 dark:text-ink-300 mt-0.5">
+                            Under 100% dims the picture so the lyrics read over it. Starts at 70%.
+                          </p>
+                        </div>
+                        <label className="flex items-center justify-between gap-2 cursor-pointer">
+                          <span className="font-jakarta text-xs font-medium text-ink dark:text-cream">Mute the video</span>
+                          <input
+                            type="checkbox"
+                            checked={vinylConfig.lyricsWall.videoMuted}
+                            onChange={(e) => {
+                              snapshot();
+                              saveLyricsWall(
+                                { videoMuted: e.target.checked },
+                                e.target.checked ? "Lyrics Wall video muted" : "Lyrics Wall video sound on"
+                              );
+                            }}
+                            className="accent-emerald-500 w-4 h-4"
+                          />
+                        </label>
+                        <p className="font-body text-[10px] text-ink-400 dark:text-ink-300">
+                          On by default — the deck is already playing a record, and a second soundtrack from the wall
+                          fights it. A browser may still start it muted until the visitor has clicked into the museum.
+                        </p>
+                      </>
+                    )}
                   </div>
 
                   {/* ── Glassmorphism ─────────────────────────────────── */}

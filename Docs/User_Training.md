@@ -242,9 +242,9 @@ The preview card **stays on screen** while you scroll the controls under it, so 
 
 ## 11. Vinyl Room (Digital Museum)
 
-**What this is for:** a room in the Digital Museum where your records hang on the wall. A visitor walks up to a sleeve and presses **[E]** (or taps): the cover swings open like a gatefold, the record slides out of it and lands in their hands. They carry it to the turntable and put it on. It plays — through effects they can turn (reverb, lo-fi, crackle, echo, a five-pedal shoegaze board, 33 / 45 / 78 speed, even backwards) — while the **Lyrics Wall** shows the song's words line by line.
+**What this is for:** a room in the Digital Museum where your records hang on the wall. A visitor walks up to a sleeve and presses **[E]** (or taps): the cover swings open like a gatefold, the record slides out of it and lands in their hands, and the cover settles half-open so the artwork still faces the room. They carry it to the turntable and put it on. It plays — through effects they can turn (reverb, lo-fi, crackle, echo, a five-pedal shoegaze board, 33 / 45 / 78 speed, backward play and backmasking) — while the **Lyrics Wall** shows the song's words line by line.
 
-> A sleeve whose record is out stays hanging open and empty, so the wall shows at a glance what's been taken. Pressing **[E]** at it again slides the record back in and shuts the cover.
+> A sleeve whose record is out stays half-open and empty, so the wall shows at a glance what's been taken. While the record is in a visitor's hands, **[E]** at its sleeve slides it back in and shuts the cover. While it's **on the deck**, **[E]** at the sleeve opens a **details panel** instead: the cover large, whether it's playing (and which way), the tracklist with the current track lit, the lyric line on screen now, a link to the release, a Play/Pause button, and **Put it back in its sleeve** — which stops the deck and returns the record without walking to the turntable.
 
 ### 11.1 Adding a record
 
@@ -286,7 +286,17 @@ With the wall switched on, the same card carries every control the museum's othe
 - **Glass Opacity** — how solid the glass reads (only while Glassmorphism is on).
 - **Shimmer** — a band of light travelling across the glass, with its own **Speed** and **Strength**. Glass only; every shimmering panel in the museum sweeps in step.
 
-> 💡 A room you have never styled looks exactly as it always did — the defaults are the wall's original near-black glass with its gold trim.
+**Video behind the lyrics**
+
+- **None / Upload / YouTube** — pick where the moving picture comes from. Both are remembered, so switching back and forth doesn't lose the other.
+- **Upload** — MP4, MOV or WebM. Anything longer than 60 seconds is cropped to its first 60 when you upload it; it loops on the wall.
+- **YouTube** — paste the video's page or share link (watch, youtu.be, shorts all work) and press Enter.
+- **Video brightness** — 0–200%. Under 100% dims the picture so the lyrics read over it. It starts at **70%**; a bright video needs less.
+- **Mute the video** — on by default. The deck is already playing a record, and a second soundtrack from the wall fights it. A browser may still start the video muted until the visitor has clicked into the museum.
+
+> ⚠️ **YouTube vs. Upload in a VR headset.** A YouTube player can't be drawn *inside* the 3D room — it's layered onto the page behind a see-through patch of the wall. Visitors on a screen see it perfectly; **headset visitors see the plain wall**, and it won't appear in a 📸 screenshot either. An uploaded clip is part of the room itself, so it shows everywhere. If VR matters, upload the clip.
+
+> 💡 A room you have never styled looks exactly as it always did — the defaults are the wall's original near-black glass with its gold trim, and no video.
 
 ### 11.4 The effects on the deck
 
@@ -304,15 +314,26 @@ detuned wash), **Vibrato** (pitch wobble — a warped record at depth) and
 fast every sweep moves. Each pedal runs at its own fraction of that speed, so
 turning two of them up sounds like two pedals rather than one blur.
 
-**Play it backwards** — backmasking. It picks up from wherever the song was,
-and the timer counts down instead of up. The deck has to read and reverse the
-whole recording first, so a long record takes a moment the first time; after
-that, flipping it is instant.
+**Backward play** — the needle runs from where it is back towards the start of
+the record. The timer counts *down*, and the Lyrics Wall walks backwards
+through the song.
+
+**Backmasking** — something different: every moment of the song *sounds*
+reversed, but the song itself still moves forward. The timer counts up, the
+Lyrics Wall keeps its place, and the record ends at its end. It works by
+reversing the audio a slice at a time; the **Window** slider sets how long each
+slice is — short is a backwards stutter, long lets a whole sung phrase run in
+reverse before the next one starts.
+
+Only one of the two can be on — turning one on turns the other off. Either
+way the deck has to read the whole recording first, so a long record takes a
+moment the first time; after that, switching is instant.
 
 > 💡 **You can set any of these as the room's starting sound**, including
-> "Start backmasked" — that one makes every record play in reverse from the
-> moment it lands on the deck. A curiosity rather than a default; most rooms
-> want it off.
+> **Start with backward play** or **Start backmasked** (Scene Editor → Turntable
+> & Lyrics Wall → Default effects). A room that had "Start backmasked" on before
+> this change keeps doing exactly what it did — that switch is now called
+> **Start with backward play**, because that's what it always was.
 
 ### 11.5 Good to know
 

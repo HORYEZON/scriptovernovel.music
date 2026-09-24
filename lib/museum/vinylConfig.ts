@@ -28,6 +28,7 @@ import {
   MIN_BANNER_FONT_SCALE,
   MAX_BANNER_FONT_SCALE,
 } from "./roomBanner";
+import { parseYouTube } from "@/lib/embeds";
 
 export const VINYL_CONFIG_KIND = "vinyl-room-config";
 
@@ -64,7 +65,27 @@ export interface LyricsWallConfig extends BannerFinish {
   /** Multiplier on the auto-fitted line size, so the wall can be tuned without
    *  losing the fit-to-width behaviour that keeps a long line on the panel. */
   fontScale: number;
+  /** A moving picture behind the lyrics. "upload" plays `videoUrl` as a real
+   *  WebGL texture (works in VR); "youtube" layers the YouTube player as DOM
+   *  behind a transparent patch of the canvas, because a cross-origin iframe's
+   *  pixels can never be read into a texture — which also means it can't be
+   *  seen in a headset. Both URLs are kept so switching source doesn't lose
+   *  the other one. */
+  videoSource: LyricsVideoSource;
+  /** Uploaded clip (R2), trimmed to the site's video cap on upload. */
+  videoUrl: string | null;
+  /** Anything parseYouTube accepts — watch, youtu.be, shorts, embed. */
+  videoYoutubeUrl: string | null;
+  /** 0–2. Under 1 dims the picture so the lyrics stay readable on top of it. */
+  videoBrightness: number;
+  /** On by default: the deck is already playing a record, and a second
+   *  soundtrack from the wall fights it. */
+  videoMuted: boolean;
 }
+
+export type LyricsVideoSource = "none" | "upload" | "youtube";
+export const MIN_LYRICS_VIDEO_BRIGHTNESS = 0;
+export const MAX_LYRICS_VIDEO_BRIGHTNESS = 2;
 
 /**
  * Effect amounts, 0–1, plus the platter speed in rpm.
@@ -94,10 +115,23 @@ export interface VinylEffects {
   /** Shared LFO tempo for all five modulations, 0 = a slow drift (~0.2 Hz),
    *  1 = a fast flutter (~6 Hz). */
   modRate: number;
-  /** Backmasking: the record turns the other way. Unlike the amounts above
-   *  this is not a knob on the signal path — the player has to decode the
-   *  whole file and play a reversed copy of it (see vinylAudio.ts). */
+  /** Backward play: the record turns the other way — the playhead runs from
+   *  where it is back towards the start, and the timer counts down. Shipped
+   *  first under the name "backmasking", which is why the admin had a "Start
+   *  backmasked" switch for it; the stored key never changed. Unlike the
+   *  amounts above this is not a knob on the signal path — the player decodes
+   *  the whole file and plays a reversed copy (see vinylAudio.ts). */
   reverse: boolean;
+  /** Backmasking proper: every moment of the song *sounds* reversed, but the
+   *  song itself still moves forward — the timer counts up and the Lyrics Wall
+   *  keeps its place. Built by reversing the audio a window at a time and
+   *  keeping the windows in order. Mutually exclusive with `reverse` (see
+   *  sanitizeVinylEffects). */
+  backmask: boolean;
+  /** How long each reversed window is, 0–1 → BACKMASK_WINDOW_MIN–MAX seconds.
+   *  Short windows smear into a stutter; long ones let a whole phrase play
+   *  backwards before the next begins. See backmaskWindowSec. */
+  backmaskWindow: number;
   speed: 33 | 45 | 78;
   /** ±0.08 fine adjustment on top of the nominal speed. */
   fine: number;
@@ -128,9 +162,21 @@ export const DEFAULT_VINYL_EFFECTS: VinylEffects = {
   vibrato: 0,
   modRate: 0.2,
   reverse: false,
+  backmask: false,
+  // ~1.3 s: long enough that a sung phrase is recognisably a phrase run
+  // backwards, short enough that the song's shape stays readable.
+  backmaskWindow: 0.4,
   speed: 33,
   fine: 0,
 };
+
+export const BACKMASK_WINDOW_MIN = 0.25;
+export const BACKMASK_WINDOW_MAX = 3;
+
+/** The backmask knob (0–1) as a window length in seconds. */
+export function backmaskWindowSec(amount: number): number {
+  return BACKMASK_WINDOW_MIN + Math.min(1, Math.max(0, amount)) * (BACKMASK_WINDOW_MAX - BACKMASK_WINDOW_MIN);
+}
 
 // The look the wall shipped with, restated as a banner finish so a room that
 // has never been edited renders exactly as it did before these controls
@@ -153,6 +199,14 @@ export const DEFAULT_LYRICS_WALL: LyricsWallConfig = {
   shimmerSpeed: 0.5,
   shimmerStrength: 0.5,
   brightness: 1,
+  videoSource: "none",
+  videoUrl: null,
+  videoYoutubeUrl: null,
+  // Dimmed out of the box: the words are the point of the wall, and a
+  // full-brightness video under white type is the one thing guaranteed to
+  // make them hard to read.
+  videoBrightness: 0.7,
+  videoMuted: true,
 };
 
 export const DEFAULT_VINYL_CONFIG: VinylRoomConfig = {
@@ -202,12 +256,22 @@ export function coerceLyricsWall(raw: unknown): LyricsWallConfig {
     shimmerSpeed: rangeOr(lw.shimmerSpeed, d.shimmerSpeed, MIN_BANNER_SHIMMER_SPEED, MAX_BANNER_SHIMMER_SPEED),
     shimmerStrength: rangeOr(lw.shimmerStrength, d.shimmerStrength, MIN_BANNER_SHIMMER_STRENGTH, MAX_BANNER_SHIMMER_STRENGTH),
     brightness: rangeOr(lw.brightness, d.brightness, MIN_BANNER_BRIGHTNESS, MAX_BANNER_BRIGHTNESS),
+    videoSource: lw.videoSource === "upload" || lw.videoSource === "youtube" ? lw.videoSource : "none",
+    // Same "only a real string is an upload" rule as textureUrl.
+    videoUrl: typeof lw.videoUrl === "string" && lw.videoUrl ? lw.videoUrl : null,
+    // Stored as typed, but only if it actually parses — the wall builds an
+    // embed URL from it, and an unparseable one would be a dead iframe.
+    videoYoutubeUrl:
+      typeof lw.videoYoutubeUrl === "string" && parseYouTube(lw.videoYoutubeUrl) ? lw.videoYoutubeUrl : null,
+    videoBrightness: rangeOr(lw.videoBrightness, d.videoBrightness, MIN_LYRICS_VIDEO_BRIGHTNESS, MAX_LYRICS_VIDEO_BRIGHTNESS),
+    videoMuted: boolOr(lw.videoMuted, d.videoMuted),
   };
 }
 
 export function sanitizeVinylEffects(raw: unknown, base: VinylEffects = DEFAULT_VINYL_EFFECTS): VinylEffects {
   const r = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof VinylEffects, unknown>>;
   const speed = r.speed === 45 || r.speed === 78 || r.speed === 33 ? r.speed : base.speed;
+  const reverse = boolOr(r.reverse, base.reverse);
   return {
     reverb: clamp01(r.reverb, base.reverb),
     lofi: clamp01(r.lofi, base.lofi),
@@ -219,7 +283,14 @@ export function sanitizeVinylEffects(raw: unknown, base: VinylEffects = DEFAULT_
     tremolo: clamp01(r.tremolo, base.tremolo),
     vibrato: clamp01(r.vibrato, base.vibrato),
     modRate: clamp01(r.modRate, base.modRate),
-    reverse: boolOr(r.reverse, base.reverse),
+    reverse,
+    // The two are different sources for the deck (a reversed copy played
+    // backwards, a window-reversed copy played forwards), so only one can be
+    // on. Callers that flip one always send the other as false; this is the
+    // tie-break for a blob that somehow has both, and backward play wins
+    // because it's the older setting.
+    backmask: reverse ? false : boolOr(r.backmask, base.backmask),
+    backmaskWindow: clamp01(r.backmaskWindow, base.backmaskWindow),
     speed,
     fine: Math.min(0.08, Math.max(-0.08, finiteOr(r.fine, base.fine))),
   };

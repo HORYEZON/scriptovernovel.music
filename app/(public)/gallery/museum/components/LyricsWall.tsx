@@ -23,6 +23,7 @@ import { useMemo } from "react";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { BannerPanel } from "./BannerPanel";
+import { UploadedWallVideo, YouTubeWallVideo } from "./LyricsWallVideo";
 import { FRAME_WALL_OFFSET, ROOM_HEIGHT, ROOM_WIDTH } from "./roomConstants";
 import { DEFAULT_LYRICS_WALL, type LyricsWallConfig } from "@/lib/museum/vinylConfig";
 
@@ -88,6 +89,27 @@ export function LyricsWall({
   return (
     <group position={position} rotation={[0, rotationY, 0]} name="lyrics-wall">
       <BannerPanel width={width} height={height} style={style} active={active}>
+        {/* The admin's video, under everything but the panel itself — see
+            LyricsWallVideo.tsx for why the two sources render so differently. */}
+        {style.videoSource === "upload" && style.videoUrl && (
+          <UploadedWallVideo
+            url={style.videoUrl}
+            width={width}
+            height={height}
+            brightness={style.videoBrightness}
+            muted={style.videoMuted}
+          />
+        )}
+        {style.videoSource === "youtube" && style.videoYoutubeUrl && active && (
+          <YouTubeWallVideo
+            url={style.videoYoutubeUrl}
+            width={width}
+            height={height}
+            brightness={style.videoBrightness}
+            muted={style.videoMuted}
+          />
+        )}
+
         {/* The halo the deck drives, as an additive wash over whatever finish
             the panel is wearing. It was the panel's own emissive before this;
             a separate plane is what lets an uploaded texture or a glass mode
