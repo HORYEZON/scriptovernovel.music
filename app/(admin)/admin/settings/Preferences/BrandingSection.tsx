@@ -7,7 +7,6 @@ import { Save } from "lucide-react";
 import { motion } from "framer-motion";
 import toast from "@/lib/toast";
 import { toggleSaved } from "@/lib/admin/toggleToast";
-import { LogoUploader } from "./LogoUploader";
 import { IconPicker } from "./IconPicker";
 import { DEFAULT_HOVER_COLORS } from "./IconHoverColorsEditor";
 import { BackgroundUploader } from "./BackgroundUploader";
@@ -51,7 +50,6 @@ import {
 } from "@/lib/theme";
 
 interface BrandingForm {
-  logoImage: string;
   sidebarIcon: string;
   chatIcon: string;
   sidebarIconColors: string[];
@@ -289,7 +287,6 @@ function CarouselPreview({
 // Settings → Preferences now instead of About. Saves via a partial PUT to
 // /api/profile, which only updates the fields present in the body.
 export function BrandingSection({
-  initialLogoImage,
   initialSidebarIcon,
   initialChatIcon,
   initialSidebarIconColors,
@@ -337,7 +334,6 @@ export function BrandingSection({
   initialIntroLetterColors,
   initialIntroSquidColor,
 }: {
-  initialLogoImage: string;
   initialSidebarIcon: string;
   initialChatIcon: string;
   initialSidebarIconColors: string[];
@@ -387,7 +383,6 @@ export function BrandingSection({
   initialIntroSquidColor?: string;
 }) {
   const formInit: BrandingForm = {
-    logoImage: initialLogoImage,
     sidebarIcon: initialSidebarIcon,
     chatIcon: initialChatIcon,
     sidebarIconColors:
@@ -578,7 +573,12 @@ export function BrandingSection({
 
       <SettingsAccordion
         title="Branding"
-        description="Site logo and the background photos behind the public site and this dashboard."
+        // The logo upload that used to open this section is gone: it
+        // duplicated Site Design → Header's, which is now the site's one logo
+        // everywhere (lib/site-logo.ts). Dropping `logoImage` from this form
+        // also keeps it out of the save payload, so Profile.logoImage is left
+        // alone as that resolver's fallback rather than being overwritten.
+        description="The background photos behind the public site and this dashboard. The logo lives under Header."
         open={sections.open.branding}
         onToggle={() => sections.toggle("branding")}
       >
@@ -587,11 +587,7 @@ export function BrandingSection({
             these dropzones used to stack full-width, which read as
             oversized/mostly-empty banners once there were three of them on
             a wide desktop viewport. */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <LogoUploader
-            value={form.logoImage}
-            onChange={(url) => setForm((f) => ({ ...f, logoImage: url }))}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <BackgroundUploader
               value={form.backgroundImage}

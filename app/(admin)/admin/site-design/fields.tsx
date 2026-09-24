@@ -353,7 +353,7 @@ export function ToggleRow({
   );
 }
 
-/** Upload-or-replace image tile, posting to /api/upload like LogoUploader.
+/** Upload-or-replace image tile, posting to /api/upload like BackgroundUploader.
  *  `null`/"" both mean "none". */
 export function ImageField({
   label,

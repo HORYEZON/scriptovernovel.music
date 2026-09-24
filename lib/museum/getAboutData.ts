@@ -11,6 +11,7 @@
 import { prisma } from "@/lib/prisma";
 import { getProfile, getSocialLinks } from "@/lib/public-data";
 import type { MuseumAboutData } from "@/types";
+import { getSiteLogoUrl } from "@/lib/site-logo";
 
 export async function getAboutData(): Promise<MuseumAboutData> {
   const [aboutProfile, aboutCertificates, aboutSkills, aboutSocialLinks, aboutGigs] = await Promise.all([
@@ -40,7 +41,8 @@ export async function getAboutData(): Promise<MuseumAboutData> {
     basedIn: aboutProfile?.basedIn ?? null,
     experience: aboutProfile?.experience ?? null,
     languages: aboutProfile?.languages ?? null,
-    logoImage: aboutProfile?.logoImage ?? null,
+    // The site's one logo (lib/site-logo.ts) — also the screenshot watermark.
+    logoImage: await getSiteLogoUrl(aboutProfile?.logoImage),
     images: (
       aboutProfile?.profileImages?.length
         ? aboutProfile.profileImages

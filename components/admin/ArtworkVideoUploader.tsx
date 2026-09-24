@@ -6,8 +6,8 @@ import { Upload, X, Film, Scissors } from "lucide-react";
 import { ALLOWED_VIDEO_TYPES, MAX_VIDEO_DURATION_SEC } from "@/lib/artwork-video";
 import { uploadArtworkVideo } from "@/lib/artwork-video-upload";
 
-// Same "click to upload" card pattern as AudioUploader.tsx / BackgroundUploader.tsx
-// / LogoUploader.tsx, adapted for the optional artwork timelapse video —
+// Same "click to upload" card pattern as AudioUploader.tsx / BackgroundUploader.tsx,
+// adapted for the optional artwork timelapse video —
 // native <video controls> preview, plus a client-side auto-crop step for
 // anything over MAX_VIDEO_DURATION_SEC before the file ever reaches the server.
 export function ArtworkVideoUploader({

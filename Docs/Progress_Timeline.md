@@ -591,3 +591,42 @@ not a release of its own.
   16:9 YouTube video and an uploaded clip both fill the panel. The upload path's
   brightness is gamma-corrected (`pow(b, 2.2)`) so it matches CSS `brightness()`
   on the YouTube path at the same setting
+
+---
+
+## September 24, 2026 — v0.16 (Site Design moves into Preferences; one logo)
+
+### Admin Side
+
+- **Site Design is now three tabs of Settings → Preferences** — **Header ·
+  Menu · Homepage Hero**, first in the tab bar, ahead of Branding. The Site
+  Design entry is gone from the sidebar. Old links and bookmarks
+  (`/admin/site-design`, including `?tab=menu` / `?tab=hero`) land on the right
+  tab; the Settings hub card and Global Search point there too. The three
+  tabs still share one staged form and one Save
+- **The header preview's light/dark switch works.** It was a painted stand-in;
+  pressing it now shows the bar as a dark-mode visitor sees it — the ink tint
+  and cream type that ignore your Header colours — with the same rolling-record
+  thumb as the real switch. It changes the preview only, never your own theme
+- **Branding's "Navbar Logo" tile is gone** — it duplicated Header → Logo
+  image. That Header logo is now the site's one logo everywhere the Branding
+  one used to appear: the admin sidebar, the login page, order receipts, every
+  email, mini-game alerts, and the museum's About plaque (and so the 📸
+  screenshot watermark). Where the two had different pictures, those places
+  switch to the Header one
+
+### Infra / DB
+
+- No migration and no data write. `lib/site-logo.ts` (`getSiteLogoUrl`)
+  resolves `SiteDesign.headerLogoImage`, falling back to `Profile.logoImage`
+  only while the header logo is empty — so nothing goes blank, and the old
+  upload is left alone rather than overwritten. Branding's form no longer
+  carries `logoImage`, so a Branding save can't touch it either.
+  `LogoUploader.tsx` deleted (unused)
+- `SiteDesignClient` gains `embedded` + a controlled `tab`; its own tab bar
+  and `?tab=` reading switch off when embedded. `SITE_DESIGN_TABS` is exported
+  so Preferences builds its bar from the same list. `VinylThumb` is exported
+  from `ThemeToggle.tsx` so the preview's switch and the real one can't drift
+- Verified headless on a throwaway page rendering the real `SiteDesignClient`
+  embedded: no duplicate tab bar, the preview switch flips `aria-pressed` and
+  repaints the bar dark, no page errors

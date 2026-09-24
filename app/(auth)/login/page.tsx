@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import LoginForm from "./LogInForm";
+import { getSiteLogoUrl } from "@/lib/site-logo";
 
 export const metadata: Metadata = { title: "Login" };
 
@@ -18,7 +19,7 @@ async function getLogo() {
 
     if (!res.ok) return null;
     const data = await res.json();
-    return data?.logoImage || null;
+    return await getSiteLogoUrl(data?.logoImage);
   } catch {
     return null;
   }

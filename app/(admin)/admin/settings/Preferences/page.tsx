@@ -26,16 +26,21 @@ import {
   sanitizeIntroGlowColor,
   INTRO_DEFAULTS,
 } from "@/lib/intro-splash";
+import { getSiteDesign } from "@/lib/site-design-server";
+import { getSocialLinks } from "@/lib/public-data";
 import { PreferencesClient } from "./PreferencesClient";
 
 export const metadata: Metadata = { title: "Preferences" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminPreferencesPage() {
-  const [profile, theme, soundEffects] = await Promise.all([
+  const [profile, theme, soundEffects, siteDesign, socialLinks] = await Promise.all([
     prisma.profile.findFirst().catch(() => null),
     prisma.siteTheme.findFirst().catch(() => null),
     buildAdminSoundEffects().catch(() => []),
+    // The Header / Menu / Homepage Hero tabs (Site Design, moved in here).
+    getSiteDesign(),
+    getSocialLinks().catch(() => []),
   ]);
   const resolvedTheme = resolveSiteTheme(theme);
 
@@ -47,11 +52,10 @@ export default async function AdminPreferencesPage() {
           { label: "Preferences" },
         ]}
         title="Preferences"
-        description="Site branding, the public theme customizer, background music, and sound effects."
+        description="The public site's header, menu and homepage hero, site branding, the theme customizer, background music, and sound effects."
       />
 
       <PreferencesClient
-        initialLogoImage={profile?.logoImage || ""}
         initialSidebarIcon={profile?.sidebarIcon || ""}
         initialChatIcon={profile?.chatIcon || ""}
         initialSidebarIconColors={profile?.sidebarIconColors || []}
@@ -109,6 +113,11 @@ export default async function AdminPreferencesPage() {
         initialMusicEnabled={profile?.musicEnabled ?? false}
         initialMusicVolume={profile?.musicVolume ?? 50}
         initialSoundEffects={soundEffects}
+        siteDesign={{
+          settings: siteDesign.settings,
+          menuItems: siteDesign.menuItems,
+          socialLinks: socialLinks.map(({ label, url, iconKey, hoverColor }) => ({ label, url, iconKey, hoverColor })),
+        }}
       />
     </div>
   );

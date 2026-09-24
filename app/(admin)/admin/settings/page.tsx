@@ -52,7 +52,7 @@ export default async function AdminSettingsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Link
-          href="/admin/site-design"
+          href="/admin/settings/Preferences?tab=header"
           className="group admin-card border rounded-2xl p-5 backdrop-blur-md shadow-sm hover:shadow-lg hover:border-sepia/40 transition-all flex flex-col gap-4"
         >
           <div className="flex items-center justify-between">
@@ -69,7 +69,7 @@ export default async function AdminSettingsPage() {
               Site Design
             </h3>
             <p className="font-body text-xs text-ink-400 dark:text-ink-300 mt-1">
-              The public header, full-screen menu overlay, and homepage hero
+              The public header, full-screen menu overlay, and homepage hero — the first tabs of Preferences
             </p>
           </div>
           <div className="font-body text-xs text-ink-400 dark:text-ink-300 pt-3 border-t border-black/5 dark:border-white/5">

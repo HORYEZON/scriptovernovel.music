@@ -10,6 +10,7 @@ import { requireAdmin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { renderReceiptHtml } from "@/lib/receipt";
 import { SITE_URL } from "@/lib/site-url";
+import { getSiteLogoUrl } from "@/lib/site-logo";
 
 export async function GET(
   _request: NextRequest,
@@ -50,7 +51,7 @@ export async function GET(
         email: profile?.email,
         phone: profile?.phone,
         address: profile?.address,
-        logoUrl: profile?.logoImage,
+        logoUrl: await getSiteLogoUrl(profile?.logoImage),
         siteUrl: SITE_URL,
       }
     );

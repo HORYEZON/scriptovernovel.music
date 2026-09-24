@@ -9,8 +9,8 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 ## Table of Contents
 
 1. [Logging In](#1-logging-in)
-2. [Site Design — Header](#2-site-design--header)
-3. [Site Design — Menu animation](#3-site-design--menu-animation)
+2. [Header (Preferences)](#2-header-preferences)
+3. [Menu animation (Preferences)](#3-menu-animation-preferences)
 4. [Preferences — Site Background Effects](#4-preferences--site-background-effects)
 5. [Releases (Music page)](#5-releases-music-page)
 6. [Videos](#6-videos)
@@ -37,30 +37,42 @@ _(Add one numbered entry per module as it ships — sub-sections go in parenthes
 
 ---
 
-## 2. Site Design — Header
+## 2. Header (Preferences)
+
+> 📍 **Where it lives now:** **Settings → Preferences**, the first three tabs — **Header · Menu · Homepage Hero** — ahead of **Branding**. These used to be a separate **Site Design** page in the sidebar; that entry is gone, and old links and bookmarks to it land on the right tab automatically. The three tabs share one **Save**: you can recolour the header, switch to Menu, change a link, and save both together.
 
 **What this is for:** the bar pinned to the top of every public page — search on the left, your wordmark in the middle, the **MENU** button and the light/dark switch on the right. It's frosted glass: the page shows through it, blurred, and it thickens slightly once a visitor scrolls.
 
 ### 2.1 Colours
 
-1. **Site Design → Header → Colours & label.**
+1. **Preferences → Header → Colours & label.**
 2. **Background** tints the glass. Pick something close to your page colour for a subtle bar, or a contrasting one for a visible band. The colour is applied at glass opacity, so it will always read a little lighter/softer than the swatch.
 3. **Text & icons** colours the wordmark, the search icon and MENU.
-4. **Save**. The live preview above the controls shows the bar as it looks in light mode.
+4. **Save**. The live preview above the controls shows the bar as it looks in light mode — **press the sun/moon switch inside the preview** to see it the way a dark-mode visitor does. That switch only changes the preview, never your own admin theme.
 
 > 💡 These two colours only apply while a visitor is in **light** mode. In **dark** mode (the default for new visitors) the bar switches to the site's near-black glass with cream text, whatever you picked — so you never have to check your colours twice.
 
 ### 2.2 Menu items
 
-**Site Design → Menu → Links.** The band site's pages are **Music, Store (/shop), Videos, About, Contact**. If your menu still shows the older Gallery / Tales rows, retitle and re-point them here — the labels and links are yours to edit.
+**Preferences → Menu → Links.** The band site's pages are **Music, Store (/shop), Videos, About, Contact**. If your menu still shows the older Gallery / Tales rows, retitle and re-point them here — the labels and links are yours to edit.
 
-> 💡 The header wordmark (Site Design → Header → Wordmark) is also what the footer and the entrance splash show now — one place to change the band's name or logo.
+> 💡 The header wordmark (Preferences → Header → Wordmark) is also what the footer and the entrance splash show — one place to change the band's name or logo.
 
-> **The footer is always lettered.** It spells the **Wordmark text** out — *script (◎)ver novel*, with your footer icon standing in for the O — and ignores the uploaded logo image on purpose. Uploading a logo used to replace the footer wordmark with the picture, which erased the only place on the site the band's name was actually written. Change the words under Site Design → Header → Wordmark; the icon is Preferences → Branding → Footer Icon.
+### 2.2a One logo for the whole site
+
+The **Logo image** under **Header → Wordmark** is now the site's *only* logo upload. **Branding** used to have a separate **Navbar Logo** tile; it's been removed because it did the same job. Everything that used to show that Branding logo now shows the Header one:
+
+- the admin sidebar and the login page
+- order receipts and every email the site sends (password reset, order confirmations, mini-game alerts)
+- the museum's About plaque, and the 📸 watermark on museum screenshots
+
+> If you had uploaded *different* pictures in the two places, those spots switch to the Header one the moment this update is live. The old Branding picture is kept only as a backup — it's used if the Header logo is ever removed.
+
+> **The footer is always lettered.** It spells the **Wordmark text** out — *script (◎)ver novel*, with your footer icon standing in for the O — and ignores the uploaded logo image on purpose. Uploading a logo used to replace the footer wordmark with the picture, which erased the only place on the site the band's name was actually written. Change the words under Preferences → Header → Wordmark; the icon is Preferences → Branding → Footer Icon.
 
 ### 2.3 Wordmark text size
 
-**Site Design → Header → Wordmark → Fallback size** is a slider (1–4rem; the readout also shows pixels). It sizes the text wordmark shown when no logo image is uploaded. Phones automatically cap it so it can't crowd the MENU button.
+**Preferences → Header → Wordmark → Fallback size** is a slider (1–4rem; the readout also shows pixels). It sizes the text wordmark shown when no logo image is uploaded. Phones automatically cap it so it can't crowd the MENU button.
 
 ### 2.4 The light/dark switch
 
@@ -68,13 +80,13 @@ The sun/moon pill to the right of **MENU** is always on — there's no setting t
 
 ---
 
-## 3. Site Design — Menu animation
+## 3. Menu animation (Preferences)
 
 **What this is for:** how the full-screen menu arrives when a visitor presses **MENU**, how it leaves when they press ×, and how the links inside it appear.
 
 ### 3.1 Picking the effects
 
-1. **Site Design → Menu → Open & close animation.**
+1. **Preferences → Menu → Open & close animation.**
 2. **Open effect** — pick a card. *Split — meet in the middle* slides the colour panel in from the left and the photo in from the right so they meet at the centre.
 3. **Close effect** — its own card; *Split — part to the edges* is the matching exit.
 4. **Link entrance** — how the words (Music, Store, …) appear once the sheet has landed. *Rise one by one* fades each link up in turn; *Rise together* lifts them all at once.
@@ -348,7 +360,7 @@ moment the first time; after that, switching is instant.
 
 **What this is for:** the homepage builds itself from what you have published — there is nothing to arrange by hand.
 
-- **Hero** — three answers, in this order. **Site Design → Homepage Hero** switched on wins outright: that is your own hand-designed splash, meant for a launch or an announcement. Switched off (the default), the hero is the featured release (else the newest published one): its cover blurred behind the title, LISTEN into its player, WATCH to Videos. With no releases yet: your tagline (About → Headline) over the site background photo, with the genres above it (About → Skills, relabelled Genres / tags; falls back to the band's four) and the first line of your bio under it.
+- **Hero** — three answers, in this order. **Preferences → Homepage Hero** switched on wins outright: that is your own hand-designed splash, meant for a launch or an announcement. Switched off (the default), the hero is the featured release (else the newest published one): its cover blurred behind the title, LISTEN into its player, WATCH to Videos. With no releases yet: your tagline (About → Headline) over the site background photo, with the genres above it (About → Skills, relabelled Genres / tags; falls back to the band's four) and the first line of your bio under it.
 
 > ⚠️ Before you switch **Homepage Hero** on for the first time, open that tab and press **Restore defaults** — the heading and button still carry the old art-site wording ("The new collection", VIEW NOW → Gallery) until you do.
 - **Latest release** — the same release in full (player, tracklist, links), right under the hero.

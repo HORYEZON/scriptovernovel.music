@@ -15,6 +15,7 @@ import { isMailConfigured, sendMail } from "@/lib/mail";
 import { SITE_URL } from "@/lib/site-url";
 import RewardAlertEmail from "@/emails/RewardAlert";
 import RewardClaimedEmail from "@/emails/RewardClaimed";
+import { getSiteLogoUrl } from "@/lib/site-logo";
 
 const NOTIFY_TO =
   process.env.MINIGAME_NOTIFY_EMAIL || process.env.GMAIL_USER || "";
@@ -47,7 +48,7 @@ export async function notifyAdminOfReward(
       artworkTitle: claim.artworkTitle,
       reward: claim.reward,
       dateLabel: claim.occurredAt.toISOString().slice(0, 10),
-      logoUrl: profile?.logoImage ?? null,
+      logoUrl: await getSiteLogoUrl(profile?.logoImage),
       siteUrl: SITE_URL,
     });
     const [html, text] = await Promise.all([
@@ -97,7 +98,7 @@ export async function notifyPlayerOfRewardClaim(
       gameName: claim.gameName,
       score: claim.score.toLocaleString("en-US"),
       reward: claim.reward,
-      logoUrl: profile?.logoImage ?? null,
+      logoUrl: await getSiteLogoUrl(profile?.logoImage),
       siteUrl: SITE_URL,
     });
     const [html, text] = await Promise.all([
