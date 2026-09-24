@@ -241,7 +241,7 @@ const ADMIN_PAGES: AdminPage[] = [
   },
   {
     label: "Site Design",
-    href: "/admin/site-design",
+    href: "/admin/settings/Preferences?tab=header",
     icon: LayoutTemplate,
     keywords:
       "site design header menu overlay hero homepage wordmark logo navigation links fonts colors branding",
@@ -249,14 +249,14 @@ const ADMIN_PAGES: AdminPage[] = [
   },
   {
     label: "Site Design — Menu",
-    href: "/admin/site-design?tab=menu",
+    href: "/admin/settings/Preferences?tab=menu",
     icon: LayoutTemplate,
     keywords: "menu overlay links navigation underline scribble panel colour photo",
     group: "Site",
   },
   {
     label: "Site Design — Homepage Hero",
-    href: "/admin/site-design?tab=hero",
+    href: "/admin/settings/Preferences?tab=hero",
     icon: LayoutTemplate,
     keywords: "hero homepage landing banner heading button cta",
     group: "Site",

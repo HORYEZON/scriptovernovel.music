@@ -31,7 +31,6 @@ import {
   Store,
   CircleUser,
   TrendingUp,
-  LayoutTemplate,
   Disc3,
   Clapperboard,
   Users,
@@ -135,10 +134,9 @@ const NAV: NavEntry[] = [
       { href: "/admin/events", label: "Shows / Events", icon: MapPin },
     ],
   },
-  // The public site's header / menu overlay / homepage hero look — its own
-  // top-level entry (not a Preferences tab) since it's a whole surface with
-  // a live preview, not a handful of knobs.
-  { href: "/admin/site-design", label: "Site Design", icon: LayoutTemplate },
+  // Site Design (header / menu overlay / homepage hero) used to sit here as
+  // its own entry. It's now the first three tabs of Settings → Preferences,
+  // beside Branding — one place for the site's look.
   { href: "/admin/settings", label: "Settings", icon: Settings },
   { href: "/admin/trash", label: "Trash", icon: Trash2 },
 ];

@@ -10,6 +10,7 @@ import NewOrderAlertEmail from "@/emails/NewOrderAlert";
 import VisitorMilestoneClaimedEmail from "@/emails/VisitorMilestoneClaimed";
 import MuseumAchievementClaimedEmail from "@/emails/MuseumAchievementClaimed";
 import type { MuseumAchievementCategory } from "@/types";
+import { getSiteLogoUrl } from "@/lib/site-logo";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -92,7 +93,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   const profile = await prisma.profile.findFirst().catch(() => null);
   const element = PasswordResetEmail({
     resetUrl,
-    logoUrl: profile?.logoImage ?? null,
+    logoUrl: await getSiteLogoUrl(profile?.logoImage),
     siteUrl: SITE_URL,
   });
 
@@ -126,7 +127,7 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData) {
     shippingAddress: order.shippingAddress,
     shippingPhone: order.shippingPhone,
     deliveryNotes: order.deliveryNotes,
-    logoUrl: profile?.logoImage ?? null,
+    logoUrl: await getSiteLogoUrl(profile?.logoImage),
     siteUrl: SITE_URL,
   });
 
@@ -162,7 +163,7 @@ export async function sendNewOrderAlertEmail(order: OrderEmailData) {
     shippingAddress: order.shippingAddress,
     shippingPhone: order.shippingPhone,
     deliveryNotes: order.deliveryNotes,
-    logoUrl: profile?.logoImage ?? null,
+    logoUrl: await getSiteLogoUrl(profile?.logoImage),
     siteUrl: SITE_URL,
   });
 
@@ -192,7 +193,7 @@ export async function sendVisitorMilestoneClaimedEmail(
   const element = VisitorMilestoneClaimedEmail({
     threshold: data.threshold,
     reward: data.reward,
-    logoUrl: profile?.logoImage ?? null,
+    logoUrl: await getSiteLogoUrl(profile?.logoImage),
     siteUrl: SITE_URL,
   });
 
@@ -230,7 +231,7 @@ export async function sendMuseumAchievementClaimedEmail(
     category: data.category,
     threshold: data.threshold,
     reward: data.reward,
-    logoUrl: profile?.logoImage ?? null,
+    logoUrl: await getSiteLogoUrl(profile?.logoImage),
     siteUrl: SITE_URL,
   });
 

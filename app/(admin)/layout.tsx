@@ -15,6 +15,7 @@ import { BackupJobCard } from "@/components/admin/BackupJobCard";
 import { Toaster } from "react-hot-toast";
 import { prisma } from "@/lib/prisma";
 import { TOAST_OPTIONS } from "@/lib/toast-config";
+import { getSiteLogoUrl } from "@/lib/site-logo";
 
 // Overrides the root layout's "%s | ScriptOverNovel" template for every page under
 // this group — previously none of these pages set a title at all, so every
@@ -54,6 +55,7 @@ export default async function AdminLayout({
       })
       .catch(() => null),
   ]);
+  const siteLogo = await getSiteLogoUrl(profile?.logoImage);
 
   return (
     <AdminQueryProvider>
@@ -75,7 +77,9 @@ export default async function AdminLayout({
           this div and could never show a background image through it. */}
       <div className="admin-shell min-h-screen flex">
         <AdminSidebar
-          logoImage={profile?.logoImage}
+          // Site Design → Header's logo — the one logo upload the admin has
+          // (see lib/site-logo.ts for why this no longer reads Profile.logoImage).
+          logoImage={siteLogo}
           sidebarIcon={profile?.sidebarIcon}
           sidebarMobileIcon={profile?.sidebarMobileIcon}
         />

@@ -8,8 +8,8 @@ import { ALLOWED_AUDIO_TYPES, MAX_AUDIO_FILE_SIZE, MAX_AUDIO_FILE_SIZE_MB } from
 import { getErrorMessage } from "@/lib/utils";
 import { uploadAudioViaSignedUrl } from "@/lib/storage/browser";
 
-// Same drag-free "click to upload" card pattern as BackgroundUploader.tsx /
-// LogoUploader.tsx, adapted for audio — a native <audio controls> preview
+// Same drag-free "click to upload" card pattern as BackgroundUploader.tsx,
+// adapted for audio — a native <audio controls> preview
 // instead of an <Image>.
 export function AudioUploader({
   value,

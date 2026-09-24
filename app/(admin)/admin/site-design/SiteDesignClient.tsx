@@ -2,11 +2,17 @@
 
 // app/(admin)/admin/site-design/SiteDesignClient.tsx
 //
-// The Site Design editor: three tabs (Header · Menu · Homepage Hero), each a
-// column of controls beside a live preview that is the real public component
+// The Site Design editor: three sections (Header · Menu · Homepage Hero), each
+// a column of controls beside a live preview that is the real public component
 // (MenuPanel / HomeHero) rendered inside a scaled desktop frame. Everything
 // is staged into one form and saved with one PUT to /api/site-design, so a
 // half-finished recolour is never live.
+//
+// It no longer has a page of its own: it lives as the first three tabs of
+// Settings → Preferences (PreferencesClient passes `embedded` and the active
+// `tab`, and owns the tab bar and ?tab= deep links). /admin/site-design only
+// redirects there. Mounted once across the three tabs, so switching between
+// Header, Menu and Hero keeps one staged form and one Save.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import { Moon, Play, Repeat, RotateCcw, Save, Search, Square, Sun } from "lucide-react";
@@ -18,6 +24,7 @@ import { MenuPanel, type MenuSocialLink } from "@/components/public/site-design/
 import { MenuOpenTransition, useSheetLanded } from "@/components/public/site-design/MenuOpenTransition";
 import { HomeHero } from "@/components/public/site-design/HomeHero";
 import { SafeImg } from "@/components/ui/SafeImage";
+import { VinylThumb } from "@/components/ui/ThemeToggle";
 import { isValidThemeColor, isValidThemeLength } from "@/lib/theme";
 import { withAlpha } from "@/lib/museum/minimapHud";
 import {
@@ -61,12 +68,14 @@ import {
 import { MenuItemsEditor } from "./MenuItemsEditor";
 import { ScaledPreview } from "./ScaledPreview";
 
-type TabId = "header" | "menu" | "hero";
-const TABS: { id: TabId; label: string }[] = [
+export type SiteDesignTabId = "header" | "menu" | "hero";
+type TabId = SiteDesignTabId;
+export const SITE_DESIGN_TABS: { id: TabId; label: string }[] = [
   { id: "header", label: "Header" },
   { id: "menu", label: "Menu" },
   { id: "hero", label: "Homepage Hero" },
 ];
+const TABS = SITE_DESIGN_TABS;
 
 // ── Header preview ───────────────────────────────────────────────────────────
 // A static twin of SiteHeader's row (that component is fixed to the viewport
@@ -74,9 +83,23 @@ const TABS: { id: TabId; label: string }[] = [
 // The bar is frosted glass on the live site; the tint is the admin's
 // background colour at the same opacity SiteHeader uses at the top of a
 // page, so the preview reads the way the header does over the page wash.
-// Light-mode colours only — dark mode swaps to ink/cream (see SiteHeader).
-function HeaderPreview({ settings }: { settings: SiteDesignSettings }) {
-  const style: CSSProperties = { backgroundColor: withAlpha(settings.headerBgColor, 0.6), color: settings.headerTextColor };
+//
+// The theme toggle in it is live: pressing it shows the bar the way a visitor
+// in dark mode sees it — SiteHeader's `dark:bg-ink/90` tint and cream type,
+// which ignore the admin's Header colours on purpose. It only flips this
+// preview, never the admin's own theme (the real ThemeToggle would).
+function HeaderPreview({
+  settings,
+  dark,
+  onToggleDark,
+}: {
+  settings: SiteDesignSettings;
+  dark: boolean;
+  onToggleDark: () => void;
+}) {
+  const style: CSSProperties = dark
+    ? { backgroundColor: "rgba(13, 13, 13, 0.9)", color: "#FAF8F3" }
+    : { backgroundColor: withAlpha(settings.headerBgColor, 0.6), color: settings.headerTextColor };
   return (
     <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-white/20 px-12 backdrop-blur-sm" style={style}>
       <div className="justify-self-start">{settings.headerShowSearch && <Search size={18} strokeWidth={1.75} />}</div>
@@ -106,13 +129,44 @@ function HeaderPreview({ settings }: { settings: SiteDesignSettings }) {
           </svg>
           {settings.headerMenuLabel}
         </span>
-        {/* Static stand-in for the always-on light/dark toggle (ThemeToggle
-            would flip the admin's own theme from inside the preview). */}
-        <span aria-hidden="true" className="relative flex h-9 w-[72px] items-center justify-between rounded-full border border-black/10 bg-zinc-200/80 px-2.5">
-          <Sun size={14} strokeWidth={2} className="text-amber-500" />
-          <Moon size={14} strokeWidth={2} className="text-zinc-400 opacity-40" />
-          <span className="absolute left-1 top-1 h-7 w-7 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)]" />
-        </span>
+        {/* The real ThemeToggle's look (pill, sun/moon, the rolling record
+            thumb — shared via VinylThumb so the two can't drift), wired to
+            the preview's own light/dark instead of the admin's theme. */}
+        <button
+          type="button"
+          onClick={onToggleDark}
+          aria-pressed={dark}
+          aria-label={dark ? "Preview the header in light mode" : "Preview the header in dark mode"}
+          className={cn(
+            "group relative h-9 w-[72px] cursor-pointer rounded-full border backdrop-blur-md transition-all duration-300 ease-out",
+            "hover:border-[#E5AD06]/50 focus:outline-none focus:ring-2 focus:ring-[#E5AD06]/40",
+            dark
+              ? "border-white/10 bg-zinc-900/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
+              : "border-black/10 bg-zinc-200/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
+          )}
+        >
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-between px-2.5">
+            <Sun
+              size={14}
+              strokeWidth={2}
+              className={cn("transition-all duration-300", dark ? "scale-75 text-zinc-600 opacity-40" : "scale-100 text-[#E5AD06] opacity-100")}
+            />
+            <Moon
+              size={14}
+              strokeWidth={2}
+              className={cn("transition-all duration-300", dark ? "scale-100 text-[#E5AD06] opacity-100" : "-rotate-12 scale-75 text-zinc-400 opacity-40")}
+            />
+          </span>
+          <span
+            className={cn(
+              "absolute left-1 top-1 block h-7 w-7 rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.35)]",
+              "transition-transform duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:duration-150",
+              dark ? "translate-x-[36px] rotate-180" : "translate-x-0 rotate-0"
+            )}
+          >
+            <VinylThumb className="h-full w-full" />
+          </span>
+        </button>
       </div>
     </div>
   );
@@ -128,18 +182,30 @@ export function SiteDesignClient({
   initialSettings,
   initialMenuItems,
   socialLinks,
+  tab,
+  embedded = false,
 }: {
   initialSettings: SiteDesignSettings;
   initialMenuItems: SiteMenuItem[];
   socialLinks: MenuSocialLink[];
+  /** Controlled section — set by a parent that owns the tab bar. */
+  tab?: TabId;
+  /** Inside Settings → Preferences: no tab bar or ?tab= reading of its own. */
+  embedded?: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>("header");
+  const [ownTab, setOwnTab] = useState<TabId>("header");
+  const activeTab = tab ?? ownTab;
+  const setActiveTab = setOwnTab;
   const searchParams = useSearchParams();
   useEffect(() => {
+    if (embedded) return;
     const requested = searchParams.get("tab");
-    if (requested === "header" || requested === "menu" || requested === "hero") setActiveTab(requested);
+    if (requested === "header" || requested === "menu" || requested === "hero") setOwnTab(requested);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, embedded]);
+  // The header preview's light/dark — preview-only, shared by the Header and
+  // Homepage Hero tabs so flipping it on one holds on the other.
+  const [previewDark, setPreviewDark] = useState(false);
 
   const [settings, setSettings] = useState<SiteDesignSettings>(initialSettings);
   const [menuItems, setMenuItems] = useState<SiteMenuItem[]>(initialMenuItems);
@@ -323,6 +389,7 @@ export function SiteDesignClient({
 
   return (
     <div>
+      {!embedded && (
       <div
         role="tablist"
         aria-label="Site design section"
@@ -346,6 +413,7 @@ export function SiteDesignClient({
           </button>
         ))}
       </div>
+      )}
 
       {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
       {activeTab === "header" && (
@@ -356,7 +424,7 @@ export function SiteDesignClient({
               {restoreButton("header")}
             </div>
             <ScaledPreview width={1440} height={64}>
-              <HeaderPreview settings={settings} />
+              <HeaderPreview settings={settings} dark={previewDark} onToggleDark={() => setPreviewDark((d) => !d)} />
             </ScaledPreview>
           </div>
 
@@ -371,7 +439,7 @@ export function SiteDesignClient({
                 label="Logo image"
                 value={settings.headerLogoImage}
                 onChange={(v) => set("headerLogoImage", v)}
-                hint="A transparent PNG of a handwritten signature works best. Independent of the Preferences → Branding logo."
+                hint="A transparent PNG of a handwritten signature works best. This is the site's one logo — the admin sidebar, the login page, receipts, emails and the museum's About plaque all use it too."
                 aspect="aspect-[3/1]"
               />
               <div className="space-y-4">
@@ -861,7 +929,7 @@ export function SiteDesignClient({
             </div>
             <ScaledPreview width={1440} height={800}>
               <div className="flex h-full flex-col">
-                <HeaderPreview settings={settings} />
+                <HeaderPreview settings={settings} dark={previewDark} onToggleDark={() => setPreviewDark((d) => !d)} />
                 <div className="min-h-0 flex-1">
                   <HomeHero settings={settings} preview />
                 </div>

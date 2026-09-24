@@ -18,7 +18,7 @@ import { Sun, Moon } from "lucide-react";
 /** The thumb: a record seen head-on — grooves, a gold label, a spindle hole.
  *  Inline SVG rather than an icon-font glyph because at 24px the groove rings
  *  have to be hand-spaced to stay distinguishable. */
-function VinylThumb({ className }: { className?: string }) {
+export function VinylThumb({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
       <circle cx="16" cy="16" r="15.5" className="fill-zinc-900 dark:fill-black" />

@@ -7,6 +7,9 @@ import { BrandingSection } from "./BrandingSection";
 import { ThemeSection } from "./ThemeSection";
 import { MusicClient } from "./MusicClient";
 import { SoundClient } from "./SoundClient";
+import { SiteDesignClient, SITE_DESIGN_TABS, type SiteDesignTabId } from "@/app/(admin)/admin/site-design/SiteDesignClient";
+import type { MenuSocialLink } from "@/components/public/site-design/MenuPanel";
+import type { SiteDesignSettings, SiteMenuItem } from "@/lib/site-design";
 import type { SiteThemeSettings } from "@/lib/theme";
 import type { CarouselMode } from "@/lib/gallery-carousel";
 import type { HoverShimmerSettings } from "@/lib/hover-shimmer";
@@ -14,8 +17,13 @@ import type { IntroEffect, IntroLetterColors } from "@/lib/intro-splash";
 import type { BgEffect } from "@/lib/theme";
 import type { AdminSoundEffect } from "@/lib/sound/server";
 
-type TabId = "branding" | "theme" | "music" | "sound";
+// Site Design's three sections lead, ahead of Branding: they were their own
+// sidebar module until they moved in here, and the header is the first thing
+// anyone configuring the site's look reaches for.
+type TabId = SiteDesignTabId | "branding" | "theme" | "music" | "sound";
+const TAB_IDS: readonly TabId[] = ["header", "menu", "hero", "branding", "theme", "music", "sound"];
 const TABS: { id: TabId; label: string }[] = [
+  ...SITE_DESIGN_TABS,
   { id: "branding", label: "Branding" },
   { id: "theme", label: "Theme Customization" },
   { id: "music", label: "Background Music" },
@@ -23,7 +31,6 @@ const TABS: { id: TabId; label: string }[] = [
 ];
 
 export function PreferencesClient({
-  initialLogoImage,
   initialSidebarIcon,
   initialChatIcon,
   initialSidebarIconColors,
@@ -75,8 +82,8 @@ export function PreferencesClient({
   initialMusicEnabled,
   initialMusicVolume,
   initialSoundEffects,
+  siteDesign,
 }: {
-  initialLogoImage: string;
   initialSidebarIcon: string;
   initialChatIcon: string;
   initialSidebarIconColors: string[];
@@ -129,8 +136,13 @@ export function PreferencesClient({
   initialMusicEnabled: boolean;
   initialMusicVolume: number;
   initialSoundEffects: AdminSoundEffect[];
+  siteDesign: {
+    settings: SiteDesignSettings;
+    menuItems: SiteMenuItem[];
+    socialLinks: MenuSocialLink[];
+  };
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>("branding");
+  const [activeTab, setActiveTab] = useState<TabId>("header");
   const searchParams = useSearchParams();
 
   // Deep-link support (e.g. /admin/settings/Preferences?tab=sound) — same
@@ -138,8 +150,8 @@ export function PreferencesClient({
   // cards and the Mini Games module's "configured under Sound" link.
   useEffect(() => {
     const requested = searchParams.get("tab");
-    if (requested === "branding" || requested === "theme" || requested === "music" || requested === "sound") {
-      setActiveTab(requested);
+    if (requested && (TAB_IDS as readonly string[]).includes(requested)) {
+      setActiveTab(requested as TabId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -173,9 +185,20 @@ export function PreferencesClient({
         ))}
       </div>
 
+      {/* One element for all three Site Design tabs, so it stays mounted
+          while moving between them and they keep sharing one staged form
+          and one Save — the way they did as their own page. */}
+      {(activeTab === "header" || activeTab === "menu" || activeTab === "hero") && (
+        <SiteDesignClient
+          embedded
+          tab={activeTab}
+          initialSettings={siteDesign.settings}
+          initialMenuItems={siteDesign.menuItems}
+          socialLinks={siteDesign.socialLinks}
+        />
+      )}
       {activeTab === "branding" && (
         <BrandingSection
-          initialLogoImage={initialLogoImage}
           initialSidebarIcon={initialSidebarIcon}
           initialChatIcon={initialChatIcon}
           initialSidebarIconColors={initialSidebarIconColors}

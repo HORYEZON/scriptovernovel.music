@@ -855,7 +855,7 @@ export function IntroSplashSection({
             Icons → Entrance Splash Icon). Its halo is drawn from this too, so both move
             together. <strong>Auto glow</strong> leaves it drifting through the logo&apos;s
             gold, grey and white — the same cycle the footer and the sidebar icon run on.
-            The wordmark&apos;s words and font come from Site Design → Header.
+            The wordmark&apos;s words and font come from the Header tab.
           </p>
         </div>
 
