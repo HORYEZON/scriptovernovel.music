@@ -10,7 +10,7 @@
 // All state is MuseumScene's — this only renders it and calls back.
 import Image from "@/components/ui/SafeImage";
 import Link from "next/link";
-import { X, Play, Pause, Disc3, ExternalLink, RotateCcw } from "lucide-react";
+import { X, Play, Pause, Disc3, ExternalLink, RotateCcw, Rewind, Waves } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/releases";
@@ -29,6 +29,15 @@ const EFFECT_SLIDERS: { key: "reverb" | "lofi" | "crackle" | "delay"; label: str
   { key: "lofi", label: "Lo-fi", hint: "Warmth & grit" },
   { key: "crackle", label: "Crackle", hint: "Dust on the record" },
   { key: "delay", label: "Echo", hint: "Slapback" },
+];
+
+/** The shoegaze board, in signal order (see vinylAudio.ts's chain). */
+const MOD_SLIDERS: { key: "phaser" | "flanger" | "chorus" | "vibrato" | "tremolo"; label: string; hint: string }[] = [
+  { key: "phaser", label: "Phaser", hint: "Swept notches" },
+  { key: "flanger", label: "Flanger", hint: "Jet sweep" },
+  { key: "chorus", label: "Chorus", hint: "Detuned wash" },
+  { key: "vibrato", label: "Vibrato", hint: "Pitch wobble" },
+  { key: "tremolo", label: "Tremolo", hint: "Volume pulse" },
 ];
 
 export function TurntablePanel({
@@ -153,6 +162,30 @@ export function TurntablePanel({
                   </button>
                 </div>
 
+                {/* Backmasking. Not a knob on the chain — the player has to
+                    decode the whole file and play a reversed copy of it, so
+                    the first flip on a long record takes a moment. */}
+                <button
+                  type="button"
+                  onClick={() => onEffectsChange({ reverse: !effects.reverse })}
+                  disabled={state.decoding}
+                  aria-pressed={effects.reverse}
+                  className={cn(
+                    "mt-2 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border px-4 py-2 font-body text-sm transition-colors disabled:opacity-60",
+                    effects.reverse
+                      ? "border-sepia bg-sepia/20 text-sepia-light"
+                      : "border-white/15 text-white/80 hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  <Rewind size={16} />
+                  {state.decoding ? "Turning it round…" : effects.reverse ? "Backmasking on" : "Play it backwards"}
+                </button>
+                {effects.reverse && !state.decoding && (
+                  <p className="mt-1.5 text-center font-body text-[11px] text-sepia-light/70">
+                    The needle is running the other way — the timer counts down.
+                  </p>
+                )}
+
                 {/* Speed */}
                 <div className="mt-5">
                   <p className="mb-2 font-body text-[10px] uppercase tracking-[0.3em] text-white/40">Speed</p>
@@ -221,6 +254,50 @@ export function TurntablePanel({
                       />
                     </label>
                   ))}
+                </div>
+
+                {/* ── The shoegaze board ──────────────────────────────── */}
+                <div className="mt-5">
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <Waves size={12} className="text-sepia-light" />
+                    <p className="font-body text-[10px] uppercase tracking-[0.3em] text-white/40">Shoegaze</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {MOD_SLIDERS.map((s) => (
+                      <label key={s.key} className="block rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                        <span className="flex items-baseline justify-between">
+                          <span className="font-body text-sm text-white">{s.label}</span>
+                          <span className="font-body text-[11px] tabular-nums text-white/40">{Math.round(effects[s.key] * 100)}</span>
+                        </span>
+                        <span className="block font-body text-[11px] text-white/35">{s.hint}</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={Math.round(effects[s.key] * 100)}
+                          onChange={(e) => onEffectsChange({ [s.key]: Number(e.target.value) / 100 })}
+                          className="mt-2 w-full accent-[#c8a96e]"
+                        />
+                      </label>
+                    ))}
+                    {/* One tempo for all five — each pedal runs its own LFO at
+                        its own multiple of it, so they drift together. */}
+                    <label className="block rounded-xl border border-sepia/20 bg-sepia/[0.06] p-3">
+                      <span className="flex items-baseline justify-between">
+                        <span className="font-body text-sm text-white">Drift</span>
+                        <span className="font-body text-[11px] tabular-nums text-white/40">{Math.round(effects.modRate * 100)}</span>
+                      </span>
+                      <span className="block font-body text-[11px] text-white/35">Speed of every sweep</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={Math.round(effects.modRate * 100)}
+                        onChange={(e) => onEffectsChange({ modRate: Number(e.target.value) / 100 })}
+                        className="mt-2 w-full accent-[#c8a96e]"
+                      />
+                    </label>
+                  </div>
                 </div>
 
                 {vinyl.tracks.length > 0 && (

@@ -50,6 +50,15 @@ export const FAVICON_STROKE_DEFAULT = "#E5AD06";
 // introduce a fourth visual language for "museum" on top of those three.
 export const MUSEUM_FAVICON_ICON = "lucide:landmark";
 
+// The admin panel's own tab icon: the band's record, always, glowing through
+// the same colour cycle the public site runs. Same override mechanism as the
+// museum's above (app/(admin)/icon.tsx for the static tab icon, AnimatedFavicon
+// for the cycle) with one extra rule — it also wins over an uploaded Site
+// Design favicon image. That upload is a *public* branding choice; an admin
+// with twenty tabs open wants the one that says "this is the back office", so
+// /admin keeps the record no matter what the public site is wearing.
+export const ADMIN_FAVICON_ICON = "lucide:disc-3";
+
 export type IconNode = [string, Record<string, unknown>][];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

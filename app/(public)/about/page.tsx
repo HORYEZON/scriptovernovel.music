@@ -145,8 +145,15 @@ export default async function AboutPage() {
                   )}
                 </div>
                 <div className="mt-10 flex flex-wrap gap-2">
+                  {/* Not links, so the hover is a "this is a thing" nudge
+                      rather than an affordance: the border picks up the
+                      logo's gold, the type comes up to full cream and the
+                      chip lifts a hair. */}
                   {genres.map((g) => (
-                    <span key={g} className="rounded-full border border-cream/15 px-3.5 py-1.5 font-body text-[10px] uppercase tracking-[0.2em] text-cream/70">
+                    <span
+                      key={g}
+                      className="cursor-default rounded-full border border-cream/15 px-3.5 py-1.5 font-body text-[10px] uppercase tracking-[0.2em] text-cream/70 transition-[color,border-color,background-color,transform] duration-300 hover:-translate-y-0.5 hover:border-sepia/60 hover:bg-cream/5 hover:text-cream"
+                    >
                       {g}
                     </span>
                   ))}

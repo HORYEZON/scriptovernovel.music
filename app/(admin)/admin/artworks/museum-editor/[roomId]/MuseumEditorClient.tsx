@@ -7921,6 +7921,13 @@ export function MuseumEditorClient({
                 ["lofi", "Lo-fi"],
                 ["crackle", "Crackle"],
                 ["delay", "Echo"],
+                // The shoegaze board, in the order vinylAudio.ts chains it.
+                ["phaser", "Phaser"],
+                ["flanger", "Flanger"],
+                ["chorus", "Chorus"],
+                ["vibrato", "Vibrato"],
+                ["tremolo", "Tremolo"],
+                ["modRate", "Drift (sweep speed)"],
               ] as const).map(([key, label]) => (
                 <div key={key} className="mb-2">
                   <div className="flex items-center justify-between mb-1">
@@ -7937,7 +7944,23 @@ export function MuseumEditorClient({
                   />
                 </div>
               ))}
-              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300">
+              <div className="mt-3">
+                <Toggle
+                  label="Start backmasked"
+                  checked={vinylConfig.defaultEffects.reverse}
+                  onChange={(reverse) =>
+                    saveVinylConfig(
+                      { defaultEffects: { ...vinylConfig.defaultEffects, reverse } },
+                      reverse ? "Records start backwards" : "Records start forwards"
+                    )
+                  }
+                />
+                <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-1">
+                  Every record plays in reverse from the moment it lands on the deck. The deck has to decode the whole
+                  file first, so long records take a second to start.
+                </p>
+              </div>
+              <p className="font-body text-[11px] text-ink-400 dark:text-ink-300 mt-2">
                 Where a visitor&apos;s sliders start. They can change them on the deck; their choice lasts for the visit.
               </p>
             </div>
