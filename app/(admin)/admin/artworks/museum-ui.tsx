@@ -2,10 +2,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ToggleLeft, ToggleRight, RotateCcw, ImagePlus, X } from "lucide-react";
+import { ToggleLeft, ToggleRight, RotateCcw, ImagePlus, X, Film } from "lucide-react";
 import Image from "@/components/ui/SafeImage";
 import { cn, getErrorMessage } from "@/lib/utils";
 import toast from "@/lib/toast";
+import { uploadArtworkVideo } from "@/lib/artwork-video-upload";
+import { ALLOWED_VIDEO_TYPES, MAX_VIDEO_DURATION_SEC } from "@/lib/artwork-video";
+import { parseYouTube } from "@/lib/embeds";
 
 // Small presentational pieces shared across DigitalMuseumPanel.tsx's
 // General tab and RoomsTab.tsx (per-room enabled toggle, wall/floor/
@@ -247,6 +250,181 @@ export function TextureField({
             {label}
           </p>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * TextureField's video sibling: the same compact row, for a clip rather than
+ * an image. Goes through uploadArtworkVideo, so it gets the site's one video
+ * policy for free — MP4/MOV/WebM, anything longer than MAX_VIDEO_DURATION_SEC
+ * cropped client-side before upload (which is also what keeps R2 egress for a
+ * looping wall clip in check).
+ */
+export function VideoField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string | null;
+  onChange: (url: string | null) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [trimmed, setTrimmed] = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setTrimmed(null);
+    const url = await uploadArtworkVideo(file, (sec) => setTrimmed(sec));
+    if (url) onChange(url);
+    setUploading(false);
+    setTrimmed(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  return (
+    <div>
+      <label className="font-body text-xs text-ink-400 dark:text-ink-300 mb-1.5 block">{label}</label>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ALLOWED_VIDEO_TYPES.join(",")}
+        className="hidden"
+        onChange={handleUpload}
+      />
+      {value && !uploading ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2.5 p-1.5 rounded-xl admin-input border">
+            <div className="relative w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-black">
+              <video src={value} muted loop autoPlay playsInline className="h-full w-full object-cover" />
+            </div>
+            <p className="flex-1 min-w-0 font-body text-xs text-ink-400 dark:text-ink-300 truncate">
+              {value.split("/").pop()}
+            </p>
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="px-2 py-1 rounded-lg font-body text-xs text-ink-400 dark:text-ink-300 hover:text-ink dark:hover:text-cream hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0"
+            >
+              Change
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              aria-label={`Remove ${label}`}
+              className="p-1.5 rounded-lg text-ink-400 hover:text-vermillion hover:bg-vermillion/10 transition-colors shrink-0"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-black/15 dark:border-white/15 text-ink-400 dark:text-ink-300 hover:border-sepia/50 hover:text-sepia transition-colors font-body text-sm disabled:opacity-60"
+        >
+          {uploading ? (
+            <>
+              <div className="w-3.5 h-3.5 border border-ink-300 dark:border-ink-500 border-t-sepia dark:border-t-cream rounded-full animate-spin" />
+              {trimmed !== null ? `Cropping… ${Math.round(trimmed)}s` : "Uploading…"}
+            </>
+          ) : (
+            <>
+              <Film size={14} />
+              Upload video
+            </>
+          )}
+        </button>
+      )}
+      <p className="mt-1 font-body text-[10px] text-ink-400 dark:text-ink-300">
+        MP4, MOV or WebM. Anything longer than {MAX_VIDEO_DURATION_SEC}s is cropped to its first{" "}
+        {MAX_VIDEO_DURATION_SEC}s — it loops on the wall.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * A YouTube link, committed on blur or Enter rather than per keystroke — a
+ * half-typed URL is invalid by definition, and saving each character would
+ * mean a save (and an error) per character. Anything parseYouTube accepts is
+ * fine: watch, youtu.be, shorts, embed, with or without a start time.
+ */
+export function YoutubeUrlField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string | null;
+  onChange: (url: string | null) => void;
+}) {
+  const [draft, setDraft] = useState(value ?? "");
+  const [invalid, setInvalid] = useState(false);
+  // Follow a change made elsewhere (undo, a reset) without clobbering typing.
+  useEffect(() => {
+    setDraft(value ?? "");
+    setInvalid(false);
+  }, [value]);
+
+  const parsed = value ? parseYouTube(value) : null;
+
+  function commit() {
+    const next = draft.trim();
+    if (next === (value ?? "")) return;
+    if (!next) {
+      setInvalid(false);
+      onChange(null);
+      return;
+    }
+    if (!parseYouTube(next)) {
+      setInvalid(true);
+      return;
+    }
+    setInvalid(false);
+    onChange(next);
+  }
+
+  return (
+    <div>
+      <label className="font-body text-xs text-ink-400 dark:text-ink-300 mb-1.5 block">{label}</label>
+      <div className="flex items-center gap-2">
+        {parsed?.thumbnailUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={parsed.thumbnailUrl} alt="" className="h-9 w-16 shrink-0 rounded-lg object-cover bg-black" />
+        )}
+        <input
+          type="url"
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setInvalid(false);
+          }}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            }
+          }}
+          placeholder="https://www.youtube.com/watch?v=…"
+          className={cn(
+            "admin-input w-full rounded-xl border px-3 py-2 font-body text-xs",
+            invalid && "border-red-400 dark:border-red-500"
+          )}
+        />
+      </div>
+      {invalid && (
+        <p className="mt-1 font-body text-[10px] text-red-500 dark:text-red-400">
+          That doesn&apos;t look like a YouTube link — paste the video&apos;s page or share URL.
+        </p>
       )}
     </div>
   );

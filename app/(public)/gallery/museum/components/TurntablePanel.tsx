@@ -10,12 +10,12 @@
 // All state is MuseumScene's — this only renders it and calls back.
 import Image from "@/components/ui/SafeImage";
 import Link from "next/link";
-import { X, Play, Pause, Disc3, ExternalLink, RotateCcw, Rewind, Waves } from "lucide-react";
+import { X, Play, Pause, Disc3, ExternalLink, RotateCcw, Rewind, Undo2, Waves } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/releases";
 import type { MuseumVinylSleeve } from "@/types";
-import type { VinylEffects } from "@/lib/museum/vinylConfig";
+import { backmaskWindowSec, type VinylEffects } from "@/lib/museum/vinylConfig";
 import type { VinylPlayerState } from "@/lib/museum/vinylAudio";
 
 const SPEEDS: { rpm: 33 | 45 | 78; label: string }[] = [
@@ -162,29 +162,73 @@ export function TurntablePanel({
                   </button>
                 </div>
 
-                {/* Backmasking. Not a knob on the chain — the player has to
-                    decode the whole file and play a reversed copy of it, so
-                    the first flip on a long record takes a moment. */}
-                <button
-                  type="button"
-                  onClick={() => onEffectsChange({ reverse: !effects.reverse })}
-                  disabled={state.decoding}
-                  aria-pressed={effects.reverse}
-                  className={cn(
-                    "mt-2 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border px-4 py-2 font-body text-sm transition-colors disabled:opacity-60",
-                    effects.reverse
-                      ? "border-sepia bg-sepia/20 text-sepia-light"
-                      : "border-white/15 text-white/80 hover:bg-white/10 hover:text-white"
-                  )}
-                >
-                  <Rewind size={16} />
-                  {state.decoding ? "Turning it round…" : effects.reverse ? "Backmasking on" : "Play it backwards"}
-                </button>
-                {effects.reverse && !state.decoding && (
+                {/* Two ways to hear a record reversed — both swap the deck's
+                    source for a decoded copy (see vinylAudio.ts), so the
+                    first flip on a long record takes a moment, and only one
+                    can be on: each button turns the other off.
+                      Backward play — the needle runs back towards the start;
+                      the timer counts down.
+                      Backmasking — every moment sounds reversed but the song
+                      still moves forward; the timer counts up. */}
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onEffectsChange({ reverse: !effects.reverse, backmask: false })}
+                    disabled={state.decoding}
+                    aria-pressed={effects.reverse}
+                    className={cn(
+                      "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border px-3 py-2 font-body text-sm transition-colors disabled:opacity-60",
+                      effects.reverse
+                        ? "border-sepia bg-sepia/20 text-sepia-light"
+                        : "border-white/15 text-white/80 hover:bg-white/10 hover:text-white"
+                    )}
+                  >
+                    <Rewind size={16} />
+                    Backward play
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onEffectsChange({ backmask: !effects.backmask, reverse: false })}
+                    disabled={state.decoding}
+                    aria-pressed={effects.backmask}
+                    className={cn(
+                      "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border px-3 py-2 font-body text-sm transition-colors disabled:opacity-60",
+                      effects.backmask
+                        ? "border-sepia bg-sepia/20 text-sepia-light"
+                        : "border-white/15 text-white/80 hover:bg-white/10 hover:text-white"
+                    )}
+                  >
+                    <Undo2 size={16} />
+                    Backmasking
+                  </button>
+                </div>
+                {state.decoding ? (
+                  <p className="mt-1.5 text-center font-body text-[11px] text-sepia-light/70">Turning the record round…</p>
+                ) : effects.reverse ? (
                   <p className="mt-1.5 text-center font-body text-[11px] text-sepia-light/70">
-                    The needle is running the other way — the timer counts down.
+                    The needle is running back to the start — the timer counts down.
                   </p>
-                )}
+                ) : effects.backmask ? (
+                  <div className="mt-2">
+                    <label className="block">
+                      <span className="flex justify-between font-body text-[11px] text-white/40">
+                        <span>Window — how much plays backwards at a time</span>
+                        <span className="tabular-nums">{backmaskWindowSec(effects.backmaskWindow).toFixed(1)}s</span>
+                      </span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={Math.round(effects.backmaskWindow * 100)}
+                        onChange={(e) => onEffectsChange({ backmaskWindow: Number(e.target.value) / 100 })}
+                        className="w-full accent-[#c8a96e]"
+                      />
+                    </label>
+                    <p className="text-center font-body text-[11px] text-sepia-light/70">
+                      Every moment sounds reversed; the song still moves forward.
+                    </p>
+                  </div>
+                ) : null}
 
                 {/* Speed */}
                 <div className="mt-5">

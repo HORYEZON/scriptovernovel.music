@@ -523,3 +523,71 @@ not a release of its own.
 - `SLEEVE_OPEN_MS` is exported from `VinylSleeve.tsx` and imported by
   `MuseumScene`, so the swing and the moment the record changes hands can't
   drift apart
+
+---
+
+## September 24, 2026 — v0.15 (backward play vs backmasking, sleeve details, a video behind the lyrics)
+
+### Public Side
+
+- **Backward play and Backmasking are now two different things.** What v0.14
+  shipped as "backmasking" — the needle running from the end back to the
+  start, timer counting down — keeps working exactly as it did, under its
+  proper name, **Backward play**. **Backmasking** is new: every moment of the
+  song *sounds* reversed, but the song still moves forward — the timer counts
+  up, the Lyrics Wall keeps its place, the record ends at its end. A
+  **Window** slider sets how much plays backwards at a time. One or the other,
+  never both
+- **An empty sleeve stays half-open.** Once the record is in your hands the
+  cover relaxes from fully swung to about 50°, so the artwork keeps facing the
+  room instead of turning to the wall
+- **[E] at a sleeve whose record is on the deck opens its details** — it used
+  to say "On the deck" and do nothing. Cover, whether it's playing and which
+  way, the tracklist with the current track lit, the lyric on screen now,
+  play/pause, and **Put it back in its sleeve**
+- **A video behind the lyrics.** Upload a clip or paste a YouTube link; set its
+  brightness so the words still read; muted by default
+
+### Admin Side
+
+- Scene Editor → Turntable & Lyrics Wall: the old "Start backmasked" switch is
+  **Start with backward play** (same stored key, so rooms that had it on keep
+  starting the same way), beside a new **Start backmasked** with its window
+  slider
+- The Lyrics Wall card gains **Video behind the lyrics**: None / Upload /
+  YouTube, the file or link, **Video brightness** (0–200%, starts at 70%) and
+  **Mute the video** (on by default)
+
+### Infra / DB
+
+- No migration. `VinylEffects` gains `backmask` + `backmaskWindow`;
+  `LyricsWallConfig` gains `videoSource`/`videoUrl`/`videoYoutubeUrl`/
+  `videoBrightness`/`videoMuted`. All coerced through the existing sanitizers,
+  so stored rooms pick up the defaults. `sanitizeVinylEffects` breaks a tie in
+  favour of `reverse` if a blob somehow has both on
+- `vinylAudio.ts`: the buffer path is generalised from one reversed copy to a
+  `src` of `element | reverse | backmask`. The record is decoded once; both
+  derived buffers are built from it and cached (the backmask one per window,
+  rebuilt debounced on a slider drag). Backmask windows are reversed in place
+  with a 12 ms fade at each seam — without it every seam clicks. Song time maps
+  1:1 onto the backmask buffer, which is what lets seek, the timer and the
+  Lyrics Wall ignore the mode entirely. `VinylPlayerState.reversed` became
+  `source`
+- **YouTube can't be a WebGL texture** (a cross-origin iframe's pixels are
+  unreadable by design), so it's drei `<Html transform occlude="blending">`:
+  real DOM behind the canvas, a mesh punching a transparent patch where it
+  sits, lyrics drawn over that. drei's blending mode restyles the `<canvas>`
+  (absolute, huge z-index, `pointer-events: none`) and never restores it —
+  that would lift the canvas over the HUD and break the click pointer lock
+  needs. So `zIndexRange={[1, 0]}` (canvas 0, iframe −1), both Canvas wrappers
+  (museum + Scene Editor) are `isolation: isolate` so those numbers can't reach
+  the HUD, and `LyricsWallVideo` restores `pointer-events` right after drei's
+  effect and all three styles on unmount. It steps aside while a headset is
+  presenting (the patch would be a black hole there)
+- Verified headless (Chromium + SwiftShader, a throwaway page mounting the real
+  `LyricsWall`): canvas z-index 0 / iframe −1, an un-z-indexed HUD box stays on
+  top, a canvas click still reaches R3F, a 3D object in front of the wall
+  occludes the video, unmount restores the canvas and removes the iframe; a
+  16:9 YouTube video and an uploaded clip both fill the panel. The upload path's
+  brightness is gamma-corrected (`pow(b, 2.2)`) so it matches CSS `brightness()`
+  on the YouTube path at the same setting

@@ -40,20 +40,30 @@
 // vinylConfig.ts (playbackRateFor) so the admin's default-effects card and
 // this player agree.
 //
-// BACKMASKING
-// -----------
-// An <audio> element cannot play backwards at any playbackRate, so `reverse`
-// switches the player's *source*: the file is fetched, decoded, copied
-// sample-by-sample back to front, and played from an AudioBufferSourceNode
-// into the same chain. Everything downstream — effects, crackle, the panel,
-// the Lyrics Wall — is unchanged, and the two modes hand the playhead to each
-// other so flipping mid-song carries on from the same point in the song.
+// BACKWARD PLAY AND BACKMASKING
+// -----------------------------
+// Two different things that both need audio an <audio> element can't produce
+// at any playbackRate, so both switch the player's *source* to a decoded copy
+// of the file played from an AudioBufferSourceNode into the same chain:
+//
+//   backward play (`reverse`) — the whole file copied back to front. The
+//     playhead runs from where it is back towards the start; the timer counts
+//     down and the Lyrics Wall walks backwards through the song.
+//   backmasking (`backmask`) — the file reversed a window at a time, the
+//     windows left in order (see makeBackmaskBuffer). Every moment *sounds*
+//     backwards but the song still moves forward: the timer counts up, the
+//     wall keeps its place, and the song ends at its end.
+//
+// Everything downstream — effects, crackle, the panel, the Lyrics Wall — is
+// unchanged. The three sources hand the playhead to each other in song time,
+// so flipping mid-song carries on from the same point in the song.
 //
 // The cost is that the reported position has to be computed from the context
 // clock (a buffer source has no currentTime) and that a decode needs the file
 // over fetch(), which needs CORS on the bucket — the same requirement the
 // element already has. A decode that fails leaves the record playing forwards
-// and reports it, rather than dropping into silence.
+// and reports it, rather than dropping into silence. The decode is done once
+// per record; both derived copies are built from it and cached.
 //
 // The audio file is fetched with crossOrigin="anonymous" through
 // corsImageUrl() — R2 only sends the CORS header when the request carries
@@ -61,7 +71,13 @@
 // (see lib/images/corsUrl.ts for the cache-splitting reason).
 
 import { corsImageUrl } from "@/lib/images/corsUrl";
-import { DEFAULT_VINYL_EFFECTS, playbackRateFor, sanitizeVinylEffects, type VinylEffects } from "./vinylConfig";
+import {
+  DEFAULT_VINYL_EFFECTS,
+  backmaskWindowSec,
+  playbackRateFor,
+  sanitizeVinylEffects,
+  type VinylEffects,
+} from "./vinylConfig";
 
 export interface VinylPlayer {
   /** Point the deck at a record. Stops whatever was on it first. */
@@ -87,11 +103,15 @@ export interface VinylPlayerState {
   duration: number;
   ended: boolean;
   error: string | null;
-  /** The record is turning backwards and the reversed copy is ready. */
-  reversed: boolean;
-  /** A reversed copy is being fetched and decoded right now. */
+  /** What the deck is actually playing from right now — which can lag the
+   *  effects for the moment a decode takes. */
+  source: VinylSource;
+  /** The record is being fetched and decoded for backward play/backmasking. */
   decoding: boolean;
 }
+
+/** "element" is the ordinary forward <audio> path. */
+export type VinylSource = "element" | "reverse" | "backmask";
 
 // A real Web Audio context per player is fine here — there is only ever one
 // deck, and a MediaElementSource can only be created once per element, so
@@ -182,7 +202,7 @@ interface WetStage {
   wet: GainNode;
 }
 
-/** Reverse a decoded buffer, channel by channel — the backmasked copy. */
+/** The whole file back to front — backward play. */
 function reverseBuffer(ctx: AudioContext, buffer: AudioBuffer): AudioBuffer {
   const out = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
   for (let ch = 0; ch < buffer.numberOfChannels; ch += 1) {
@@ -190,6 +210,41 @@ function reverseBuffer(ctx: AudioContext, buffer: AudioBuffer): AudioBuffer {
     const dst = out.getChannelData(ch);
     const n = buffer.length;
     for (let i = 0; i < n; i += 1) dst[i] = src[n - 1 - i];
+  }
+  return out;
+}
+
+/** Fade at each window's edges, seconds. Without it every seam is a click:
+ *  the last sample of one reversed window is the *first* sample of that
+ *  stretch of song, which has nothing to do with the sample that follows. */
+const BACKMASK_FADE_SEC = 0.012;
+
+/**
+ * Backmasking: each `windowSec` of the file reversed in place, the windows
+ * left in their original order, so song time maps 1:1 onto buffer time. That
+ * 1:1 mapping is the whole difference from backward play — it's what lets the
+ * timer, the seek bar and the Lyrics Wall carry on as if nothing had changed.
+ */
+function makeBackmaskBuffer(ctx: AudioContext, buffer: AudioBuffer, windowSec: number): AudioBuffer {
+  const out = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+  const n = buffer.length;
+  const win = Math.max(1, Math.round(windowSec * buffer.sampleRate));
+  const fade = Math.min(Math.floor(win / 2), Math.round(BACKMASK_FADE_SEC * buffer.sampleRate));
+  for (let ch = 0; ch < buffer.numberOfChannels; ch += 1) {
+    const src = buffer.getChannelData(ch);
+    const dst = out.getChannelData(ch);
+    for (let start = 0; start < n; start += win) {
+      const end = Math.min(n, start + win);
+      const len = end - start;
+      for (let i = 0; i < len; i += 1) {
+        let v = src[end - 1 - i];
+        if (fade > 0) {
+          if (i < fade) v *= i / fade;
+          else if (i >= len - fade) v *= (len - 1 - i) / fade;
+        }
+        dst[start + i] = v;
+      }
+    }
   }
   return out;
 }
@@ -239,24 +294,32 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
   let crackleSource: AudioBufferSourceNode | null = null;
   let crackleGain: GainNode | null = null;
 
-  // Backmasking state. `reversed` is the decoded, back-to-front copy of the
-  // record currently loaded; the anchor pair is how a buffer source (which
-  // has no clock of its own) reports a position.
+  // Buffer-source state (backward play and backmasking). `decoded` is the
+  // record as decoded, forwards; the two derived copies are built from it and
+  // cached, the backmask one per window length. `src` is which source owns
+  // the playhead *right now* — deliberately not read off `effects`, which
+  // changes the instant a switch is flipped while the playhead still belongs
+  // to the old source until switchSource has handed it over.
   let currentUrl: string | null = null;
-  let reversedBuffer: AudioBuffer | null = null;
-  let reversedFor: string | null = null;
+  let decoded: AudioBuffer | null = null;
+  let decodedFor: string | null = null;
   let decodePromise: Promise<AudioBuffer | null> | null = null;
   let decoding = false;
-  let revNode: AudioBufferSourceNode | null = null;
-  let revRunning = false;
-  let revEnded = false;
-  /** ctx.currentTime when the reversed source started. */
-  let revStartedAt = 0;
-  /** Offset into the reversed buffer it started from. */
-  let revStartOffset = 0;
-  /** Where the playhead rests (song time, forwards) while reversed + paused. */
-  let revPaused = 0;
+  let reversedCopy: AudioBuffer | null = null;
+  let backmaskCopy: AudioBuffer | null = null;
+  let backmaskCopyWindow = -1;
+  let src: VinylSource = "element";
+  let bufNode: AudioBufferSourceNode | null = null;
+  let bufRunning = false;
+  let bufEnded = false;
+  /** ctx.currentTime when the buffer source started. */
+  let bufStartedAt = 0;
+  /** Offset into the buffer it started from. */
+  let bufStartOffset = 0;
+  /** Where the playhead rests, in song time, while a buffer source is paused. */
+  let bufPaused = 0;
   let ticker: number | null = null;
+  let rebuildTimer: number | null = null;
 
   if (audio) {
     audio.crossOrigin = "anonymous";
@@ -269,28 +332,47 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
     a.webkitPreservesPitch = false;
   }
 
-  /** Playing in either mode. */
+  /** Playing from any source. */
   function playingNow(): boolean {
-    if (revRunning) return true;
+    if (bufRunning) return true;
     return audio ? !audio.paused && !audio.ended : false;
   }
 
-  /** The playhead in *song* time (always forwards), whichever way it turns. */
+  /** The buffer the current source plays, if it's a buffer source. */
+  function activeBuffer(): AudioBuffer | null {
+    if (src === "reverse") return reversedCopy;
+    if (src === "backmask") return backmaskCopy;
+    return null;
+  }
+
+  /** Buffer offset ↔ song time. Backward play mirrors; backmasking is 1:1,
+   *  which is the whole point of it (see makeBackmaskBuffer). */
+  function songToBuffer(song: number, d: number): number {
+    return src === "reverse" ? d - song : song;
+  }
+  function bufferToSong(offset: number, d: number): number {
+    return src === "reverse" ? d - offset : offset;
+  }
+
+  /** The playhead in *song* time, whichever source owns it and whichever way
+   *  it's turning. */
   function positionNow(): number {
-    if (effects.reverse && reversedBuffer) {
-      const d = reversedBuffer.duration;
-      if (revRunning && ctx) {
-        const rate = revNode?.playbackRate.value ?? playbackRateFor(effects);
-        const elapsed = (ctx.currentTime - revStartedAt) * rate;
-        return Math.max(0, Math.min(d, d - (revStartOffset + elapsed)));
+    const buf = activeBuffer();
+    if (buf) {
+      const d = buf.duration;
+      if (bufRunning && ctx) {
+        const rate = bufNode?.playbackRate.value ?? playbackRateFor(effects);
+        const offset = bufStartOffset + (ctx.currentTime - bufStartedAt) * rate;
+        return Math.max(0, Math.min(d, bufferToSong(offset, d)));
       }
-      return Math.max(0, Math.min(d, revPaused));
+      return Math.max(0, Math.min(d, bufPaused));
     }
     return audio?.currentTime ?? 0;
   }
 
   function durationNow(): number {
-    if (effects.reverse && reversedBuffer) return reversedBuffer.duration;
+    const buf = activeBuffer();
+    if (buf) return buf.duration;
     return audio && Number.isFinite(audio.duration) ? audio.duration : 0;
   }
 
@@ -299,9 +381,9 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
       playing: playingNow(),
       currentTime: positionNow(),
       duration: durationNow(),
-      ended: effects.reverse && reversedBuffer ? revEnded : Boolean(audio?.ended),
+      ended: activeBuffer() ? bufEnded : Boolean(audio?.ended),
       error,
-      reversed: effects.reverse && reversedBuffer !== null,
+      source: src,
       decoding,
     };
     listeners.forEach((l) => l(state));
@@ -492,16 +574,15 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
   function applyEffects() {
     const rate = playbackRateFor(effects);
     if (audio) audio.playbackRate = rate;
-    if (revNode && ctx) {
+    if (bufNode && ctx) {
       // Re-anchor before changing the rate: positionNow() integrates elapsed
       // context time at the *current* rate, so the old rate's contribution has
       // to be banked into the offset or the playhead jumps.
-      if (revRunning) {
-        const elapsed = (ctx.currentTime - revStartedAt) * revNode.playbackRate.value;
-        revStartOffset += elapsed;
-        revStartedAt = ctx.currentTime;
+      if (bufRunning) {
+        bufStartOffset += (ctx.currentTime - bufStartedAt) * bufNode.playbackRate.value;
+        bufStartedAt = ctx.currentTime;
       }
-      revNode.playbackRate.value = rate;
+      bufNode.playbackRate.value = rate;
     }
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -573,14 +654,22 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
     }
   }
 
-  // ── Backmasking ────────────────────────────────────────────────────────
+  // ── Buffer sources: backward play and backmasking ─────────────────────
 
-  /** Fetch + decode + reverse the loaded record, once per URL. */
-  function ensureReversed(): Promise<AudioBuffer | null> {
+  /** Which source the effects are asking for. */
+  function wantedSource(): VinylSource {
+    if (effects.reverse) return "reverse";
+    if (effects.backmask) return "backmask";
+    return "element";
+  }
+
+  /** Fetch + decode the loaded record once per URL. Both derived copies are
+   *  built from this, so a flip between them never refetches. */
+  function ensureDecoded(): Promise<AudioBuffer | null> {
     const context = ctx;
     const url = currentUrl;
     if (!context || !url) return Promise.resolve(null);
-    if (reversedFor === url && reversedBuffer) return Promise.resolve(reversedBuffer);
+    if (decodedFor === url && decoded) return Promise.resolve(decoded);
     if (decodePromise) return decodePromise;
     decoding = true;
     emit();
@@ -589,11 +678,12 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
         const res = await fetch(corsImageUrl(url), { mode: "cors" });
         if (!res.ok) throw new Error(String(res.status));
         const bytes = await res.arrayBuffer();
-        const decoded = await context.decodeAudioData(bytes);
-        const rev = reverseBuffer(context, decoded);
-        reversedBuffer = rev;
-        reversedFor = url;
-        return rev;
+        const buf = await context.decodeAudioData(bytes);
+        // A different record may have gone on while this was in flight.
+        if (currentUrl !== url) return null;
+        decoded = buf;
+        decodedFor = url;
+        return buf;
       } catch {
         return null;
       } finally {
@@ -605,54 +695,70 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
     return decodePromise;
   }
 
-  function stopReverseNode() {
-    if (!revNode) return;
-    revNode.onended = null;
+  /** The buffer a source plays, building (and caching) it on first use. */
+  async function bufferFor(kind: "reverse" | "backmask"): Promise<AudioBuffer | null> {
+    const base = await ensureDecoded();
+    if (!base || !ctx) return null;
+    if (kind === "reverse") {
+      if (!reversedCopy) reversedCopy = reverseBuffer(ctx, base);
+      return reversedCopy;
+    }
+    if (!backmaskCopy || backmaskCopyWindow !== effects.backmaskWindow) {
+      backmaskCopy = makeBackmaskBuffer(ctx, base, backmaskWindowSec(effects.backmaskWindow));
+      backmaskCopyWindow = effects.backmaskWindow;
+    }
+    return backmaskCopy;
+  }
+
+  function stopBufferNode() {
+    if (!bufNode) return;
+    bufNode.onended = null;
     try {
-      revNode.stop();
+      bufNode.stop();
     } catch {
       /* already stopped */
     }
-    revNode.disconnect();
-    revNode = null;
-    revRunning = false;
+    bufNode.disconnect();
+    bufNode = null;
+    bufRunning = false;
     stopTicker();
   }
 
-  /** Start the reversed copy at `fromSong` seconds of the song's own (forward)
-   *  timeline — the mirrored offset is what the buffer actually plays from. */
-  function startReverse(fromSong: number) {
-    if (!ctx || !input || !reversedBuffer) return;
-    stopReverseNode();
-    const d = reversedBuffer.duration;
-    const offset = Math.max(0, Math.min(d, d - fromSong));
-    // Already at the run-out groove: nothing left to play backwards.
+  /** Start the current buffer source at `fromSong` seconds of song time. */
+  function startBuffer(fromSong: number) {
+    const buf = activeBuffer();
+    if (!ctx || !input || !buf) return;
+    stopBufferNode();
+    const d = buf.duration;
+    const offset = Math.max(0, Math.min(d, songToBuffer(fromSong, d)));
+    // Already at the end of the buffer: nothing left to play this way.
     if (offset >= d) {
-      revEnded = true;
-      revPaused = 0;
+      bufEnded = true;
+      bufPaused = bufferToSong(d, d);
       emit();
       return;
     }
     const node = ctx.createBufferSource();
-    node.buffer = reversedBuffer;
+    node.buffer = buf;
     node.playbackRate.value = playbackRateFor(effects);
     node.connect(input);
     node.onended = () => {
-      if (revNode !== node) return;
-      revRunning = false;
-      revEnded = true;
-      revPaused = 0;
-      revNode = null;
+      if (bufNode !== node) return;
+      bufRunning = false;
+      bufEnded = true;
+      // Backward play runs out at the start of the song; backmasking at its end.
+      bufPaused = bufferToSong(d, d);
+      bufNode = null;
       stopTicker();
       stopCrackle();
       applyEffects();
       emit();
     };
-    revNode = node;
-    revStartedAt = ctx.currentTime;
-    revStartOffset = offset;
-    revRunning = true;
-    revEnded = false;
+    bufNode = node;
+    bufStartedAt = ctx.currentTime;
+    bufStartOffset = offset;
+    bufRunning = true;
+    bufEnded = false;
     node.start(0, offset);
     startCrackle();
     startTicker();
@@ -660,37 +766,24 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
     emit();
   }
 
-  /** Hand the playhead between the element and the reversed buffer when the
-   *  backmasking switch is flipped, so the song carries on from where it was. */
-  async function switchDirection() {
-    const wasPlaying = playingNow();
-    const pos = positionNow();
-    if (effects.reverse) {
-      buildGraph();
-      if (ctx && ctx.state === "suspended") {
-        try {
-          await ctx.resume();
-        } catch {
-          /* the gesture that flipped the switch should be enough */
-        }
-      }
-      const rev = await ensureReversed();
-      if (!rev) {
-        // No decode, no backmasking — say so and keep the record turning the
-        // way it was rather than dropping into silence.
-        effects = sanitizeVinylEffects({ ...effects, reverse: false });
-        error = "This record can't be played backwards here.";
-        emit();
-        return;
-      }
-      audio?.pause();
-      revEnded = false;
-      revPaused = pos > 0 ? pos : rev.duration;
-      if (wasPlaying) startReverse(revPaused);
-      else emit();
-    } else {
-      stopReverseNode();
+  /** Where a fresh start from a resting buffer source should begin: from the
+   *  resting point, unless the run already finished — then from the top of
+   *  this direction (the end of the song for backward play, the start for
+   *  backmasking). */
+  function restartPoint(buf: AudioBuffer): number {
+    if (!bufEnded) return bufPaused;
+    return src === "reverse" ? buf.duration : 0;
+  }
+
+  /** Hand the playhead from whatever source had it to the one the effects now
+   *  ask for, at the same point in the song. `pos`/`wasPlaying` are read
+   *  *before* the effects changed, by setEffects. */
+  async function switchSource(pos: number, wasPlaying: boolean) {
+    const next = wantedSource();
+    if (next === "element") {
+      stopBufferNode();
       stopCrackle();
+      src = "element";
       if (audio) {
         const d = Number.isFinite(audio.duration) ? audio.duration : 0;
         audio.currentTime = Math.max(0, Math.min(d || pos, pos));
@@ -702,7 +795,56 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
       }
       applyEffects();
       emit();
+      return;
     }
+
+    buildGraph();
+    if (ctx && ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch {
+        /* the gesture that flipped the switch should be enough */
+      }
+    }
+    const buf = await bufferFor(next);
+    // The switch may have been flipped again while this decoded.
+    if (wantedSource() !== next) return;
+    if (!buf) {
+      // No decode, no buffer source — say so and keep the record turning the
+      // way it was rather than dropping into silence.
+      effects = sanitizeVinylEffects({ ...effects, reverse: false, backmask: false });
+      error = next === "reverse" ? "This record can't be played backwards here." : "This record can't be backmasked here.";
+      emit();
+      return;
+    }
+    audio?.pause();
+    stopBufferNode();
+    src = next;
+    bufEnded = false;
+    // Backward play from the very start of a song would have nothing to play,
+    // so a record that hasn't started yet starts backwards from its end.
+    bufPaused = next === "reverse" && pos <= 0 ? buf.duration : pos;
+    if (wasPlaying) startBuffer(bufPaused);
+    else emit();
+  }
+
+  /** Rebuild the backmask copy for a new window length and carry on from the
+   *  same point. Debounced — a slider drag would otherwise rebuild a whole
+   *  record's worth of samples on every step. */
+  function scheduleBackmaskRebuild() {
+    if (typeof window === "undefined") return;
+    if (rebuildTimer !== null) window.clearTimeout(rebuildTimer);
+    rebuildTimer = window.setTimeout(async () => {
+      rebuildTimer = null;
+      if (src !== "backmask") return;
+      const pos = positionNow();
+      const wasPlaying = playingNow();
+      const buf = await bufferFor("backmask");
+      if (!buf || src !== "backmask") return;
+      bufPaused = pos;
+      if (wasPlaying) startBuffer(pos);
+      else emit();
+    }, 250);
   }
 
   if (audio) {
@@ -720,10 +862,10 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
       applyEffects();
       emit();
     });
-    // While the record runs backwards the element is parked, so its clock
-    // says nothing about where the deck is — the ticker reports instead.
+    // While a buffer source has the playhead the element is parked, so its
+    // clock says nothing about where the deck is — the ticker reports instead.
     audio.addEventListener("timeupdate", () => {
-      if (!revRunning) emit();
+      if (src === "element") emit();
     });
     audio.addEventListener("loadedmetadata", emit);
     audio.addEventListener("error", () => {
@@ -736,15 +878,19 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
     load(audioUrl) {
       if (!audio || disposed) return;
       error = null;
-      stopReverseNode();
+      stopBufferNode();
       stopCrackle();
-      // A different record means the decoded copy is worthless; drop it so
-      // the next backmask decodes the right file.
+      // A different record means every decoded copy is worthless; drop them so
+      // the next flip decodes the right file.
       currentUrl = audioUrl;
-      reversedBuffer = null;
-      reversedFor = null;
-      revPaused = 0;
-      revEnded = false;
+      decoded = null;
+      decodedFor = null;
+      reversedCopy = null;
+      backmaskCopy = null;
+      backmaskCopyWindow = -1;
+      src = "element";
+      bufPaused = 0;
+      bufEnded = false;
       audio.pause();
       audio.src = corsImageUrl(audioUrl);
       audio.currentTime = 0;
@@ -761,17 +907,25 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
           /* autoplay policy — the click that got us here should be enough */
         }
       }
-      if (effects.reverse) {
-        const rev = await ensureReversed();
-        if (!rev) {
-          // Fall back to forwards rather than refusing to play at all.
-          effects = sanitizeVinylEffects({ ...effects, reverse: false });
-          error = "This record can't be played backwards here.";
-        } else {
-          if (revRunning) return;
-          startReverse(revEnded || revPaused <= 0 ? rev.duration : revPaused);
+      const wanted = wantedSource();
+      if (wanted !== "element") {
+        if (bufRunning) return;
+        const buf = await bufferFor(wanted);
+        if (buf) {
+          if (src !== wanted) {
+            // First play since the record went on with a buffer source
+            // already chosen (a room that starts backmasked, say).
+            src = wanted;
+            bufEnded = false;
+            bufPaused = wanted === "reverse" ? buf.duration : audio.currentTime || 0;
+          }
+          startBuffer(restartPoint(buf));
           return;
         }
+        // Fall back to forwards rather than refusing to play at all.
+        effects = sanitizeVinylEffects({ ...effects, reverse: false, backmask: false });
+        error = wanted === "reverse" ? "This record can't be played backwards here." : "This record can't be backmasked here.";
+        src = "element";
       }
       try {
         await audio.play();
@@ -781,9 +935,9 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
       }
     },
     pause() {
-      if (revRunning) {
-        revPaused = positionNow();
-        stopReverseNode();
+      if (bufRunning) {
+        bufPaused = positionNow();
+        stopBufferNode();
         stopCrackle();
         applyEffects();
         emit();
@@ -794,19 +948,25 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
     stop() {
       if (!audio) return;
       audio.pause();
-      stopReverseNode();
+      stopBufferNode();
       stopCrackle();
-      revPaused = 0;
-      revEnded = false;
+      src = "element";
+      bufPaused = 0;
+      bufEnded = false;
       audio.removeAttribute("src");
       audio.load();
       error = null;
       emit();
     },
     setEffects(next) {
-      const wasReverse = effects.reverse;
+      // Read the playhead under the *old* source before anything changes.
+      const before = wantedSource();
+      const pos = positionNow();
+      const wasPlaying = playingNow();
+      const prevWindow = effects.backmaskWindow;
       effects = sanitizeVinylEffects({ ...effects, ...next });
-      if (effects.reverse !== wasReverse) void switchDirection();
+      if (wantedSource() !== before) void switchSource(pos, wasPlaying);
+      else if (src === "backmask" && effects.backmaskWindow !== prevWindow) scheduleBackmaskRebuild();
       applyEffects();
       return effects;
     },
@@ -815,11 +975,12 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
     currentTime: () => positionNow(),
     duration: () => durationNow(),
     seek(seconds) {
-      if (effects.reverse && reversedBuffer) {
-        const target = Math.max(0, Math.min(reversedBuffer.duration, seconds));
-        revPaused = target;
-        revEnded = false;
-        if (revRunning) startReverse(target);
+      const buf = activeBuffer();
+      if (buf) {
+        const target = Math.max(0, Math.min(buf.duration, seconds));
+        bufPaused = target;
+        bufEnded = false;
+        if (bufRunning) startBuffer(target);
         else emit();
         return;
       }
@@ -837,16 +998,18 @@ export function createVinylPlayer(initial: Partial<VinylEffects> = {}): VinylPla
     dispose() {
       if (disposed) return;
       disposed = true;
-      stopReverseNode();
+      stopBufferNode();
       stopTicker();
+      if (rebuildTimer !== null && typeof window !== "undefined") window.clearTimeout(rebuildTimer);
       if (audio) {
         audio.pause();
         audio.removeAttribute("src");
         audio.load();
       }
       stopCrackle();
-      reversedBuffer = null;
-      reversedFor = null;
+      decoded = null;
+      reversedCopy = null;
+      backmaskCopy = null;
       listeners.clear();
       if (ctx) {
         ctx.close().catch(() => {});
