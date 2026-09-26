@@ -39,7 +39,7 @@ export async function GET() {
       subtitle: `${RELEASE_TYPE_LABELS[r.type]}${r.releaseDate ? ` · ${formatReleaseDate(r.releaseDate, "year")}` : ""}`,
       keywords: r.tracks.map((t) => t.title),
       imageUrl: r.coverImageUrl,
-      href: `/music#${r.slug ?? r.id}`,
+      href: `/music/${r.slug ?? r.id}`,
     });
   }
   for (const v of videos) {

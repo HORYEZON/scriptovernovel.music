@@ -115,7 +115,7 @@ export function TurntablePanel({
                     {vinyl.sideLabel && <p className="font-body text-xs text-white/40">{vinyl.sideLabel}</p>}
                     {vinyl.releaseSlug && (
                       <Link
-                        href={`/music#${vinyl.releaseSlug}`}
+                        href={`/music/${vinyl.releaseSlug}`}
                         target="_blank"
                         className="mt-1 inline-flex items-center gap-1 font-body text-[11px] text-white/50 hover:text-white"
                       >

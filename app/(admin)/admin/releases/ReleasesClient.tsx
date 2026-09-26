@@ -588,7 +588,7 @@ export function ReleasesClient({ initialReleases }: { initialReleases: ReleaseRo
                     </ol>
                     {editing?.slug && (
                       <p className="mt-3 inline-flex items-center gap-1 font-body text-[11px] text-ink-400 dark:text-ink-300">
-                        <ExternalLink size={11} /> /music#{editing.slug}
+                        <ExternalLink size={11} /> /music/{editing.slug}
                       </p>
                     )}
                   </div>

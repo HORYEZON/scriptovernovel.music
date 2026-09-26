@@ -146,6 +146,18 @@ The preview card **stays on screen** while you scroll the controls under it, so 
 - ↑ ↓ arrows set the order used when two releases share a date (or have none).
 - 🗑 moves it to **Trash** (Trash → Music) where it can be restored.
 
+### 5.3 Every release now has its own page
+
+Each release has its own address — **`/music/paralysismo`**, for example — shown at the bottom of the edit form. **This is the link to post** when a record comes out: it opens on that release alone, and when it's pasted into Messenger, Facebook or Discord the preview shows *that* cover and title. The old `/music#…` link showed the whole discography with one shared preview image.
+
+The release page is built from what you've already filled in, plus:
+
+- **Videos** — any video whose **Release** field points at this record shows up under "Videos for …". Set that field when adding a video (section 6).
+- **On vinyl** — if the record has a vinyl in the Vinyl Room, the page links into the museum.
+- **More releases** — the rest of the discography, automatically.
+
+Nothing extra to fill in, and nothing to switch on. The **Music** page still lists everything; each title there now links through to its own page.
+
 ---
 
 ## 6. Videos

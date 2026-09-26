@@ -7,7 +7,7 @@
 //      announcement — and it would be useless if the release below could
 //      outrank it, since a release is exactly when you'd reach for it;
 //   2. the featured (else newest) published Release — its cover as the hazy
-//      backdrop, LISTEN into its player on /music, WATCH → /videos (a
+//      backdrop, LISTEN into its own release page, WATCH → /videos (a
 //      release's own video, once Videos ship);
 //   3. the band: the Profile headline as the title over the site's
 //      background photo, the bio's first line under it, with LISTEN → /music
@@ -20,7 +20,7 @@ import { prisma } from "@/lib/prisma";
 import { getProfile } from "@/lib/public-data";
 import { getSiteDesign } from "@/lib/site-design-server";
 import { getLeadRelease } from "@/lib/releases-server";
-import { RELEASE_TYPE_LABELS, formatReleaseDate, primaryEmbed } from "@/lib/releases";
+import { RELEASE_TYPE_LABELS, formatReleaseDate, primaryEmbed, releaseHref } from "@/lib/releases";
 import { HomeHero } from "@/components/public/site-design/HomeHero";
 import { PageHero } from "@/components/public/system/PageHero";
 import { CtaButton } from "@/components/public/system/CtaButton";
@@ -43,7 +43,7 @@ export async function ReleaseHero() {
 
   if (release) {
     const player = primaryEmbed(release);
-    const anchor = `/music#${release.slug ?? release.id}`;
+    const href = releaseHref(release);
     // WATCH goes to the release's own video when it has one, else /videos.
     const video = await prisma.video
       .findFirst({ where: { releaseId: release.id, published: true, deletedAt: null }, orderBy: [{ featured: "desc" }, { sortOrder: "asc" }], select: { id: true } })
@@ -58,7 +58,7 @@ export async function ReleaseHero() {
         title={release.title}
         subtitle={release.description ? release.description.split("\n")[0] : profile?.headline || null}
       >
-        <CtaButton href={player ? anchor : "/music"} colors={cta}>
+        <CtaButton href={player ? href : "/music"} colors={cta}>
           Listen
         </CtaButton>
         <CtaButton href={video ? `/videos#${video.id}` : "/videos"} variant="ghost">
