@@ -12,9 +12,10 @@
 // front cover swings on its left edge like a gatefold / CD case while the
 // record slides out of the open right edge and turns on the spot. The
 // record then goes to the visitor's hands (`taken`) and the cover relaxes to
-// half-open (AJAR), artwork still facing the room, so the wall reads at a
-// glance as "that one is out" without the sleeve looking shut. Putting it
-// back runs the same animation backwards.
+// just ajar (AJAR), artwork still square to the room, so the wall reads at a
+// glance as "that one is out" without the sleeve looking shut — and without
+// the album art swinging out of view. Putting it back runs the same
+// animation backwards.
 //
 // Both halves of that are driven from one eased progress ref in useFrame —
 // no React state per frame, and `open` can flip mid-animation without a
@@ -41,11 +42,15 @@ const DISC_PEEK = 0.09;
  *  the disc has a clear path and the open case reads as open from the side
  *  as well as head-on. */
 const OPEN_ANGLE = 2.15;
-/** Where the cover settles once the record is out (fraction of OPEN_ANGLE,
- *  ~50°). Fully swung, the cover shows its bare reverse and the artwork faces
- *  the wall — from across the room an empty sleeve read as a closed one. Ajar,
- *  the artwork stays facing the room and the gap still says "this one's out". */
-const AJAR = 0.42;
+/** Where the cover settles once the record is out, as a fraction of
+ *  OPEN_ANGLE. Fully swung, the cover shows its bare reverse and the artwork
+ *  faces the wall — from across the room an empty sleeve read as a closed one.
+ *  This used to be 0.42 (~52°), which is far enough that walking up to a
+ *  sleeve whose record you are carrying showed you the edge of the cover and
+ *  the empty inner card rather than the album art: the cover looked gone. A
+ *  shallow ~18° keeps the artwork square to the room and readable while the
+ *  gap along the free edge still says "this one's out". */
+const AJAR = 0.15;
 /** Eased-approach constant for the open/close lerp. */
 const EASE = 7;
 /** How long the swing reads as finished, in ms — the eased approach never

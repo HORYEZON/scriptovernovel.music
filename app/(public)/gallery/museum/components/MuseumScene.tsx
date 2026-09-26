@@ -1899,7 +1899,6 @@ export function MuseumScene({
           <ScreenshotCapture
             captureRef={captureRef}
             logoUrl={aboutData?.logoImage}
-            isCoarsePointer={isCoarsePointer}
             filterCss={activeFilterCss}
           />
         )}

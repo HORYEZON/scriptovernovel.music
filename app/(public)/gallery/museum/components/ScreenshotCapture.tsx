@@ -68,7 +68,6 @@ function download(dataUrl: string): void {
 export function ScreenshotCapture({
   captureRef,
   logoUrl,
-  isCoarsePointer,
   filterCss,
 }: {
   captureRef: MutableRefObject<(() => void) | null>;
@@ -77,10 +76,6 @@ export function ScreenshotCapture({
    * (an unbranded site just gets a plain capture, same as before this
    * feature existed). */
   logoUrl?: string | null;
-  /** Watermark position — bottom-center on mobile, bottom-right on desktop
-   * — same signal MuseumClient.tsx already uses to switch the Camera
-   * button between its HUD placements. */
-  isCoarsePointer?: boolean;
   /**
    * The Filter Vision look currently on screen, as a CSS `filter` value, or
    * null for none (see lib/museum/visionFilters.ts).
@@ -161,10 +156,10 @@ export function ScreenshotCapture({
             const logoHeight = logoWidth * (logo.naturalHeight / logo.naturalWidth);
             const margin = Math.max(LOGO_MARGIN_MIN, shortSide * LOGO_MARGIN_RATIO);
 
-            // Desktop: bottom-right. Mobile (isCoarsePointer): bottom-center.
-            const x = isCoarsePointer
-              ? (composite.width - logoWidth) / 2
-              : composite.width - logoWidth - margin;
+            // Bottom-right on every screen. Mobile used to centre it, which
+            // put the mark over the middle of the picture on a portrait
+            // capture instead of signing the corner.
+            const x = composite.width - logoWidth - margin;
             const y = composite.height - logoHeight - margin;
 
             ctx.globalAlpha = LOGO_OPACITY;
@@ -190,7 +185,7 @@ export function ScreenshotCapture({
     return () => {
       captureRef.current = null;
     };
-  }, [gl, scene, camera, captureRef, logoUrl, isCoarsePointer, filterCss]);
+  }, [gl, scene, camera, captureRef, logoUrl, filterCss]);
 
   return null;
 }

@@ -64,7 +64,7 @@ The **Logo image** under **Header → Wordmark** is now the site's *only* logo u
 
 - the admin sidebar and the login page
 - order receipts and every email the site sends (password reset, order confirmations, mini-game alerts)
-- the museum's About plaque, and the 📸 watermark on museum screenshots
+- the museum's About plaque, and the 📸 watermark on museum screenshots (stamped bottom-right, on a phone as well as a desktop)
 
 > If you had uploaded *different* pictures in the two places, those spots switch to the Header one the moment this update is live. The old Branding picture is kept only as a backup — it's used if the Header logo is ever removed.
 
@@ -254,9 +254,9 @@ The preview card **stays on screen** while you scroll the controls under it, so 
 
 ## 11. Vinyl Room (Digital Museum)
 
-**What this is for:** a room in the Digital Museum where your records hang on the wall. A visitor walks up to a sleeve and presses **[E]** (or taps): the cover swings open like a gatefold, the record slides out of it and lands in their hands, and the cover settles half-open so the artwork still faces the room. They carry it to the turntable and put it on. It plays — through effects they can turn (reverb, lo-fi, crackle, echo, a five-pedal shoegaze board, 33 / 45 / 78 speed, backward play and backmasking) — while the **Lyrics Wall** shows the song's words line by line.
+**What this is for:** a room in the Digital Museum where your records hang on the wall. A visitor walks up to a sleeve and presses **[E]** (or taps): the cover swings open like a gatefold, the record slides out of it and lands in their hands, and the cover settles just ajar so the artwork stays facing the room. They carry it to the turntable and put it on. It plays — through effects they can turn (reverb, lo-fi, crackle, echo, a five-pedal shoegaze board, 33 / 45 / 78 speed, backward play and backmasking) — while the **Lyrics Wall** shows the song's words line by line.
 
-> A sleeve whose record is out stays half-open and empty, so the wall shows at a glance what's been taken. While the record is in a visitor's hands, **[E]** at its sleeve slides it back in and shuts the cover. While it's **on the deck**, **[E]** at the sleeve opens a **details panel** instead: the cover large, whether it's playing (and which way), the tracklist with the current track lit, the lyric line on screen now, a link to the release, a Play/Pause button, and **Put it back in its sleeve** — which stops the deck and returns the record without walking to the turntable.
+> A sleeve whose record is out stays ajar and empty, so the wall shows at a glance what's been taken — walk up to one and you still see its album art, just with the cover lifted off the sleeve. While the record is in a visitor's hands, **[E]** at its sleeve slides it back in and shuts the cover. While it's **on the deck**, **[E]** at the sleeve opens a **details panel** instead: the cover large, whether it's playing (and which way), the tracklist with the current track lit, the lyric line on screen now, a link to the release, a Play/Pause button, and **Put it back in its sleeve** — which stops the deck and returns the record without walking to the turntable.
 
 ### 11.1 Adding a record
 

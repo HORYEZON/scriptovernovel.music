@@ -878,7 +878,7 @@ scriptovernovel.music/
 │   │                                # WebsiteAnalytics (server shell) + WebsiteAnalyticsPanel
 │   │                                # (client: date-range filter, stat tiles, lists, devices)
 │   │                                # + VisitsAreaChart (hover-tooltip area chart)
-│   └── ui/                          # ThemeToggle, SkeletonCard, OwlIcon, SquidIcon, DynamicIcon (Lucide/Tabler icon gallery)
+│   └── ui/                          # ThemeToggle + ThemeSwitch (the pill, prop-driven so the admin's Header preview shares it), SkeletonCard, OwlIcon, SquidIcon, DynamicIcon (Lucide/Tabler icon gallery)
 ├── hooks/
 │   └── useLockBodyScroll.tsx
 ├── lib/
