@@ -22,6 +22,11 @@ export interface PublicProduct {
   price: number;
   stock: number;
   available: boolean;
+  /** Announced, not on sale yet — see lib/store/availability.ts. */
+  comingSoon: boolean;
+  /** ISO, or null. Serialized here because this shape crosses into client
+   *  components. */
+  releaseAt: string | null;
   variants: PublicProductVariant[];
   /** Where the product's own page is (or the artwork page for a legacy row). */
   href: string;
@@ -37,6 +42,8 @@ type ProductRowLike = ProductDisplayLike & {
   price: number;
   stock: number;
   available: boolean;
+  comingSoon?: boolean;
+  releaseAt?: Date | string | null;
   artworkId: string | null;
   variants: { id: string; label: string; price: number; stock: number }[];
 };
@@ -55,6 +62,8 @@ export function toPublicProduct(p: ProductRowLike): PublicProduct | null {
     price: p.price,
     stock: p.stock,
     available: p.available,
+    comingSoon: p.comingSoon === true,
+    releaseAt: p.releaseAt ? new Date(p.releaseAt).toISOString() : null,
     variants: p.variants.map((v) => ({ id: v.id, label: v.label, price: v.price, stock: v.stock })),
     href: productHref(p),
     artworkId: p.artworkId,

@@ -1,8 +1,9 @@
 // components/public/store/ProductCard.tsx
 //
 // One merch item in the Store grid: the first photo (second on hover when
-// there is one), title, category, price or range, sold-out / last-one
-// state. The whole card links to the product's page. Server-safe.
+// there is one), title, category, price or range, and its state badge —
+// Coming soon / Sold out / Last one. The whole card links to the product's
+// page. Server-safe.
 import Link from "next/link";
 import { imageVariantUrl } from "@/lib/images/variants";
 import { formatPriceRange } from "@/lib/utils";
@@ -11,13 +12,7 @@ import { productCategoryLabel } from "@/lib/store/categories";
 import { HoverShimmer } from "@/components/public/HoverShimmer";
 import { DEFAULT_HOVER_SHIMMER, type ShimmerSettings } from "@/lib/hover-shimmer";
 import type { PublicProduct } from "@/lib/store/public-product";
-
-export function productStockState(p: PublicProduct): "out" | "last" | "ok" {
-  const stock = p.variants.length > 0 ? p.variants.reduce((s, v) => s + v.stock, 0) : p.stock;
-  if (stock <= 0) return "out";
-  if (stock === 1) return "last";
-  return "ok";
-}
+import { comingSoonLine, productState, productStateBadge } from "@/lib/store/availability";
 
 export function ProductCard({
   product,
@@ -33,7 +28,10 @@ export function ProductCard({
   shimmer?: ShimmerSettings;
 }) {
   const [first, second] = product.images;
-  const state = productStockState(product);
+  // One source for the state — the card used to work it out from stock alone,
+  // which is how it ended up able to disagree with the product page.
+  const state = productState(product);
+  const badge = productStateBadge(state);
   const category = productCategoryLabel(product.category);
   return (
     <Link href={product.href} className={cn("group block", className)}>
@@ -68,9 +66,16 @@ export function ProductCard({
         {/* Above the photos, under the stock badge — the sweep should cross
             the image, not the label. */}
         <HoverShimmer settings={shimmer} />
-        {state !== "ok" && (
-          <span className="absolute left-3 top-3 z-10 rounded-full border border-cream/30 bg-ink/70 px-2.5 py-1 font-body text-[10px] uppercase tracking-[0.2em] text-cream backdrop-blur-md">
-            {state === "out" ? "Sold out" : "Last one"}
+        {badge && (
+          <span
+            className={cn(
+              "absolute left-3 top-3 z-10 rounded-full border px-2.5 py-1 font-body text-[10px] uppercase tracking-[0.2em] backdrop-blur-md",
+              state === "coming_soon"
+                ? "border-sepia/60 bg-ink/70 text-sepia-light"
+                : "border-cream/30 bg-ink/70 text-cream"
+            )}
+          >
+            {badge}
           </span>
         )}
       </div>
@@ -78,6 +83,9 @@ export function ProductCard({
         {category && <p className="font-body text-[10px] uppercase tracking-[0.3em] text-sepia-light">{category}</p>}
         <p className="mt-0.5 truncate font-fraunces text-lg font-light text-cream">{product.title}</p>
         <p className="font-body text-xs tracking-wide text-cream/60">{formatPriceRange(product.price, product.variants.map((v) => v.price))}</p>
+        {state === "coming_soon" && (
+          <p className="font-body text-[11px] tracking-wide text-sepia-light">{comingSoonLine(product.releaseAt)}</p>
+        )}
       </div>
     </Link>
   );

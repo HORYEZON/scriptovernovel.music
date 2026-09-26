@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { LIVE_PRODUCT_WHERE, PRODUCT_ARTWORK_SELECT } from "@/lib/store/queries";
 import { toPublicProduct } from "@/lib/store/public-product";
+import { productState, schemaAvailability } from "@/lib/store/availability";
 import { SITE_URL } from "@/lib/site-url";
 import { JsonLd } from "@/components/public/JsonLd";
 import { ProductDetailClient } from "./ProductDetailClient";
@@ -48,7 +49,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (!product) notFound();
 
   const prices = product.variants.length ? product.variants.map((v) => v.price) : [product.price];
-  const inStock = (product.variants.length ? product.variants.reduce((s, v) => s + v.stock, 0) : product.stock) > 0;
+  // Through the shared helper rather than a stock sum, so the structured data
+  // can't say InStock over a page that says Coming soon.
+  const state = productState(product);
 
   return (
     <div className="pb-24 pt-24 md:pt-28">
@@ -66,7 +69,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             priceCurrency: "PHP",
             lowPrice: Math.min(...prices),
             highPrice: Math.max(...prices),
-            availability: inStock ? "https://schema.org/InStock" : "https://schema.org/SoldOut",
+            availability: schemaAvailability(state),
             url: `${SITE_URL}/shop/${slug}`,
           },
         }}

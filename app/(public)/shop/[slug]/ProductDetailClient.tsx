@@ -19,6 +19,8 @@ import { GlassPanel } from "@/components/public/system/GlassPanel";
 import { Eyebrow } from "@/components/public/system/Eyebrow";
 import { ImagePreviewModal } from "@/components/public/ImagePreviewModal";
 import type { PublicProduct } from "@/lib/store/public-product";
+import { acceptsStockAlerts, comingSoonLine, isBuyable, productState } from "@/lib/store/availability";
+import { NotifyMeForm } from "@/components/public/store/NotifyMeForm";
 
 export function ProductDetailClient({ product }: { product: PublicProduct }) {
   const { addItem, items } = useCartStore();
@@ -30,6 +32,11 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
   const stock = variant?.stock ?? product.stock;
   const inCart = items.find((i) => i.productId === product.id && (i.variantId ?? null) === (variant?.id ?? null))?.quantity ?? 0;
   const canAdd = stock > 0 && inCart < stock;
+  // One source for what can be done with this product — the same functions the
+  // Store card and the API use.
+  const state = productState(product);
+  const buyable = isBuyable(product) && stock > 0;
+  const takesAlerts = acceptsStockAlerts(product);
   const category = productCategoryLabel(product.category);
 
   function add() {
@@ -129,15 +136,24 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
               </div>
             )}
 
+            {/* Coming soon replaces the buy row outright: the thing isn't for
+                sale, so a greyed-out Add to cart would be a worse answer than
+                the date and a way to be told. */}
+            {state === "coming_soon" && (
+              <p className="mt-6 font-body text-sm text-sepia-light">{comingSoonLine(product.releaseAt)}</p>
+            )}
+
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={add}
-                disabled={!canAdd}
-                className="inline-flex items-center gap-2 rounded-full bg-cream px-6 py-3 font-body text-[11px] font-medium uppercase tracking-[0.18em] text-ink transition-transform hover:scale-[1.04] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-              >
-                {stock === 0 ? "Sold out" : inCart >= stock ? <><Check size={14} /> All in cart</> : <><ShoppingBag size={14} /> Add to cart</>}
-              </button>
+              {buyable && (
+                <button
+                  type="button"
+                  onClick={add}
+                  disabled={!canAdd}
+                  className="inline-flex items-center gap-2 rounded-full bg-cream px-6 py-3 font-body text-[11px] font-medium uppercase tracking-[0.18em] text-ink transition-transform hover:scale-[1.04] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                >
+                  {inCart >= stock ? <><Check size={14} /> All in cart</> : <><ShoppingBag size={14} /> Add to cart</>}
+                </button>
+              )}
               <button type="button" onClick={share} className="inline-flex items-center gap-2 rounded-full border border-cream/30 px-5 py-3 font-body text-[11px] uppercase tracking-[0.18em] text-cream transition-colors hover:border-cream/70">
                 <Share2 size={14} /> Share
               </button>
@@ -147,7 +163,19 @@ export function ProductDetailClient({ product }: { product: PublicProduct }) {
                 </Link>
               )}
             </div>
-            {stock > 0 && stock <= 3 && <p className="mt-3 font-body text-xs text-sepia-light">Only {stock} left.</p>}
+            {buyable && stock <= 3 && <p className="mt-3 font-body text-xs text-sepia-light">Only {stock} left.</p>}
+
+            {/* The alert takes the buy button's place. `variantId` is passed
+                along so someone waiting on one size is only told when *that*
+                size is back. */}
+            {takesAlerts && (
+              <NotifyMeForm
+                productId={product.id}
+                variantId={variantId}
+                variantLabel={variant?.label ?? null}
+                className="mt-6 max-w-md"
+              />
+            )}
 
             {product.description && (
               <p className="mt-10 whitespace-pre-line font-body text-sm leading-relaxed text-cream/70">{product.description}</p>

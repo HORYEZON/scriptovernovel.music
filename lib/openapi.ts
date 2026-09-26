@@ -197,7 +197,18 @@ export const openApiSpec: OpenAPIV3.Document = {
           sortOrder: { type: "integer" },
           price: { type: "number" },
           stock: { type: "integer" },
-          available: { type: "boolean" },
+          available: { type: "boolean", description: "The admin's show/hide switch." },
+          comingSoon: {
+            type: "boolean",
+            description:
+              "Announced, not on sale: listed and readable with its date, but not buyable — visitors are offered a stock alert instead. Deliberately not called `preorder`, which would imply taking money for stock that doesn't exist yet. Turning it off is what puts the product on sale, and that is when everyone on the waiting list is emailed.",
+          },
+          releaseAt: {
+            type: "string",
+            format: "date-time",
+            nullable: true,
+            description: "Shown as \"Expected <date>\". Nothing schedules itself off it — a date is a hope, so an admin still flips `comingSoon`.",
+          },
           variants: {
             type: "array",
             items: {
@@ -1155,6 +1166,53 @@ export const openApiSpec: OpenAPIV3.Document = {
         description:
           "Everything the public header search can match — flat rows with `kind` (release | video | merch), `title`, `subtitle`, `keywords`, `imageUrl`, `href`. Merch today; releases and videos as those modules land. Filtered client-side.",
         responses: { "200": { description: "{ items: SiteSearchItem[] }" } },
+      },
+    },
+    "/stock-notifications": {
+      get: {
+        tags: ["Stock Alerts"],
+        summary: "List stock alert requests (admin)",
+        security: adminSecurity,
+        parameters: [{ name: "productId", in: "query", schema: { type: "string" }, description: "Narrow to one product." }],
+        responses: { "200": { description: "Requests, newest first" }, "401": ErrorResponse },
+      },
+      post: {
+        tags: ["Stock Alerts"],
+        summary: "Ask to be told when a product is available (public)",
+        description:
+          "Records one request. **No confirmation email** — exactly one email is ever sent to a row (the alert), and sending it retires the row, so there is nothing to confirm and no list to leave.\n\n**Answers identically** whether the request is new, already waiting or already alerted: anything else would tell a caller whether a given address is on a given waiting list. The only distinct 400s are a malformed address (the caller's own typo) and a product that isn't taking alerts — i.e. one that is on sale, hidden or gone.\n\nRate limited per IP (6/min). Requests are deduped per (product, variant, email) in code rather than by a unique index, because `variantId` is nullable and Postgres treats NULLs as distinct.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["productId", "email"],
+                properties: {
+                  productId: { type: "string" },
+                  variantId: { type: "string", nullable: true, description: "The size/format wanted. Null (or one not on this product) means any — and a request for one size is only alerted when *that* size returns." },
+                  email: { type: "string", format: "email", maxLength: 254 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Acknowledged (see the note — this does not mean the request was new)" },
+          "400": ErrorResponse,
+          "429": { description: "Rate limited — carries a Retry-After header" },
+          "500": ErrorResponse,
+        },
+      },
+    },
+    "/stock-notifications/{id}": {
+      delete: {
+        tags: ["Stock Alerts"],
+        summary: "Remove one waiting-list row (admin)",
+        description: "A real delete, not a soft one — the row is somebody's email address.",
+        security: adminSecurity,
+        parameters: [IdParam],
+        responses: { "200": SuccessResponse, "401": ErrorResponse },
       },
     },
     "/products": {
@@ -4532,6 +4590,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Cosplays", description: "Costume photography \u2014 each a standee in the museum's Cosplay Room" },
     { name: "Sections", description: "Gallery section groupings" },
     { name: "Products", description: "Store merch — title, photos, category, price, sizes, stock (optionally created from an artwork)" },
+    { name: "Stock Alerts", description: "\u201cTell me when this is back\u201d — a waiting list per product, emailed once when it becomes buyable" },
     { name: "Orders", description: "Customer orders (admin + public lookup)" },
     { name: "Releases", description: "The band's singles, EPs and albums — covers, tracklists, lyrics, streaming links" },
     { name: "Videos", description: "YouTube videos on the Videos page — music videos, live, behind the scenes" },

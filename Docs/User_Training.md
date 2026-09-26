@@ -23,9 +23,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 13. [Mailing list](#13-mailing-list)
 14. [Press kit](#14-press-kit)
 15. [Lyrics & syncing](#15-lyrics--syncing)
-16. [Picking dates anywhere in the admin](#16-picking-dates-anywhere-in-the-admin)
-17. [Glossary — Confusing Terms Explained](#17-glossary--confusing-terms-explained)
-18. [Quick Troubleshooting](#18-quick-troubleshooting)
+16. [Coming soon & stock alerts](#16-coming-soon--stock-alerts)
+17. [Picking dates anywhere in the admin](#17-picking-dates-anywhere-in-the-admin)
+18. [Glossary — Confusing Terms Explained](#18-glossary--confusing-terms-explained)
+19. [Quick Troubleshooting](#19-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -524,7 +525,39 @@ While you work:
 
 ---
 
-## 16. Picking dates anywhere in the admin
+## 16. Coming soon & stock alerts
+
+**What this is for:** announcing a record or a shirt *before* it's on sale, and collecting the people who want telling — so the day it lands you already have a list.
+
+### 16.1 Announcing something early
+
+Products → the product → turn on **Coming soon**, and set an **Expected date** if you have one.
+
+On the site it then shows with a **Coming soon** badge and "Expected &lt;date&gt;", and instead of an Add to cart button visitors get a **Notify me** box. It can't be bought while that switch is on.
+
+> 💡 The date is only a label. Nothing happens on it by itself — a pressing date moves, so *you* turn the switch off when the boxes actually arrive.
+
+### 16.2 What visitors get
+
+One email, on the day the thing becomes buyable. That's it — they aren't added to the mailing list and there's nothing for them to unsubscribe from. A sold-out product offers the same box.
+
+If a product has sizes, someone can wait on **one size**, and they're only emailed when *that* size comes back.
+
+### 16.3 Seeing who's waiting
+
+A product with people waiting shows a **N waiting** badge in the Products list. Click it for the list, with a **CSV** button.
+
+### 16.4 Sending the alert
+
+**You don't.** It sends itself, the moment the product becomes buyable — when you turn **Coming soon** off, or put stock back on a sold-out item. The toast after saving tells you how many were emailed.
+
+There's no "send now" button on purpose: the email says *it's available*, and that has to be true when it arrives.
+
+> 💡 So the working order is: turn Coming soon on early → let people sign up → when the stock is really there, set the stock and turn Coming soon off in the same save. Everyone waiting is emailed then.
+
+---
+
+## 17. Picking dates anywhere in the admin
 
 **What this is for:** every date field in the admin — Releases, Events, About, Announcements, Marquee Banners, Release Notes — is the same control, and it's the same calendar that sits behind the sidebar clock.
 
@@ -543,7 +576,7 @@ While you work:
 
 ---
 
-## 17. Glossary — Confusing Terms Explained
+## 18. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -553,7 +586,7 @@ While you work:
 
 ---
 
-## 18. Quick Troubleshooting
+## 19. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

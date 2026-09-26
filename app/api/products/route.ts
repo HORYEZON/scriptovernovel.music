@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { artworkId, price, stock, variants, available } = body;
+    const { artworkId, price, stock, variants, available, comingSoon, releaseAt } = body;
     const merch = sanitizeMerchFields(body);
     if ("error" in merch) return NextResponse.json({ error: merch.error }, { status: 400 });
 
@@ -63,6 +63,12 @@ export async function POST(request: NextRequest) {
         price: Math.max(0, parseFloat(price)),
         stock: Math.max(0, parseInt(stock) || 0) || (validVariants.length ? 0 : 1),
         available: available !== false,
+        // A pressing can be announced the day it's ordered from the plant, so
+        // "coming soon" is settable at creation rather than only on edit. No
+        // alert can fire here — nobody is waiting on a product that didn't
+        // exist a moment ago.
+        comingSoon: comingSoon === true,
+        releaseAt: releaseAt ? new Date(releaseAt) : null,
         sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
         ...(validVariants.length > 0 && { variants: { create: validVariants } }),
       },

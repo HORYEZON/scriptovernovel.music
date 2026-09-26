@@ -6,13 +6,14 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminGoToMenu } from "@/components/admin/AdminGoToMenu";
 import { getMuseumRoomStatus, museumEditorLink, museumRoomLink } from "@/lib/museum/roomStatus";
 import { PRODUCT_ARTWORK_SELECT } from "@/lib/store/queries";
+import { waitingCounts } from "@/lib/store/notify-server";
 import { ProductsClient } from "./ProductsClient";
 
 export const metadata: Metadata = { title: "Products" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminProductsPage() {
-  const [products, artworksWithoutProduct, museumRooms] = await Promise.all([
+  const [products, artworksWithoutProduct, museumRooms, waiting] = await Promise.all([
     prisma.product.findMany({
       where: { deletedAt: null },
       include: { artwork: PRODUCT_ARTWORK_SELECT, variants: { orderBy: { sortOrder: "asc" } } },
@@ -26,6 +27,7 @@ export default async function AdminProductsPage() {
       orderBy: { title: "asc" },
     }),
     getMuseumRoomStatus(),
+    waitingCounts(),
   ]);
 
   return (
@@ -44,7 +46,11 @@ export default async function AdminProductsPage() {
           />
         }
       />
-      <ProductsClient initialProducts={JSON.parse(JSON.stringify(products))} artworksWithoutProduct={artworksWithoutProduct} />
+      <ProductsClient
+        initialProducts={JSON.parse(JSON.stringify(products))}
+        artworksWithoutProduct={artworksWithoutProduct}
+        waiting={waiting}
+      />
     </div>
   );
 }

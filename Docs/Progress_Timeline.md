@@ -1040,3 +1040,93 @@ not a release of its own.
   out-of-range number 404, synced page showing its player and unsynced page
   correctly not, `MusicRecording` JSON-LD parsed with its lyrics — and every
   fixture row deleted afterwards
+
+---
+
+## September 27, 2026 — v0.23 (Coming soon, and "tell me when it's back")
+
+Scope note: the owner asked for the shop work **without the PayMongo
+integration** — that's theirs to set up later. What's below is everything in
+that phase that doesn't touch money. Bundles and paid digital downloads are
+not here, and the reason is at the end.
+
+### Public Side
+
+- **A product can be announced before it's on sale.** It lists with a **Coming
+  soon** badge and "Expected &lt;date&gt;", and where the Add to cart button
+  would be there's a **Notify me** box instead. It can't be bought while it's
+  in that state
+- **Sold-out products offer the same box.** Previously a sold-out item was a
+  dead end with a greyed-out button
+- **One email, on the day, and nothing else.** No confirmation step to click
+  through, no list joined, nothing to unsubscribe from — sending the alert is
+  what retires the request, so the email itself explains why it arrived
+- **Waiting on one size works.** On a product with sizes, someone who asks
+  about Large is only emailed when Large is back
+- A coming-soon product reads as `PreOrder` in its structured data rather than
+  `InStock`
+
+### Admin Side
+
+- **Products** gains a **Coming soon** switch and an optional **Expected
+  date**. Turning the switch off is what puts the product on sale
+- A product with people waiting shows an **N waiting** badge; clicking it lists
+  them, with a CSV export and a per-row remove
+- **The alert sends itself** when the product becomes buyable — Coming soon
+  off, or stock put back — and the save toast says how many were emailed.
+  There is deliberately **no "send now" button**: the email says "it's
+  available", and that has to be true when it lands
+
+### Infra
+
+- `Product.comingSoon` + `Product.releaseAt`, and a `StockNotification` table.
+  Migration `20260927100000_coming_soon_and_stock_alerts` — two defaulted /
+  nullable columns and one new table
+- **Named `comingSoon`, not `preorder`, on purpose.** A pre-order is something
+  you pay for now and receive later, which needs the checkout to take money for
+  stock that doesn't exist yet. This is only the announcement, and the field
+  name says so rather than implying a payment flow the shop doesn't have
+- `lib/store/availability.ts` is now the single answer to "what can a visitor
+  do with this product" (`productState` / `isBuyable` / `acceptsStockAlerts` /
+  `schemaAvailability`). The Store card used to work it out from stock alone and
+  the product page recomputed the same sum inline — two places doing their own
+  arithmetic is how a card ends up saying Sold out over a page with a buy button
+- **No confirmation email**, unlike the mailing list: exactly one email is ever
+  sent to a row and sending it retires the row, so a double opt-in would mean
+  two emails to get one and the first would be the spam. Abuse is held down by
+  an IP rate limit (6/min) and a per-(product, variant, email) dedupe instead
+- That dedupe is **in code, not a unique index**: `variantId` is nullable and
+  Postgres treats NULLs as distinct, so a unique on those three columns would
+  let every "any size" request through twice
+- The POST answers identically for new / already-waiting / already-alerted
+  requests — anything else tells a caller whether an address is on a given
+  waiting list. Blocked senders (Settings → Blocked Emails) get the same
+  acknowledgement and no row
+- The alert fires from the products PATCH by comparing `isBuyable` **before and
+  after** the write, so an ordinary edit to an already-on-sale product can't
+  re-alert anyone. A row whose send fails is left unnotified for the next save
+  rather than marked done
+- `tsc`, `next lint` and `yarn build` all clean. 18 assertions on the
+  availability helpers (state ladder, variants outranking the product's own
+  stock column, coming-soon outranking stock, buyable/alert predicates, badges,
+  schema.org mapping, and a garbage date degrading to "On sale soon"). Then
+  against temporary products: all three states rendering correctly on the grid
+  and on their pages, notify POST 200, a repeat POST adding no second row, bad
+  email 400, an on-sale product 400, an unknown product 400, admin list 401
+  unauthenticated, the rate limit returning 429, and every trigger guard — still
+  coming soon → nothing, already buyable → nothing, paused product → nothing,
+  variant still empty → skipped, failed send → row kept for a retry. Fixtures
+  deleted afterwards
+
+### Not in this phase
+
+- **Bundles** (vinyl + shirt as one SKU) change what a cart totals and what
+  stock a purchase decrements — money arithmetic that can't be exercised while
+  the shop can't take a payment.
+- **Paid digital downloads** hang off an order reaching PAID: that is the moment
+  a download grant is issued and emailed. With no payment flow, nothing ever
+  reaches PAID, so the delivery path could be written but not run.
+
+  Both are waiting on the PayMongo setup rather than on a decision. Worth
+  knowing: the shop has no `PAYMONGO_*` environment variables and has never
+  taken an order, so checkout does not currently work at all.
