@@ -21,6 +21,19 @@ export function isReleaseType(value: unknown): value is ReleaseType {
   return typeof value === "string" && (RELEASE_TYPES as readonly string[]).includes(value);
 }
 
+/**
+ * The address of a release's own page.
+ *
+ * `slug ?? id` because `Release.slug` is nullable — it is generated on create,
+ * so a row older than that is only reachable by id. Every link to a release
+ * goes through this rather than building the path by hand, so there is one
+ * place that knows the fallback. Resolved on the other end by
+ * `getPublicReleaseBySlug`, which looks up both.
+ */
+export function releaseHref(release: { slug: string | null; id: string }): string {
+  return `/music/${release.slug ?? release.id}`;
+}
+
 /** The platform link columns on Release, keyed by provider. */
 export const RELEASE_LINK_FIELDS: Record<EmbedProvider, "spotifyUrl" | "bandcampUrl" | "youtubeUrl" | "soundcloudUrl" | "appleMusicUrl"> = {
   spotify: "spotifyUrl",

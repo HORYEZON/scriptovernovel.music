@@ -754,3 +754,59 @@ not a release of its own.
   Vercel)
 - `tsc`, `next lint` and `yarn build` all clean; `/shows` verified against
   the live data (4 shows, all TBA) with its JSON-LD parsed
+
+---
+
+## September 26, 2026 — v0.19 (Every release gets its own page)
+
+### Public Side
+
+- **`/music/[slug]` — a page per record.** A release used to be an anchor on
+  one long `/music`, so the whole discography shared a single title, a single
+  description and a single share image: posting a new single linked to a page
+  mostly about the others. Each release now has its own address, its own
+  `<title>` and description, and **its own cover as the link preview**
+- The release page carries the cover, the player, every platform it's on, the
+  tracklist with fold-out lyrics, **the videos made for that release**, a link
+  into the **Vinyl Room** when the record exists there, and the rest of the
+  discography
+- **`/music` is still the browsing view** — each card's title now links
+  through to its release page, with a *Release page* link under the tracklist
+- Every link to a release across the site now points at its page instead of
+  the anchor: the homepage hero's **Listen**, the admin's own preview link,
+  ⌘K search results, and the Vinyl Room's turntable and sleeve panels
+- Release pages carry `MusicAlbum` structured data with the tracklist as
+  `MusicRecording`s, plus a `BreadcrumbList`, and each one is its own
+  `/sitemap.xml` entry (with the row's `updatedAt` as `lastModified`), so a
+  record can be found on its own name
+
+### Admin Side
+
+- Nothing new to fill in. The edit form's footer now shows the release's real
+  address (`/music/<slug>`) rather than the old `#slug` anchor — that is the
+  link to post when a record comes out
+- A video's **Release** field is what puts it on that release's page
+
+### Infra
+
+- `app/(public)/music/[slug]/page.tsx`, with `generateMetadata` (OG image =
+  the cover, `og:type: music.album`, canonical on the slug)
+- `getPublicReleaseBySlug` resolves **slug *or* id**: `Release.slug` is
+  nullable — it is generated on create, so a row older than the generator is
+  only reachable by id, and every link is written `slug ?? id`. One
+  `releaseHref()` in `lib/releases.ts` owns that fallback
+- `RELEASE_DETAIL_INCLUDE` nests its own `where`s on videos and vinyls — a
+  release being published must not surface an unpublished video or a trashed
+  record
+- `ReleaseCover.tsx` and `ReleaseTracklist.tsx` extracted from `ReleaseCard`
+  and shared with the new page. The lyrics disclosure is the fiddliest piece
+  of the release UI and two copies were never going to stay in step
+- `revalidateReleasePaths` also clears `/music/[slug]` (the `"page"` form,
+  which covers every instance of the route)
+- `app/sitemap.ts` now queries releases, with the query caught so a DB hiccup
+  can't take the sitemap down with it
+- `numTracks` is omitted rather than sent as `0` when a tracklist hasn't been
+  typed in yet — on both the list and the detail page
+- `tsc`, `next lint` and `yarn build` all clean. Verified against live data:
+  `/music/paralysismo` 200, the same release by id 200, an unknown slug 404,
+  both JSON-LD blocks parsed, and the sitemap carries the release

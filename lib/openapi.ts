@@ -295,7 +295,7 @@ export const openApiSpec: OpenAPIV3.Document = {
         properties: {
           id: { type: "string" },
           title: { type: "string" },
-          slug: { type: "string", nullable: true, description: "Write-once; the /music#slug anchor." },
+          slug: { type: "string", nullable: true, description: "Write-once; the /music/<slug> address of the release's own page." },
           type: { type: "string", enum: ["SINGLE", "EP", "ALBUM", "LIVE", "COMPILATION"] },
           coverImageUrl: { type: "string" },
           releaseDate: { type: "string", format: "date-time", nullable: true },

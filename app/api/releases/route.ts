@@ -1,7 +1,7 @@
 // app/api/releases/route.ts
 //
 // Release module — admin list + create. Same conventions as app/api/events
-// and app/api/stories: requireAdmin, write-once slug (a /music#slug link
+// and app/api/stories: requireAdmin, write-once slug (a /music/<slug> link
 // must not break on a retitle), soft delete elsewhere, revalidate every
 // page the row shows on. Platform links go through lib/embeds.ts so
 // nothing that can't be parsed is ever stored.

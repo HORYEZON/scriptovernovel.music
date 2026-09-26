@@ -5,7 +5,8 @@
 // The release list with a type filter (All · Singles · EPs · Albums …).
 // Each release is a ReleaseCard: cover beside the details, the chosen
 // player, the tracklist with fold-out lyrics, "Listen on" pills for every
-// other platform. Anchored by slug so /music#slug lands on a release.
+// other platform. Each card title links to /music/<slug>, the release's
+// own page.
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/public/system/Reveal";

@@ -123,7 +123,7 @@ export function SleeveDetailsPanel({
                   </span>
                   {vinyl.releaseSlug && (
                     <Link
-                      href={`/music#${vinyl.releaseSlug}`}
+                      href={`/music/${vinyl.releaseSlug}`}
                       target="_blank"
                       className="inline-flex items-center gap-1 text-white/50 hover:text-white"
                     >
