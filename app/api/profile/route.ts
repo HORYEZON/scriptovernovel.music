@@ -10,6 +10,15 @@ import { sanitizeMaintenanceMessage } from "@/lib/maintenance";
 import { clampMusicVolume } from "@/lib/background-music";
 import { clampReleaseNoteLimit } from "@/lib/release-notes";
 import {
+  MAX_PRESS_BOOKING_NAME,
+  MAX_PRESS_PHOTO_CREDIT,
+  MAX_PRESS_SHORT_BIO,
+  MAX_PRESS_TECH_RIDER,
+  pressText,
+  sanitizePressQuotes,
+} from "@/lib/press";
+import { isValidSubscriberEmail, normalizeEmail } from "@/lib/subscribers";
+import {
   sanitizeIntroEffect,
   clampIntroSpeed,
   sanitizeIntroText,
@@ -44,7 +53,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { bio, profileImage, profileImages, backgroundImage, logoImage, sidebarIcon, chatIcon, sidebarIconColors, maintenanceIcon, errorIcon, footerIcon, sidebarMobileIcon, splashIcon, faviconIcon, maintenanceIconColors, footerIconColors, sidebarMobileIconColors, splashIconColors, faviconIconColors, headline, displayName, basedIn, experience, languages, instagram, facebook, twitter, email, phone, address, contactHeading, contactIntro, commissionHeading, commissionIntro, carouselMode, carouselSpeed, storiesCarouselMode, storiesCarouselSpeed, hoverShimmer, maintenanceMode, maintenanceMessage, musicUrl, musicEnabled, musicVolume, introEnabled, introEffect, introSpeedMs, introText, introTextAbove, introBgColor, introTaglineFontSize, introTaglineFontFamily, introTaglineColor, introTaglineAboveFontSize, introTaglineAboveFontFamily, introTaglineAboveColor, introTaglineFontSizeMobile, introTaglineAboveFontSizeMobile, introGlowIntensity, introGlowColor, introGlowShimmer, introGlowOffsetX, introGlowOffsetY, introLetterColors, introSquidColor, callingCardFront, callingCardBack, releaseNotesEnabled, releaseNotesLimit } = body;
+    const { bio, profileImage, profileImages, backgroundImage, logoImage, sidebarIcon, chatIcon, sidebarIconColors, maintenanceIcon, errorIcon, footerIcon, sidebarMobileIcon, splashIcon, faviconIcon, maintenanceIconColors, footerIconColors, sidebarMobileIconColors, splashIconColors, faviconIconColors, headline, displayName, basedIn, experience, languages, instagram, facebook, twitter, email, phone, address, contactHeading, contactIntro, commissionHeading, commissionIntro, carouselMode, carouselSpeed, storiesCarouselMode, storiesCarouselSpeed, hoverShimmer, maintenanceMode, maintenanceMessage, musicUrl, musicEnabled, musicVolume, introEnabled, introEffect, introSpeedMs, introText, introTextAbove, introBgColor, introTaglineFontSize, introTaglineFontFamily, introTaglineColor, introTaglineAboveFontSize, introTaglineAboveFontFamily, introTaglineAboveColor, introTaglineFontSizeMobile, introTaglineAboveFontSizeMobile, introGlowIntensity, introGlowColor, introGlowShimmer, introGlowOffsetX, introGlowOffsetY, introLetterColors, introSquidColor, callingCardFront, callingCardBack, releaseNotesEnabled, releaseNotesLimit, pressShortBio, pressBookingName, pressBookingEmail, pressTechRider, pressStagePlot, pressPhotoCredit, pressQuotes } = body;
 
     // Validated (not just passed through) since these drive an animation
     // duration/mode branch client-side — a garbage value there breaks the
@@ -147,6 +156,34 @@ export async function PUT(request: NextRequest) {
     const safeIntroLetterColors =
       introLetterColors !== undefined ? sanitizeIntroLetterColors(introLetterColors) : undefined;
 
+    // Press kit (/press). Every text field goes through pressText, which trims
+    // and turns a cleared field into null rather than "" — an empty string here
+    // would render as an empty section on the public page. The quotes column is
+    // whole-value sanitized for the same reason hoverShimmer is: it's written
+    // as one value, so a bad entry inside it is dropped rather than failing the
+    // save. Cast because Prisma types a Json column as InputJsonValue, which an
+    // interface doesn't structurally satisfy — the value has just been
+    // sanitized, so it is plain JSON.
+    const safePressShortBio =
+      pressShortBio !== undefined ? pressText(pressShortBio, MAX_PRESS_SHORT_BIO) : undefined;
+    const safePressBookingName =
+      pressBookingName !== undefined ? pressText(pressBookingName, MAX_PRESS_BOOKING_NAME) : undefined;
+    const safePressBookingEmail =
+      pressBookingEmail !== undefined
+        ? (() => {
+            const clean = normalizeEmail(pressBookingEmail);
+            return clean && isValidSubscriberEmail(clean) ? clean : null;
+          })()
+        : undefined;
+    const safePressTechRider =
+      pressTechRider !== undefined ? pressText(pressTechRider, MAX_PRESS_TECH_RIDER) : undefined;
+    const safePressPhotoCredit =
+      pressPhotoCredit !== undefined ? pressText(pressPhotoCredit, MAX_PRESS_PHOTO_CREDIT) : undefined;
+    const safePressQuotes =
+      pressQuotes !== undefined
+        ? (sanitizePressQuotes(pressQuotes) as unknown as Prisma.InputJsonValue)
+        : undefined;
+
     const profile = await prisma.profile.upsert({
       where: { id: "default-profile" },
       update: {
@@ -233,6 +270,13 @@ export async function PUT(request: NextRequest) {
           releaseNotesEnabled: safeReleaseNotesEnabled,
         }),
         ...(safeReleaseNotesLimit !== undefined && { releaseNotesLimit: safeReleaseNotesLimit }),
+        ...(safePressShortBio !== undefined && { pressShortBio: safePressShortBio }),
+        ...(safePressBookingName !== undefined && { pressBookingName: safePressBookingName }),
+        ...(safePressBookingEmail !== undefined && { pressBookingEmail: safePressBookingEmail }),
+        ...(safePressTechRider !== undefined && { pressTechRider: safePressTechRider }),
+        ...(pressStagePlot !== undefined && { pressStagePlot }),
+        ...(safePressPhotoCredit !== undefined && { pressPhotoCredit: safePressPhotoCredit }),
+        ...(safePressQuotes !== undefined && { pressQuotes: safePressQuotes }),
       },
       create: {
         id: "default-profile",
@@ -319,6 +363,15 @@ export async function PUT(request: NextRequest) {
           releaseNotesEnabled: safeReleaseNotesEnabled,
         }),
         ...(safeReleaseNotesLimit !== undefined && { releaseNotesLimit: safeReleaseNotesLimit }),
+        // Same press fields on create — a site whose Profile row doesn't exist
+        // yet must not silently drop the first press-kit save.
+        ...(safePressShortBio !== undefined && { pressShortBio: safePressShortBio }),
+        ...(safePressBookingName !== undefined && { pressBookingName: safePressBookingName }),
+        ...(safePressBookingEmail !== undefined && { pressBookingEmail: safePressBookingEmail }),
+        ...(safePressTechRider !== undefined && { pressTechRider: safePressTechRider }),
+        ...(pressStagePlot !== undefined && { pressStagePlot }),
+        ...(safePressPhotoCredit !== undefined && { pressPhotoCredit: safePressPhotoCredit }),
+        ...(safePressQuotes !== undefined && { pressQuotes: safePressQuotes }),
       },
     });
 

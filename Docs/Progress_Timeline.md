@@ -886,3 +886,71 @@ not a release of its own.
   and the test rows deleted. HTTP checks: malformed email 400, bad confirm
   token 303 → `?state=invalid`, bad unsubscribe token 404, admin list 401
   unauthenticated, all four public pages 200
+
+---
+
+## September 26, 2026 — v0.21 (A press kit)
+
+### Public Side
+
+- **`/press` — the press kit.** What a booker, a blog or a festival asks for,
+  on one page: a short bio written *as* a short bio (beside the long one, both
+  with a Copy button and a word count), press quotes, the line-up, press photos
+  at full size with the credit attached, the logo, the discography with every
+  platform link, video, selected shows, awards, the tech rider, a stage plot,
+  and the booking address. Linked in the footer
+- **It prints as the one-sheet.** People ask for a PDF; the page turns into
+  ink-on-paper and the browser's own Save-as-PDF does the rest — the menu, the
+  buttons and the backgrounds drop away, and every link prints with its address
+  beside it so it still works on paper. Same route the order receipt takes
+  rather than generating a PDF server-side
+- **Everything on it can be taken away**: Copy for the short bio, the long bio,
+  the rider and the whole fact sheet; **Download** on every press photo and on
+  the logo (a click saves the file rather than opening a tab)
+- Sections hide themselves when empty, so the page is only ever as long as
+  what's been filled in
+- Carries `MusicGroup` structured data with the photos, the logo, the line-up,
+  the socials and a booking `contactPoint`
+
+### Admin Side
+
+- **Press Kit** (`/admin/press`, under Band): short bio, booking name and
+  email, photo credit, up to eight press quotes, the tech rider, a stage plot
+- The page opens by saying what it *doesn't* own — the long bio, line-up,
+  photos, records and dates are edited where they already live, with links —
+  rather than offering a second place to change them
+- The booking email falls back to the general address from About when left
+  blank
+
+### Infra
+
+- Seven nullable columns on `Profile` (`pressShortBio`, `pressBookingName`,
+  `pressBookingEmail`, `pressTechRider`, `pressStagePlot`, `pressPhotoCredit`,
+  `pressQuotes`). Migration `20260926170000_press_kit` — additive only
+- **Press quotes are one Json column, not a table** — the same call
+  `hoverShimmer` makes: always read and written with the rest of the kit, a
+  handful of them, nothing queries or soft-deletes them, so a table plus its
+  Trash wiring (five files of switch arms) would buy nothing. Whole-value
+  sanitized in `lib/press.ts`, so a bad entry is dropped rather than failing
+  the save
+- `lib/press.ts` (client-safe: limits, the quote shape and sanitizer,
+  `pressText`) + `lib/press-server.ts` (`getPressKit`, one gather so the page
+  doesn't open with a fifteen-line `Promise.all`)
+- The press fields go through the existing `PUT /api/profile` rather than a new
+  route, on both the `update` *and* `create` branches of the upsert — a site
+  whose Profile row doesn't exist yet must not silently drop its first
+  press-kit save
+- The stage plot is an uploaded **image**, through the existing `/api/upload`
+  and `ImageField`: each media kind here has its own upload route and
+  allowlist, and a PDF uploader would be a new route plus a widened allowlist
+  for one field. The print sheet is what answers "send me a PDF"
+- The print rules live in `globals.css`, unlayered and scoped to `.press-kit`
+  so they can override Tailwind's own utilities without touching anything else
+- **Fixed before it shipped:** the fact sheet counted every show as "Shows
+  played", which with four TBA dates and nothing yet performed would have had
+  the press kit claim a history the band doesn't have. It reads the
+  upcoming/played split now and shows only the rows that are true
+- `tsc`, `next lint` and `yarn build` all clean. Verified against live data:
+  `/press` 200 with the facts pulling real values, empty sections (quotes,
+  line-up, rider, awards) correctly absent, `MusicGroup` JSON-LD parsed with
+  its booking contact, `/admin/press` 307 unauthenticated, footer link present

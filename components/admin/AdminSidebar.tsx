@@ -35,6 +35,7 @@ import {
   Clapperboard,
   Users,
   Mail,
+  Newspaper,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -136,6 +137,7 @@ const NAV: NavEntry[] = [
       // The mailing list lives with the band rather than under Settings: it is
       // an audience, not a preference.
       { href: "/admin/subscribers", label: "Mailing List", icon: Mail },
+      { href: "/admin/press", label: "Press Kit", icon: Newspaper },
     ],
   },
   // Site Design (header / menu overlay / homepage hero) used to sit here as

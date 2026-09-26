@@ -39,6 +39,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/shop`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    // The press kit: low traffic, but it is the page a booker or a blog
+    // searches for by name ("<band> press kit"), so it has to be findable.
+    { url: `${SITE_URL}/press`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     // Listed so it can be linked from a bio or a post — the footer carries the
     // form itself, but this is the address to hand someone.
     { url: `${SITE_URL}/subscribe`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },

@@ -212,6 +212,36 @@ model Profile {
   callingCardBack                 String?
   releaseNotesEnabled             Boolean  @default(true)
   releaseNotesLimit               Int      @default(3)
+
+  // ── Press kit (/press) ────────────────────────────────────────────────────
+  // What a booker or a blog asks for and the rest of the site can't answer.
+  // Everything here is optional: /press is built mostly from data the site
+  // already has (bio, members, photos, releases, shows), and these are the
+  // gaps.
+  //
+  // The short bio is its own field rather than a truncation of `bio`, because
+  // the thing a listing asks for is 40 words that read as a whole paragraph,
+  // not the first 40 words of a longer one.
+  pressShortBio                   String?
+  // Who to write to about a show, when it isn't the general address. Falls
+  // back to Profile.email on the page.
+  pressBookingName                String?
+  pressBookingEmail               String?
+  // Plain text — the band's own list of what they need on stage. Kept as text
+  // rather than a structured input because every rider is shaped differently
+  // and a form would fight it.
+  pressTechRider                  String?
+  // An uploaded stage plot (image or PDF) on R2.
+  pressStagePlot                  String?
+  // "Photo by …" — the credit that has to travel with the press photos, since
+  // the whole point of the page is that people take them away.
+  pressPhotoCredit                String?
+  // Press quotes, as one Json array — the same call `hoverShimmer` makes
+  // above. They are always read and written with the rest of the press kit,
+  // there are a handful of them, and nothing queries or soft-deletes them, so
+  // a table (and its Trash wiring) would buy nothing. Shape and validation
+  // live in lib/press.ts's sanitizePressQuotes; null means "none yet".
+  pressQuotes                     Json?
 }
 
 /// A visitor-facing "what changed on the site" entry, shown in the navbar's

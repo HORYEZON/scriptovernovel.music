@@ -823,3 +823,64 @@ img {
     transform: none !important;
   }
 }
+
+/* ── Press kit print sheet (/press) ────────────────────────────────────────
+   The one-sheet a booker or a blog asks for, without generating a PDF: the
+   page prints (and "saves as PDF" from the browser's own dialog) as a clean
+   document. Same approach as the order receipt, which is served as
+   self-contained HTML and saved from the print dialog rather than rendered
+   server-side.
+
+   Unlayered, and !important where it has to override a utility: these rules
+   fight Tailwind's own classes, which land in a layer and would otherwise
+   win. Scoped to .press-kit so nothing else on the site is affected. */
+@media print {
+  /* Ink on paper, whatever theme the screen was in — a press kit printed as
+     cream-on-black is a waste of a cartridge and unreadable when photocopied. */
+  .press-kit,
+  .press-kit * {
+    background: transparent !important;
+    color: #111 !important;
+    border-color: #ccc !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+  /* The site's chrome, the hero photo, the embeds and the page's own buttons
+     are all screen furniture. */
+  .press-kit [data-print="hide"],
+  header,
+  footer,
+  nav {
+    display: none !important;
+  }
+  .press-kit {
+    padding: 0 !important;
+  }
+  .press-kit a {
+    text-decoration: underline;
+  }
+  /* A link's destination is the whole point on paper. */
+  .press-kit a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    word-break: break-all;
+  }
+  .press-kit h1 {
+    font-size: 24pt !important;
+  }
+  .press-kit h2 {
+    font-size: 14pt !important;
+    margin-top: 18pt !important;
+  }
+  .press-kit section {
+    break-inside: avoid;
+  }
+  .press-kit img {
+    max-height: 2.4in;
+    width: auto !important;
+  }
+  @page {
+    margin: 0.6in;
+  }
+}

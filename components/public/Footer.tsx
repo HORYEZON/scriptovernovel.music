@@ -73,6 +73,7 @@ export function Footer({
                 { href: "/videos", label: "Videos" },
                 { href: "/about", label: "About" },
                 { href: "/contact", label: "Contact" },
+                { href: "/press", label: "Press Kit" },
                 { href: "/wall", label: "Fan Wall" },
                 { href: "/gallery/museum", label: "Digital Museum" },
               ].map((link) => (

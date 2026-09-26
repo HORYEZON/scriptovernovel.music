@@ -21,9 +21,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 11. [Vinyl Room (Digital Museum)](#11-vinyl-room-digital-museum)
 12. [Homepage](#12-homepage)
 13. [Mailing list](#13-mailing-list)
-14. [Picking dates anywhere in the admin](#14-picking-dates-anywhere-in-the-admin)
-15. [Glossary — Confusing Terms Explained](#15-glossary--confusing-terms-explained)
-16. [Quick Troubleshooting](#16-quick-troubleshooting)
+14. [Press kit](#14-press-kit)
+15. [Picking dates anywhere in the admin](#15-picking-dates-anywhere-in-the-admin)
+16. [Glossary — Confusing Terms Explained](#16-glossary--confusing-terms-explained)
+17. [Quick Troubleshooting](#17-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -444,7 +445,38 @@ There is no "add subscriber" button, and that's deliberate — see 13.2.
 
 ---
 
-## 14. Picking dates anywhere in the admin
+## 14. Press kit
+
+**What this is for:** the page you send when someone asks "do you have a press kit?" — a booker, a blog, a festival, a radio show. It lives at **/press** and it's linked in the site footer.
+
+Most of it builds itself from what you've already filled in: the long bio, based-in and genres from **About**, the line-up from **Band Members**, the press photos from About's profile images, the records from **Releases**, and the dates from **Shows**. Sidebar → **Press Kit** is only for the parts a press kit needs that the site has nowhere else to put.
+
+### 14.1 What to fill in
+
+1. **Short bio** — 40 to 60 words, written to be printed as-is in a gig listing or a programme. Not the first few lines of your long bio: a paragraph that reads whole on its own. This is also the line under your name at the top of the page, and the one journalists copy first.
+2. **Booking contact** — a name and the email to write to about a show. Leave the email blank and it uses the general address from About.
+3. **Photo credit** — "Photo by …". The press photos on that page are there to be downloaded, so the credit has to travel with them.
+4. **Press quotes** — up to eight. A line from a review, a blog or a zine, who said it, and a link if there is one. The whole section is hidden until you add one.
+5. **Tech rider** — what you need on stage, one thing per line, in your own words. It prints as-is and has a Copy button. Hidden when empty.
+6. **Stage plot** — a picture of the plot. A photo of a drawing on paper is perfectly fine.
+
+Then **Save press kit**.
+
+### 14.2 The one-sheet
+
+People will ask for a PDF. You don't need to make one: open **/press** and use your browser's **Print / Save as PDF** button (there's one at the top of the page and one at the bottom). The page is built to print — the menu, the buttons and the backgrounds drop away, it comes out black-on-white, and every link prints with its address next to it so it still works on paper.
+
+### 14.3 What visitors can do there
+
+- **Copy** the short bio, the long bio, the rider, or the whole fact sheet, with one tap each.
+- **Download** any press photo at full size, and the logo.
+- **Email** the booking address directly.
+
+> 💡 The fastest way to make this page good is to fill in **Short bio** and upload two or three decent photos under About. Everything else is already there.
+
+---
+
+## 15. Picking dates anywhere in the admin
 
 **What this is for:** every date field in the admin — Releases, Events, About, Announcements, Marquee Banners, Release Notes — is the same control, and it's the same calendar that sits behind the sidebar clock.
 
@@ -463,7 +495,7 @@ There is no "add subscriber" button, and that's deliberate — see 13.2.
 
 ---
 
-## 15. Glossary — Confusing Terms Explained
+## 16. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -473,7 +505,7 @@ There is no "add subscriber" button, and that's deliberate — see 13.2.
 
 ---
 
-## 16. Quick Troubleshooting
+## 17. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

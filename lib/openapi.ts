@@ -3488,6 +3488,37 @@ export const openApiSpec: OpenAPIV3.Document = {
                   musicEnabled: { type: "boolean" },
                   musicVolume: { type: "integer" },
                   carouselMode: { type: "string" },
+                  pressShortBio: {
+                    type: "string",
+                    nullable: true,
+                    maxLength: 600,
+                    description: "The press kit's own short bio — not a truncation of `bio`. Cleared to null when blank.",
+                  },
+                  pressBookingName: { type: "string", nullable: true, maxLength: 120 },
+                  pressBookingEmail: {
+                    type: "string",
+                    format: "email",
+                    nullable: true,
+                    description: "Falls back to `email` on /press when unset. An address that doesn't validate is stored as null.",
+                  },
+                  pressTechRider: { type: "string", nullable: true, maxLength: 4000, description: "Plain text, one line per item." },
+                  pressStagePlot: { type: "string", nullable: true, description: "An uploaded image URL (POST /upload)." },
+                  pressPhotoCredit: { type: "string", nullable: true, maxLength: 160 },
+                  pressQuotes: {
+                    type: "array",
+                    maxItems: 8,
+                    description:
+                      "Press pull-quotes, stored as one Json column for the same reason hoverShimmer is. Whole-value sanitized: an entry with no quote or no source is dropped rather than rejecting the save, and a sourceUrl that isn't http(s) is stored as null.",
+                    items: {
+                      type: "object",
+                      required: ["quote", "source"],
+                      properties: {
+                        quote: { type: "string", maxLength: 400 },
+                        source: { type: "string", maxLength: 120 },
+                        sourceUrl: { type: "string", format: "uri", nullable: true },
+                      },
+                    },
+                  },
                   hoverShimmer: {
                     type: "object",
                     description:
