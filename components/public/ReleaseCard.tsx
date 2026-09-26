@@ -99,7 +99,7 @@ export function ReleaseCard({ release, compact = false }: { release: ReleaseCard
             </div>
           )}
 
-          <ReleaseTracklist tracks={release.tracks} className="mt-8" />
+          <ReleaseTracklist tracks={release.tracks} release={release} className="mt-8" />
 
           <Link
             href={href}

@@ -17,7 +17,7 @@ import {
   sanitizeReleaseLinks,
   sanitizeTracks,
 } from "@/lib/releases";
-import { RELEASE_INCLUDE, revalidateReleasePaths } from "@/lib/releases-server";
+import { RELEASE_INCLUDE, revalidateReleasePaths, trackCreateRows } from "@/lib/releases-server";
 
 // GET /api/releases — every live release, admin order (admin only)
 export async function GET() {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
         ...links.links,
         tracks: {
-          create: trackList.tracks.map((t, i) => ({ ...t, trackNumber: i + 1 })),
+          create: trackCreateRows(trackList.tracks),
         },
       },
       include: RELEASE_INCLUDE,

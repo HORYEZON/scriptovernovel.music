@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
+  AudioWaveform,
   Disc3,
   ExternalLink,
   GripVertical,
@@ -48,6 +49,8 @@ import {
   primaryEmbed,
   type ReleaseType,
 } from "@/lib/releases";
+import { formatTimestamp, hasSyncedLyrics, lyricLines, sanitizeLyricTimings } from "@/lib/lyrics";
+import { LyricSyncModal } from "./LyricSyncModal";
 
 export interface ReleaseTrackRow {
   id: string;
@@ -56,6 +59,9 @@ export interface ReleaseTrackRow {
   durationSec: number | null;
   url: string | null;
   lyrics: string | null;
+  slug: string | null;
+  /** The raw Json column — sanitized on the way in and out. */
+  lyricTimings: unknown;
 }
 
 export interface ReleaseRow {
@@ -87,6 +93,12 @@ interface TrackDraft {
   url: string;
   lyrics: string;
   lyricsOpen: boolean;
+  // Carried through the form, not edited in it. PATCH /api/releases/[id]
+  // deletes every track and recreates them from this payload, so a field that
+  // isn't here is destroyed on the next save — the lyrics page address and a
+  // whole afternoon's sync work included.
+  slug: string | null;
+  lyricTimings: number[] | null;
 }
 
 interface FormState {
@@ -107,7 +119,7 @@ interface FormState {
 }
 
 let trackKey = 1;
-const newTrack = (): TrackDraft => ({ key: trackKey++, title: "", duration: "", url: "", lyrics: "", lyricsOpen: false });
+const newTrack = (): TrackDraft => ({ key: trackKey++, title: "", duration: "", url: "", lyrics: "", lyricsOpen: false, slug: null, lyricTimings: null });
 
 const EMPTY_FORM: FormState = {
   title: "",
@@ -154,6 +166,8 @@ function formFromRelease(r: ReleaseRow): FormState {
           url: t.url ?? "",
           lyrics: t.lyrics ?? "",
           lyricsOpen: false,
+          slug: t.slug,
+          lyricTimings: sanitizeLyricTimings(t.lyricTimings, lyricLines(t.lyrics).length),
         }))
       : [newTrack()],
   };
@@ -179,6 +193,8 @@ function payloadFromForm(f: FormState) {
       durationSec: parseDuration(t.duration),
       url: t.url.trim() || null,
       lyrics: t.lyrics,
+      slug: t.slug,
+      lyricTimings: t.lyricTimings,
     })),
   };
 }
@@ -222,7 +238,17 @@ function LinkField({
   );
 }
 
-export function ReleasesClient({ initialReleases }: { initialReleases: ReleaseRow[] }) {
+export function ReleasesClient({
+  initialReleases,
+  vinylAudioByRelease,
+}: {
+  initialReleases: ReleaseRow[];
+  /** Release id → the audio file its published vinyl plays, which is what the
+   *  lyric sync taps against. Passed separately from the release rows because
+   *  the API's own responses (RELEASE_INCLUDE) don't carry vinyls, so a save
+   *  that replaced a row would otherwise drop it. */
+  vinylAudioByRelease: Record<string, string>;
+}) {
   const router = useRouter();
   const [releases, setReleases] = useState<ReleaseRow[]>(initialReleases);
   const [query, setQuery] = useState("");
@@ -232,7 +258,14 @@ export function ReleasesClient({ initialReleases }: { initialReleases: ReleaseRo
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ReleaseRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  /** The TrackDraft key whose lyric-sync panel is open. */
+  const [syncTrack, setSyncTrack] = useState<number | null>(null);
   useLockBodyScroll(modalOpen);
+
+  const syncing = syncTrack !== null ? form.tracks.find((t) => t.key === syncTrack) ?? null : null;
+  // A brand-new release has no vinyl yet (and no id), so the panel explains
+  // itself rather than offering a dead transport.
+  const syncAudioUrl = editing ? vinylAudioByRelease[editing.id] ?? null : null;
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -575,6 +608,29 @@ export function ReleasesClient({ initialReleases }: { initialReleases: ReleaseRo
                                   {t.lyrics ? `Lyrics (${t.lyrics.split("\n").length} lines) — edit` : "+ Add lyrics"}
                                 </button>
                               )}
+                              {/* Sync only makes sense once there are lines to
+                                  time, so the button appears with the lyrics. */}
+                              {lyricLines(t.lyrics).length > 0 && (
+                                <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSyncTrack(t.key)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-sepia/40 bg-sepia/10 px-2.5 py-1 font-body text-xs text-ink transition-colors hover:border-sepia dark:text-cream"
+                                  >
+                                    <AudioWaveform size={12} />
+                                    {hasSyncedLyrics(t.lyricTimings ?? [], lyricLines(t.lyrics).length)
+                                      ? "Re-sync lyrics"
+                                      : "Sync lyrics"}
+                                  </button>
+                                  <span className="font-body text-[11px] text-ink-400 dark:text-ink-300">
+                                    {t.lyricTimings && t.lyricTimings.length > 0
+                                      ? hasSyncedLyrics(t.lyricTimings, lyricLines(t.lyrics).length)
+                                        ? `Synced · all ${t.lyricTimings.length} lines, first at ${formatTimestamp(t.lyricTimings[0])}`
+                                        : `${t.lyricTimings.length}/${lyricLines(t.lyrics).length} lines timed — still estimating`
+                                      : "Not synced — the wall estimates by line length"}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                             <div className="flex shrink-0 flex-col items-center gap-0.5 pt-1">
                               <GripVertical size={14} className="text-ink-300" />
@@ -616,6 +672,21 @@ export function ReleasesClient({ initialReleases }: { initialReleases: ReleaseRo
         loading={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* The timings land in the track draft, not the database — they save with
+          the rest of the release, so a sync can be abandoned by cancelling the
+          release form like any other edit. */}
+      <LyricSyncModal
+        open={syncing !== null}
+        onClose={() => setSyncTrack(null)}
+        trackLabel={syncing ? `${syncing.title || "Untitled track"} — ${editing?.title ?? "new release"}` : ""}
+        lyrics={syncing?.lyrics ?? ""}
+        timings={syncing?.lyricTimings ?? null}
+        audioUrl={syncAudioUrl}
+        onSave={(timings) => {
+          if (syncTrack !== null) setTrack(syncTrack, { lyricTimings: timings });
+        }}
       />
     </div>
   );

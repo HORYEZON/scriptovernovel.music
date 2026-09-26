@@ -369,7 +369,13 @@ const ROOM_CONTENT_SELECT = {
               title: true,
               coverImageUrl: true,
               slug: true,
-              tracks: { orderBy: { trackNumber: "asc" as const }, select: { title: true, durationSec: true, lyrics: true } },
+              // lyricTimings is what lets the Lyrics Wall follow the real
+              // per-line seconds instead of estimating by line length — see
+              // lib/museum/lyricsTimeline.ts.
+              tracks: {
+                orderBy: { trackNumber: "asc" as const },
+                select: { title: true, durationSec: true, lyrics: true, lyricTimings: true },
+              },
             },
           },
         },

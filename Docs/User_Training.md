@@ -22,9 +22,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 12. [Homepage](#12-homepage)
 13. [Mailing list](#13-mailing-list)
 14. [Press kit](#14-press-kit)
-15. [Picking dates anywhere in the admin](#15-picking-dates-anywhere-in-the-admin)
-16. [Glossary — Confusing Terms Explained](#16-glossary--confusing-terms-explained)
-17. [Quick Troubleshooting](#17-quick-troubleshooting)
+15. [Lyrics & syncing](#15-lyrics--syncing)
+16. [Picking dates anywhere in the admin](#16-picking-dates-anywhere-in-the-admin)
+17. [Glossary — Confusing Terms Explained](#17-glossary--confusing-terms-explained)
+18. [Quick Troubleshooting](#18-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -476,7 +477,54 @@ People will ask for a PDF. You don't need to make one: open **/press** and use y
 
 ---
 
-## 15. Picking dates anywhere in the admin
+## 15. Lyrics & syncing
+
+**What this is for:** every song with lyrics now has its own page — **/music/<record>/<song>** — and the words can be timed to the record so they light up line by line.
+
+### 15.1 Lyrics pages
+
+Nothing to switch on. Paste lyrics into a track (Releases → the track → **+ Add lyrics**) and that song gets a page. It shows up two ways:
+
+- On the **Music** page and the record's own page, the **track title** is now a link to it.
+- The **Lyrics** toggle beside a track still folds the words open in place, for a quick look without leaving.
+
+**This is the link to post for one song.** "Lyrics" is one of the few things people search for by name, and this page is the only one that answers it — its title is "<Song> — lyrics" and sharing it previews the cover.
+
+> 💡 Write section headers in square brackets — `[Verse 1]`, `[Chorus]`. They're shown as headings on the page, and they're skipped when timing (nobody sings them).
+
+### 15.2 Syncing the lyrics to the record
+
+This is the part that was asked for a while back: instead of the Vinyl Room *guessing* when each line lands, you tap it in once and it's exact.
+
+**You need a vinyl first.** Sidebar → **Vinyls** → add the record's audio. The timings are measured against that file, so without it there's nothing to tap along to and the panel will tell you so.
+
+Then: **Releases → the release → the track → Sync lyrics**.
+
+1. Press **play** (or <kbd>K</kbd>).
+2. When a line starts, press <kbd>space</kbd>. It stamps that line and moves to the next.
+3. Keep going to the end of the song.
+4. **Use these timings**, then **Save changes** on the release.
+
+While you work:
+
+- <kbd>J</kbd> / <kbd>L</kbd> jump back and forward 2 seconds.
+- <kbd>⌫</kbd> undoes the last tap.
+- Click any **timestamp** to hear that line again.
+- The **−** and **+** buttons nudge one line a quarter-second earlier or later — for when you tapped a touch late.
+- Slow the record to **0.75×** or **0.5×** for fast passages. It doesn't change what gets saved.
+
+### 15.3 What "synced" means
+
+- **All lines timed** → the Vinyl Room's Lyrics Wall follows the song exactly, and the song's lyrics page gets a **Follow along** button that plays the record and lights each line.
+- **Some lines timed** → the wall keeps estimating. It's all-or-nothing per record on purpose: half-real and half-guessed would look broken rather than half-finished. Your partial work is still saved, so you can come back to it.
+
+> ⚠️ **If you replace a record's audio file, the timings no longer line up** and the song needs re-syncing. The panel names the file it's measuring against for that reason.
+
+> ⚠️ Editing a track's lyrics after syncing shifts the lines. Adding or removing lines means the timings past that point are wrong — re-sync from there.
+
+---
+
+## 16. Picking dates anywhere in the admin
 
 **What this is for:** every date field in the admin — Releases, Events, About, Announcements, Marquee Banners, Release Notes — is the same control, and it's the same calendar that sits behind the sidebar clock.
 
@@ -495,7 +543,7 @@ People will ask for a PDF. You don't need to make one: open **/press** and use y
 
 ---
 
-## 16. Glossary — Confusing Terms Explained
+## 17. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -505,7 +553,7 @@ People will ask for a PDF. You don't need to make one: open **/press** and use y
 
 ---
 
-## 17. Quick Troubleshooting
+## 18. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

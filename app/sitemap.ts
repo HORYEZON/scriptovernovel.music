@@ -13,21 +13,36 @@
 // A DB hiccup must not take the sitemap down with it: the release query is
 // caught and the static list is served on its own.
 import type { MetadataRoute } from "next";
+
+/**
+ * Re-generated hourly.
+ *
+ * Without this the sitemap is prerendered once at build time, so a release or a
+ * lyrics page published afterwards is missing from it until the next deploy —
+ * which is exactly the content whose whole point is being found. An hour is far
+ * more often than a crawler asks, and one query an hour is nothing.
+ */
+export const revalidate = 3600;
+
 import { prisma } from "@/lib/prisma";
-import { PUBLIC_RELEASE_ORDER, PUBLIC_RELEASE_WHERE } from "@/lib/releases-server";
+import { PUBLIC_RELEASE_ORDER, PUBLIC_RELEASE_WHERE, getPublicLyricTracks } from "@/lib/releases-server";
 import { releaseHref } from "@/lib/releases";
+import { trackLyricsHref } from "@/lib/lyrics";
 import { SITE_URL } from "@/lib/site-url";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
-  const releases = await prisma.release
-    .findMany({
-      where: PUBLIC_RELEASE_WHERE,
-      orderBy: PUBLIC_RELEASE_ORDER,
-      select: { id: true, slug: true, updatedAt: true },
-    })
-    .catch(() => []);
+  const [releases, lyricTracks] = await Promise.all([
+    prisma.release
+      .findMany({
+        where: PUBLIC_RELEASE_WHERE,
+        orderBy: PUBLIC_RELEASE_ORDER,
+        select: { id: true, slug: true, updatedAt: true },
+      })
+      .catch(() => []),
+    getPublicLyricTracks().catch(() => []),
+  ]);
 
   return [
     { url: SITE_URL, lastModified: now, changeFrequency: "weekly", priority: 1 },
@@ -55,6 +70,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: r.updatedAt,
       changeFrequency: "monthly" as const,
       priority: 0.9,
+    })),
+    // One page per song that has lyrics. Worth listing individually: "<song>
+    // lyrics" is a phrase people type, and each of these is the only page on
+    // the site that answers it.
+    ...lyricTracks.map((t) => ({
+      url: `${SITE_URL}${trackLyricsHref(t.release, t)}`,
+      lastModified: t.release.updatedAt,
+      changeFrequency: "yearly" as const,
+      priority: 0.7,
     })),
   ];
 }
