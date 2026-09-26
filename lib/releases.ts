@@ -5,6 +5,8 @@
 // the "which player do we show" rule, and the sanitizers the API route and
 // the admin form share. Client-safe — mirrors lib/stories.ts.
 import { EMBED_PROVIDERS, parseEmbed, sanitizeEmbedUrl, type EmbedProvider, type ParsedEmbed } from "@/lib/embeds";
+import { MAX_TRACK_SLUG, lyricLines, sanitizeLyricTimings, trackSlug } from "@/lib/lyrics";
+import { slugify } from "@/lib/utils";
 
 export const RELEASE_TYPES = ["SINGLE", "EP", "ALBUM", "LIVE", "COMPILATION"] as const;
 export type ReleaseType = (typeof RELEASE_TYPES)[number];
@@ -89,16 +91,33 @@ export interface ReleaseTrackInput {
   durationSec: number | null;
   url: string | null;
   lyrics: string | null;
+  /** The track's lyrics-page address, unique within the release. */
+  slug: string | null;
+  /** Per-line seconds into the record's audio — see lib/lyrics.ts. */
+  lyricTimings: number[] | null;
 }
 
-/** Tracklist as sent by the admin form → rows to store (numbered 1..n), or
- *  an error message. Blank titles are dropped rather than rejected so an
- *  admin can leave empty rows in the editor. */
+/**
+ * Tracklist as sent by the admin form → rows to store (numbered 1..n), or an
+ * error message. Blank titles are dropped rather than rejected so an admin can
+ * leave empty rows in the editor.
+ *
+ * **The form is the source of truth for a tracklist**: PATCH
+ * /api/releases/[id] deletes every track and recreates them. So anything that
+ * lives on a track and isn't in the form's payload is destroyed on the next
+ * save — which is why `slug` and `lyricTimings` are carried through here rather
+ * than merged server-side.
+ *
+ * Slugs are write-once, like Release.slug: an incoming one is kept as-is, and a
+ * missing one is generated from the title. Renaming a track therefore keeps its
+ * address, which is the right trade for a URL someone may already have shared.
+ */
 export function sanitizeTracks(input: unknown): { tracks: ReleaseTrackInput[] } | { error: string } {
   if (input === undefined || input === null) return { tracks: [] };
   if (!Array.isArray(input)) return { error: "Tracks must be a list." };
   if (input.length > MAX_TRACKS) return { error: `A release can list at most ${MAX_TRACKS} tracks.` };
   const tracks: ReleaseTrackInput[] = [];
+  const takenSlugs = new Set<string>();
   for (const raw of input) {
     if (!raw || typeof raw !== "object") continue;
     const t = raw as Record<string, unknown>;
@@ -119,7 +138,20 @@ export function sanitizeTracks(input: unknown): { tracks: ReleaseTrackInput[] } 
     }
     const lyricsRaw = typeof t.lyrics === "string" ? t.lyrics.replace(/\r\n/g, "\n").trim() : "";
     if (lyricsRaw.length > MAX_TRACK_LYRICS) return { error: `"${title}": lyrics are at most ${MAX_TRACK_LYRICS} characters.` };
-    tracks.push({ title, durationSec, url, lyrics: lyricsRaw || null });
+    const lyrics = lyricsRaw || null;
+
+    // Keep the slug the form sent (write-once), else mint one from the title.
+    const incoming = typeof t.slug === "string" ? slugify(t.slug).slice(0, MAX_TRACK_SLUG) : "";
+    const slug = incoming && !takenSlugs.has(incoming) ? incoming : trackSlug(title, tracks.length + 1, takenSlugs);
+    takenSlugs.add(slug);
+
+    // Timings are indexed against the *timed* lines, so they're validated
+    // against this track's own line count — a lyric edit that removes lines
+    // trims the tail rather than leaving timings pointing past the end.
+    const lineCount = lyricLines(lyrics).length;
+    const lyricTimings = sanitizeLyricTimings(t.lyricTimings, lineCount);
+
+    tracks.push({ title, durationSec, url, lyrics, slug, lyricTimings });
   }
   return { tracks };
 }

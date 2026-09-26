@@ -661,7 +661,29 @@ model ReleaseTrack {
   durationSec Int?
   url         String?
   lyrics      String?
+  // The track's own address: /music/<release>/<slug>, the lyrics page. Derived
+  // from the title on write and unique within the release — "<song> lyrics" is
+  // a thing people search for, and a track number in the URL isn't. Nullable:
+  // rows written before this existed have none, so the route resolves a slug
+  // *or* a track number.
+  slug        String?
+  // Per-line timings for the Lyrics Wall and the lyrics page, as seconds into
+  // **the record's audio file** (VinylRecord.audioUrl) — not into this track.
+  //
+  // That is the only audio the site has: one file per record, which is what the
+  // turntable plays and what the admin's sync tool taps against. Storing
+  // seconds-into-the-track would need a per-track offset the app has no way to
+  // know, and would go wrong the moment a track's durationSec was left blank.
+  //
+  // A number[] as long as the track's lyric lines (lib/lyrics.ts's
+  // sanitizeLyricTimings enforces non-negative and non-decreasing). Null, or
+  // short of the line count, means the wall falls back to estimating that
+  // track's lines by length — see lib/museum/lyricsTimeline.ts. Replacing the
+  // vinyl's audio invalidates these, which is why the admin tool shows what it
+  // is syncing against.
+  lyricTimings Json?
 
+  @@unique([releaseId, slug])
   @@index([releaseId, trackNumber])
 }
 

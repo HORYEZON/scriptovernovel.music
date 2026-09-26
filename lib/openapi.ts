@@ -288,6 +288,20 @@ export const openApiSpec: OpenAPIV3.Document = {
           durationSec: { type: "integer", nullable: true },
           url: { type: "string", nullable: true, description: "Optional per-track streaming link (any provider lib/embeds.ts parses)." },
           lyrics: { type: "string", nullable: true },
+          slug: {
+            type: "string",
+            nullable: true,
+            maxLength: 80,
+            description:
+              "The track's lyrics page: /music/<release>/<slug>. Derived from the title on write, unique within the release, and write-once — an incoming slug is kept, so renaming a track doesn't move its page. Null on rows older than this field, which is why the route also accepts a track number.",
+          },
+          lyricTimings: {
+            type: "array",
+            nullable: true,
+            items: { type: "number" },
+            description:
+              "Per-line timings for the Lyrics Wall and the lyrics page, as **seconds into the record's audio file** (VinylRecord.audioUrl) — not into the track, since one file per record is the only audio the site has. Non-negative and non-decreasing, at most as long as the track's lyric lines. Shorter than that line count means the wall keeps estimating; see lib/museum/lyricsTimeline.ts.\n\n**Carried by the form, not merged:** PATCH /releases/{id} deletes and recreates every track, so a payload that omits this destroys the sync.",
+          },
         },
       },
       Release: {
@@ -1685,7 +1699,12 @@ export const openApiSpec: OpenAPIV3.Document = {
                   soundcloudUrl: { type: "string", nullable: true },
                   appleMusicUrl: { type: "string", nullable: true },
                   primaryPlayer: { type: "string", nullable: true },
-                  tracks: { type: "array", items: { type: "object", properties: { title: { type: "string" }, durationSec: { type: "integer", nullable: true }, url: { type: "string", nullable: true }, lyrics: { type: "string", nullable: true } } } },
+                  tracks: {
+                    type: "array",
+                    description:
+                      "The whole tracklist — writes replace it, they do not merge. `slug` and `lyricTimings` must be sent back with each existing track or they are destroyed (the lyrics page address and the hand-tapped sync included).",
+                    items: { $ref: "#/components/schemas/ReleaseTrack" },
+                  },
                 },
               },
             },

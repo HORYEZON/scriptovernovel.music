@@ -954,3 +954,89 @@ not a release of its own.
   `/press` 200 with the facts pulling real values, empty sections (quotes,
   line-up, rider, awards) correctly absent, `MusicGroup` JSON-LD parsed with
   its booking contact, `/admin/press` 307 unauthenticated, footer link present
+
+---
+
+## September 26, 2026 — v0.22 (Lyrics get their own pages, and can be tap-synced)
+
+### Public Side
+
+- **`/music/<record>/<song>` — a page per song's lyrics.** The words used to be
+  a fold-out under a track on Music: no address to send anyone, and nothing a
+  search engine could read as the lyrics of a song. Each song with lyrics now
+  has its own page, titled "<Song> — lyrics", with the cover as its share image
+- **Track titles link to them** on the Music page and on a record's own page.
+  The Lyrics toggle still folds the words open in place for a quick look
+- **Follow along.** On a synced song whose record has a vinyl, the page plays
+  that audio and lights each line as it comes, scrolling it into view — and
+  starts at *that song's* first line rather than the top of the record. It never
+  fights a visitor who has scrolled away to read ahead
+- Section headers in [brackets] read as headings and are never timed — nobody
+  sings them
+- Prev/next through the tracklist, and the rest of the record underneath, so a
+  page arrived at from a search isn't a dead end
+- Carries `MusicRecording` structured data **with the lyrics attached**, plus a
+  `BreadcrumbList`, and every lyrics page is its own sitemap entry
+
+### Digital Museum
+
+- **The Lyrics Wall can now follow the song exactly.** It has two modes:
+  *synced*, using the real per-line seconds an admin tapped in, and
+  *estimated* — the old behaviour, which spread each track's lines across its
+  slot in proportion to their **length**: true on average, wrong everywhere
+- All-or-nothing per record. A half-synced record keeps estimating rather than
+  lurching between real timings and guesses mid-side
+- A synced wall holds the closing line to the end of the record instead of
+  blanking on the outro, which the estimator's 97 % tail used to cut off
+
+### Admin Side
+
+- **Sync lyrics** (Releases → a track): play the record, press **space** as each
+  line comes round. Per-line nudge (±0.25s), clear, undo, click a timestamp to
+  hear that line again, 0.5×/0.75× playback for fast passages, and a running
+  "12/18 timed" count
+- The panel says what it is syncing against, and what that means: **timings are
+  seconds into the record's audio file**, so replacing that file means
+  re-syncing. A release with no published vinyl has nothing to tap along to, and
+  the panel explains that instead of offering a dead transport
+- Timings live in the track draft and save with the release, so a sync is
+  abandoned by cancelling the form like any other edit
+
+### Infra
+
+- `ReleaseTrack` gains `slug` (unique within the release) and `lyricTimings`
+  (Json). Migration `20260926200000_lyric_pages` — two nullable columns and a
+  unique index that is safe on a populated table, since every existing slug is
+  NULL and Postgres treats NULLs as distinct
+- `lib/lyrics.ts` — the line splitter (now the one copy; lyricsTimeline
+  re-exports it), the timing sanitizer, `lineIndexAtSeconds`, slug minting and
+  `trackLyricsHref`. Deliberately *not* merged with
+  `lib/minigames/catalog.ts`'s same-named `lyricLines`, which is a different
+  filter (it also drops lines under three words)
+- **Track slugs are write-once**, like `Release.slug`: an incoming slug is kept
+  and only a missing one is minted, so renaming a track doesn't move a URL
+  someone has shared
+- **`slug` and `lyricTimings` are carried by the admin form, not merged
+  server-side** — `PATCH /api/releases/[id]` deletes and recreates every track,
+  so a payload without them would have destroyed the sync and moved every
+  lyrics URL on the next save. `sanitizeTracks` passes them through and
+  `trackCreateRows` spells the Json column's null the way Prisma demands
+  (`Prisma.DbNull` — a JSON null and a SQL NULL are different values)
+- Timings are validated against the track's *own* line count, so editing lyrics
+  down to fewer lines trims the tail rather than leaving timings past the end
+- The vinyl audio the sync taps against is queried separately from the release
+  rows and passed as a map, because the API's own responses use
+  `RELEASE_INCLUDE` (no vinyls) and a save would otherwise replace a row and
+  drop it
+- **`app/sitemap.ts` now revalidates hourly.** It was prerendered once at build
+  time, so a release or lyrics page published after the last deploy was missing
+  from the sitemap — found while verifying this phase
+- `tsc`, `next lint` and `yarn build` all clean. 31 logic assertions run against
+  the real modules (line splitting, timing sanitize/sort/trim/reject, synced vs
+  estimated vs partial vs mixed timelines, slug dedupe and fallback, href
+  fallback, and a `sanitizeTracks` round-trip proving timings survive the
+  delete-and-recreate). The pages were then verified against a temporary
+  published release — slug route 200, track-number route 200, unknown slug 404,
+  out-of-range number 404, synced page showing its player and unsynced page
+  correctly not, `MusicRecording` JSON-LD parsed with its lyrics — and every
+  fixture row deleted afterwards

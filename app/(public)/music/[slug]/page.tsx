@@ -256,7 +256,7 @@ export default async function ReleasePage({ params }: { params: Promise<{ slug: 
                     <p className="mt-10 font-body text-[10px] uppercase tracking-[0.3em] text-sepia-light">
                       {release.tracks.length} track{release.tracks.length === 1 ? "" : "s"}
                     </p>
-                    <ReleaseTracklist tracks={release.tracks} size="page" className="mt-3" />
+                    <ReleaseTracklist tracks={release.tracks} release={release} size="page" className="mt-3" />
                   </>
                 )}
               </div>

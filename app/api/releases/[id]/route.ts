@@ -11,8 +11,9 @@ import {
   isReleaseType,
   sanitizeReleaseLinks,
   sanitizeTracks,
+  type ReleaseTrackInput,
 } from "@/lib/releases";
-import { RELEASE_INCLUDE, revalidateReleasePaths } from "@/lib/releases-server";
+import { RELEASE_INCLUDE, revalidateReleasePaths, trackCreateRows } from "@/lib/releases-server";
 
 const EDITABLE = [
   "title", "type", "coverImageUrl", "releaseDate", "description", "featured", "published", "sortOrder",
@@ -67,7 +68,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if ("error" in links) return NextResponse.json({ error: links.error }, { status: 400 });
     Object.assign(data, links.links);
 
-    let trackRows: { title: string; durationSec: number | null; url: string | null; lyrics: string | null }[] | null = null;
+    let trackRows: ReleaseTrackInput[] | null = null;
     if (tracks !== undefined) {
       const clean = sanitizeTracks(tracks);
       if ("error" in clean) return NextResponse.json({ error: clean.error }, { status: 400 });
@@ -80,9 +81,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const release = await prisma.$transaction(async (tx) => {
       if (trackRows) {
+        // Replace, not merge: the form is the whole tracklist. Anything on a
+        // track that the payload doesn't carry is destroyed here — which is
+        // why sanitizeTracks passes `slug` and `lyricTimings` through rather
+        // than leaving them to be merged.
         await tx.releaseTrack.deleteMany({ where: { releaseId: id } });
         await tx.releaseTrack.createMany({
-          data: trackRows.map((t, i) => ({ ...t, releaseId: id, trackNumber: i + 1 })),
+          data: trackCreateRows(trackRows).map((t) => ({ ...t, releaseId: id })),
         });
       }
       return tx.release.update({ where: { id }, data, include: RELEASE_INCLUDE });
