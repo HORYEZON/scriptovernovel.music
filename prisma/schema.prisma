@@ -1499,12 +1499,58 @@ model Product {
   price       Float
   stock       Int              @default(1)
   available   Boolean          @default(true)
+  // Announced, not yet on sale — a pressing on the way, a shirt at the
+  // printer. The product is listed and readable with its date, but it cannot
+  // be added to a cart; turning this off is what puts it on sale.
+  //
+  // Deliberately *not* called `preorder`: a pre-order is a thing you pay for
+  // now and receive later, which needs the checkout to take money for stock
+  // that doesn't exist yet. This is only the announcement, and the name says
+  // so rather than implying a payment flow the shop doesn't have.
+  comingSoon  Boolean          @default(false)
+  // When it goes on sale, if known. Shown as "Expected <date>"; null reads as
+  // "soon". Nothing schedules itself off this — an admin still flips
+  // `comingSoon` when the boxes actually arrive, because a date is a hope.
+  releaseAt   DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   deletedAt   DateTime?
   orderItems  OrderItem[]
   artwork     Artwork?         @relation(fields: [artworkId], references: [id], onDelete: Cascade)
   variants    ProductVariant[]
+  stockNotifications StockNotification[]
+}
+
+// "Tell me when this is back" — one row per person per thing they're waiting
+// for, on a sold-out product or one that hasn't gone on sale yet.
+//
+// **No confirmation email, unlike Subscriber.** There is nothing ongoing to
+// confirm: exactly one email is ever sent to a row (the alert), and sending it
+// is what retires the row. A double opt-in would mean two emails to get one,
+// and the first would be the spam. Abuse is held down by an IP rate limit and
+// a per-product dedupe instead, and the alert says what it was asked for.
+model StockNotification {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Which size/format they want, when the product has variants. Null means
+  // "any". SetNull rather than Cascade: a variant being renamed out of
+  // existence shouldn't silently drop someone's request for the product.
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  email     String
+  // Set when the alert goes out. A notified row is kept rather than deleted —
+  // it is the record of what was promised and delivered, and it stops a second
+  // alert if the thing sells out and returns again while they're deciding.
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  // Deduped in code, not by a unique index: `variantId` is nullable, and
+  // Postgres treats NULLs as distinct in a unique index, so
+  // @@unique([productId, variantId, email]) would let every "any variant"
+  // request through twice. See lib/store/notify-server.ts.
+  @@index([productId, notifiedAt])
+  @@index([email])
 }
 
 model ProductVariant {
@@ -1518,6 +1564,7 @@ model ProductVariant {
   updatedAt  DateTime    @updatedAt
   orderItems OrderItem[]
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stockNotifications StockNotification[]
 
   @@index([productId])
 }

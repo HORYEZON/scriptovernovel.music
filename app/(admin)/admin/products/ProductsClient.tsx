@@ -11,7 +11,7 @@
 // shape as the Releases module.
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ImagePlus, Link2, Package, Pencil, Plus, Search, Star, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Bell, ImagePlus, Link2, Package, Pencil, Plus, Search, Star, Trash2, X } from "lucide-react";
 import toast from "@/lib/toast";
 import { cn, formatPriceRange, getErrorMessage } from "@/lib/utils";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
@@ -19,6 +19,9 @@ import { AdminConfirmModal } from "@/components/admin/AdminConfirmModal";
 import { SafeImg } from "@/components/ui/SafeImage";
 import { imageVariantUrl } from "@/lib/images/variants";
 import { FieldLabel, SelectField, TextField, ToggleRow } from "@/app/(admin)/admin/site-design/fields";
+import { AdminDatePicker } from "@/components/admin/AdminDatePicker";
+import { releaseDateLabel } from "@/lib/store/availability";
+import { WaitingListModal } from "./WaitingListModal";
 import { productImages, productTitle } from "@/lib/store/product-display";
 import { MAX_PRODUCT_DESCRIPTION, MAX_PRODUCT_IMAGES, MAX_PRODUCT_TITLE, PRODUCT_CATEGORIES, productCategoryLabel } from "@/lib/store/categories";
 
@@ -35,6 +38,8 @@ export interface ProductRow {
   price: number;
   stock: number;
   available: boolean;
+  comingSoon: boolean;
+  releaseAt: string | null;
   variants: { id: string; label: string; price: number; stock: number }[];
   artwork: { id: string; title: string; imageUrl: string; description: string | null; slug: string | null } | null;
   createdAt: string;
@@ -61,6 +66,9 @@ interface FormState {
   price: string;
   stock: string;
   available: boolean;
+  comingSoon: boolean;
+  /** `YYYY-MM-DD` — AdminDatePicker's own format. */
+  releaseAt: string;
   featured: boolean;
   variants: VariantDraft[];
   artworkId: string | null;
@@ -68,7 +76,7 @@ interface FormState {
 
 let vKey = 1;
 const newVariant = (): VariantDraft => ({ key: vKey++, label: "", price: "", stock: "1" });
-const EMPTY: FormState = { title: "", description: "", images: [], category: "", price: "", stock: "1", available: true, featured: false, variants: [], artworkId: null };
+const EMPTY: FormState = { title: "", description: "", images: [], category: "", price: "", stock: "1", available: true, comingSoon: false, releaseAt: "", featured: false, variants: [], artworkId: null };
 const CATEGORY_OPTIONS = [{ value: "", label: "— none —" }, ...PRODUCT_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))];
 const inputBase =
   "w-full px-4 py-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm font-jakarta";
@@ -136,7 +144,17 @@ function PhotosField({ images, onChange }: { images: string[]; onChange: (next: 
   );
 }
 
-export function ProductsClient({ initialProducts, artworksWithoutProduct }: { initialProducts: ProductRow[]; artworksWithoutProduct: ArtworkOption[] }) {
+export function ProductsClient({
+  initialProducts,
+  artworksWithoutProduct,
+  waiting,
+}: {
+  initialProducts: ProductRow[];
+  artworksWithoutProduct: ArtworkOption[];
+  /** Product id → how many people are waiting on it, un-alerted. Counted on
+   *  the server so the list doesn't fetch one request per card. */
+  waiting: Record<string, number>;
+}) {
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState("");
@@ -147,6 +165,8 @@ export function ProductsClient({ initialProducts, artworksWithoutProduct }: { in
   const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [artworkPick, setArtworkPick] = useState("");
+  /** The product whose waiting list is open. */
+  const [waitingFor, setWaitingFor] = useState<ProductRow | null>(null);
   useLockBodyScroll(modalOpen);
 
   const visible = useMemo(() => {
@@ -177,6 +197,8 @@ export function ProductsClient({ initialProducts, artworksWithoutProduct }: { in
       price: String(p.price),
       stock: String(p.stock),
       available: p.available,
+      comingSoon: p.comingSoon,
+      releaseAt: p.releaseAt ? p.releaseAt.slice(0, 10) : "",
       featured: p.featured,
       variants: p.variants.map((v) => ({ key: vKey++, label: v.label, price: String(v.price), stock: String(v.stock) })),
       artworkId: p.artworkId,
@@ -212,6 +234,8 @@ export function ProductsClient({ initialProducts, artworksWithoutProduct }: { in
         price: Number(form.price),
         stock: Number(form.stock) || 0,
         available: form.available,
+        comingSoon: form.comingSoon,
+        releaseAt: form.releaseAt || null,
         featured: form.featured,
         variants: form.variants.map((v) => ({ label: v.label, price: v.price, stock: v.stock })),
         ...(editing ? {} : { artworkId: form.artworkId }),
@@ -224,7 +248,17 @@ export function ProductsClient({ initialProducts, artworksWithoutProduct }: { in
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save product");
       setProducts((prev) => (editing ? prev.map((p) => (p.id === data.id ? data : p)) : [...prev, data]));
-      toast.success(editing ? "Product updated" : "Product added");
+      // The PATCH route emails everyone waiting when a product becomes
+      // buyable, and reports how many — worth saying out loud, since it is an
+      // action with consequences outside the admin.
+      const notified: number = typeof data.notifiedCount === "number" ? data.notifiedCount : 0;
+      toast.success(
+        notified > 0
+          ? `Product updated — ${notified} ${notified === 1 ? "person" : "people"} emailed that it's available`
+          : editing
+            ? "Product updated"
+            : "Product added"
+      );
       setModalOpen(false);
       router.refresh();
     } catch (err) {
@@ -320,10 +354,23 @@ export function ProductsClient({ initialProducts, artworksWithoutProduct }: { in
                       <p className="font-body text-xs text-ink-400 dark:text-ink-300">
                         {productCategoryLabel(p.category) ?? "Uncategorised"} · {formatPriceRange(p.price, p.variants.map((v) => v.price))}
                       </p>
-                      <p className={cn("mt-1 font-body text-[11px]", totalStock === 0 ? "text-red-500" : "text-ink-400 dark:text-ink-300")}>
-                        {totalStock === 0 ? "Sold out" : `${totalStock} in stock`}
+                      <p className={cn("mt-1 font-body text-[11px]", p.comingSoon ? "text-sepia-dark dark:text-sepia-light" : totalStock === 0 ? "text-red-500" : "text-ink-400 dark:text-ink-300")}>
+                        {p.comingSoon
+                          ? releaseDateLabel(p.releaseAt) ?? "Coming soon"
+                          : totalStock === 0
+                            ? "Sold out"
+                            : `${totalStock} in stock`}
                         {p.variants.length > 0 && ` · ${p.variants.length} size${p.variants.length === 1 ? "" : "s"}`}
                       </p>
+                      {(waiting[p.id] ?? 0) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setWaitingFor(p)}
+                          className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-sepia/40 bg-sepia/10 px-2 py-0.5 font-body text-[10px] text-ink transition-colors hover:border-sepia dark:text-cream"
+                        >
+                          <Bell size={10} /> {waiting[p.id]} waiting
+                        </button>
+                      )}
                       {p.artwork && (
                         <p className="mt-1 inline-flex items-center gap-1 rounded-full border border-black/10 px-2 py-0.5 font-body text-[10px] text-ink-400 dark:border-white/10 dark:text-ink-300">
                           <Link2 size={10} /> Artwork: {p.artwork.title}
@@ -379,6 +426,28 @@ export function ProductsClient({ initialProducts, artworksWithoutProduct }: { in
                   )}
                   <ToggleRow label="In store" value={form.available} onChange={(v) => set("available", v)} words={{ on: "in store", off: "paused" }} />
                   <ToggleRow label="Featured" description="First in the Store and the homepage strip." value={form.featured} onChange={(v) => set("featured", v)} words={{ on: "featured", off: "not featured" }} />
+                  <ToggleRow
+                    label="Coming soon"
+                    description="Listed with its date but not buyable — visitors get a Notify me instead. Turning this off is what puts it on sale, and that is when everyone waiting gets emailed."
+                    value={form.comingSoon}
+                    onChange={(v) => set("comingSoon", v)}
+                    words={{ on: "coming soon", off: "on sale" }}
+                  />
+                  {form.comingSoon && (
+                    <div>
+                      <FieldLabel hint="optional">Expected date</FieldLabel>
+                      <AdminDatePicker
+                        value={form.releaseAt}
+                        onChange={(releaseAt) => set("releaseAt", releaseAt)}
+                        className="px-4 py-2.5 text-sm"
+                        ariaLabel="Expected release date"
+                      />
+                      <p className="mt-1.5 font-body text-xs text-ink-400 dark:text-ink-300">
+                        Shown as &ldquo;Expected &lt;date&gt;&rdquo;. Nothing happens on that date by itself — it&apos;s a hope, not a
+                        schedule, so you still flip the switch when the boxes land.
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-5">
                   <TextField label="Title" value={form.title} onChange={(v) => set("title", v)} maxLength={MAX_PRODUCT_TITLE} placeholder="Tour shirt, black" />
@@ -439,6 +508,12 @@ export function ProductsClient({ initialProducts, artworksWithoutProduct }: { in
         loading={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <WaitingListModal
+        productId={waitingFor?.id ?? null}
+        productTitle={waitingFor ? productTitle(waitingFor) ?? "Untitled" : ""}
+        onClose={() => setWaitingFor(null)}
       />
     </div>
   );

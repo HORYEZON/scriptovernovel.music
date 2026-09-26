@@ -10,6 +10,7 @@ import NewOrderAlertEmail from "@/emails/NewOrderAlert";
 import VisitorMilestoneClaimedEmail from "@/emails/VisitorMilestoneClaimed";
 import MuseumAchievementClaimedEmail from "@/emails/MuseumAchievementClaimed";
 import SubscribeConfirmEmail from "@/emails/SubscribeConfirm";
+import BackInStockEmail from "@/emails/BackInStock";
 import type { MuseumAchievementCategory } from "@/types";
 import { getSiteLogoUrl } from "@/lib/site-logo";
 
@@ -284,5 +285,37 @@ export async function sendSubscribeConfirmEmail(to: string, confirmUrl: string, 
       // button rather than unsubscribing on GET.
       "List-Unsubscribe": `<${unsubscribeUrl}>`,
     },
+  });
+}
+
+/**
+ * The one email a stock alert sends. Throws on failure so the caller can leave
+ * the row unnotified and try again on the next save — an alert that silently
+ * vanished is worse than one that arrives late.
+ */
+export async function sendBackInStockEmail(
+  to: string,
+  item: { title: string; url: string; imageUrl: string | null; price: number | null; variantLabel: string | null }
+) {
+  const from = process.env.GMAIL_USER;
+  const profile = await prisma.profile.findFirst().catch(() => null);
+  const element = BackInStockEmail({
+    productTitle: item.title,
+    productUrl: item.url,
+    imageUrl: item.imageUrl,
+    price: item.price !== null ? formatPrice(item.price) : null,
+    variantLabel: item.variantLabel,
+    logoUrl: await getSiteLogoUrl(profile?.logoImage),
+    siteUrl: SITE_URL,
+  });
+
+  const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
+
+  await transporter.sendMail({
+    from: `"ScriptOverNovel Music" <${from}>`,
+    to,
+    subject: `${item.title} is available`,
+    text,
+    html,
   });
 }
