@@ -14,7 +14,7 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 4. [Preferences — Site Background Effects](#4-preferences--site-background-effects)
 5. [Releases (Music page)](#5-releases-music-page)
 6. [Videos](#6-videos)
-7. [About & Band Members](#7-about--band-members)
+7. [About & Band Members](#7-about--band-members) (incl. [Shows](#73-shows))
 8. [Store (Products)](#8-store-products)
 9. [Mini Games](#9-mini-games)
 10. [Museum Pieces (Digital Museum)](#10-museum-pieces-digital-museum)
@@ -184,7 +184,25 @@ The preview card **stays on screen** while you scroll the controls under it, so 
 
 ### 7.3 Shows
 
-**Shows / Events** is unchanged — every enabled event shows on About under **Shows**: upcoming ones first, then past ones by year, with the map under them. The next three upcoming also appear on the homepage.
+Gigs now have their own page, **/shows**, linked from the menu bar. About keeps the next few with an **All shows** link; the full archive, the ticket buttons and the map live on the new page. The next three upcoming also still appear on the homepage.
+
+**Adding a show** — sidebar → **Shows / Events** → **Add Event**:
+
+1. **Title** — what the night is called ("Shoegaze Night Vol. 4"), not the venue.
+2. **Venue Name** and **City** — both show on the row, as "Mow's Bar · Quezon City".
+3. **Date & set time** — pick the day, then the time you actually go on. **Leave it blank for a show that isn't dated yet** — it still lists, under upcoming, with **TBA** where the date block goes.
+4. **Status** — leave on **Scheduled** for a normal show. **Sold out** keeps the row but drops the Tickets button. **Cancelled** and **Postponed** strike the title through and move it out of the upcoming list, but the show *stays on the page* — someone who already bought a ticket has to be able to find out what happened.
+5. **Ticket Link** — the full `https://…` address where tickets are sold. This is what the **Tickets** button opens, and it only appears when there's a link.
+6. **Price** and **Price Note** — type a number for the price pill (₱250). The note wins when both are filled, so use it for anything a number can't say: "Free entry", "₱250 at the door", "₱200 presale / ₱250 door".
+7. **Lineup** — the rest of the bill, **one act per line**. Reads on the row as "with Severe Weather · Ampelope".
+8. **Location on the map** — click the map to drop the pin (or type the coordinates). This is what puts the show on the map at the bottom of /shows, and it's required.
+9. **Enabled** — off hides the show from /shows and from the map completely.
+
+**Order** — upcoming shows sort themselves by date, soonest first, with TBA ones last; the archive groups by year, newest first. The ↑ ↓ arrows only break ties between shows on the same date.
+
+**One thing that changed on old shows:** the date field used to have no time, so every show on the site read "8:00 AM". Shows saved before this update have no time recorded, and now simply show no time at all. Open one and set its time if you want it shown.
+
+**The Next Event star** still marks one show as the glowing pin on the map.
 
 ---
 

@@ -2,9 +2,10 @@
 //
 // The band's About page: a hazy hero over a band photo, the bio (with the
 // tagline, base and genres from Profile), the members grid, the band
-// photos, then Shows — upcoming first, the past by year, the map under
-// them. Certificates & awards stay as an optional block for a band that
-// has some. Every block hides when it has nothing.
+// photos, then the next few Shows with a link out to /shows, which owns the
+// archive, the ticket links and the map. Certificates & awards stay as an
+// optional block for a band that has some. Every block hides when it has
+// nothing.
 //
 // Profile fields keep their old names (displayName = band name, headline =
 // tagline, basedIn, artistSkill = genres) — relabelled in the admin, not
@@ -13,6 +14,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getProfile, getSocialLinks } from "@/lib/public-data";
 import { getPublicBandMembers } from "@/lib/band-members-server";
+import { getUpcomingShows, PUBLIC_SHOW_WHERE } from "@/lib/shows-server";
 import { SITE_URL } from "@/lib/site-url";
 import { imageVariantUrl } from "@/lib/images/variants";
 import { JsonLd } from "@/components/public/JsonLd";
@@ -22,8 +24,7 @@ import { SectionHeading } from "@/components/public/system/SectionHeading";
 import { Reveal } from "@/components/public/system/Reveal";
 import { CtaButton } from "@/components/public/system/CtaButton";
 import { CertificatesGallery } from "@/components/public/CertificatesGallery";
-import { EventsMap } from "@/components/public/EventsMap";
-import { ShowRow, type ShowRowData } from "@/components/public/ShowRow";
+import { ShowRow } from "@/components/public/ShowRow";
 import { MembersGrid } from "@/components/public/MembersGrid";
 import { BandPhotos } from "@/components/public/BandPhotos";
 
@@ -37,51 +38,19 @@ export const metadata: Metadata = {
 const DEFAULT_GENRES = ["Shoegaze", "Dreampop", "Math rock", "Post-rock"];
 
 export default async function AboutPage() {
-  const [profile, members, certificates, skills, socialLinks, events] = await Promise.all([
+  const [profile, members, certificates, skills, socialLinks, upcoming, showCount] = await Promise.all([
     getProfile().catch(() => null),
     getPublicBandMembers().catch(() => []),
     prisma.certificateAward.findMany({ orderBy: { displayOrder: "asc" } }).catch(() => []),
     prisma.artistSkill.findMany({ orderBy: { sortOrder: "asc" } }).catch(() => []),
     getSocialLinks().catch(() => []),
-    prisma.event
-      .findMany({
-        where: { enabled: true, deletedAt: null },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          venueName: true,
-          latitude: true,
-          longitude: true,
-          eventDate: true,
-          isNextEvent: true,
-          createdAt: true,
-          media: { orderBy: { order: "asc" }, select: { id: true, url: true, type: true } },
-        },
-        orderBy: [{ eventDate: "desc" }, { displayOrder: "asc" }],
-      })
-      .catch(() => []),
+    getUpcomingShows(3),
+    prisma.event.count({ where: PUBLIC_SHOW_WHERE }).catch(() => 0),
   ]);
 
   const bandName = profile?.displayName || "ScriptOverNovel";
   const genres = skills.length > 0 ? skills.map((s) => s.name) : DEFAULT_GENRES;
   const photos = (profile?.profileImages?.length ? profile.profileImages : profile?.profileImage ? [profile.profileImage] : []).slice(0, 8);
-
-  const now = new Date();
-  const toRow = (e: (typeof events)[number]): ShowRowData => ({
-    id: e.id,
-    title: e.title,
-    venueName: e.venueName,
-    eventDate: e.eventDate ? e.eventDate.toISOString() : null,
-    isNextEvent: e.isNextEvent,
-  });
-  const upcoming = events.filter((e) => e.eventDate && e.eventDate >= now).sort((a, b) => a.eventDate!.getTime() - b.eventDate!.getTime()).map(toRow);
-  const past = events.filter((e) => !e.eventDate || e.eventDate < now).map(toRow);
-  const pastByYear = new Map<string, ShowRowData[]>();
-  for (const show of past) {
-    const year = show.eventDate ? new Date(show.eventDate).getFullYear().toString() : "Undated";
-    pastByYear.set(year, [...(pastByYear.get(year) ?? []), show]);
-  }
 
   return (
     <div className="pb-24">
@@ -185,35 +154,34 @@ export default async function AboutPage() {
           </Reveal>
         )}
 
-        {/* Shows */}
-        {events.length > 0 && (
+        {/* Shows — the next few only. The archive, the ticket links and the
+            map moved to /shows; `id="shows"` stays so every link ever posted
+            to /about#shows still lands on something about shows. */}
+        {showCount > 0 && (
           <Reveal as="section" className="section-padding" >
             <div id="shows" className="scroll-mt-24">
               <GlassPanel padding="page">
-                <SectionHeading eyebrow="Live" title="Shows" description={`${events.length} show${events.length === 1 ? "" : "s"}${upcoming.length ? ` · ${upcoming.length} upcoming` : ""}`} />
-                {upcoming.length > 0 && (
-                  <div className="mb-10">
-                    <p className="mb-2 font-body text-[10px] uppercase tracking-[0.3em] text-sepia-light">Upcoming</p>
-                    <ul className="divide-y divide-white/10">
-                      {upcoming.map((s) => (
-                        <ShowRow key={s.id} show={s} />
-                      ))}
-                    </ul>
-                  </div>
+                <SectionHeading
+                  eyebrow="Live"
+                  title="Shows"
+                  description={`${showCount} show${showCount === 1 ? "" : "s"} played${upcoming.length ? ` · ${upcoming.length} coming up` : ""}`}
+                  action={{ label: "All shows", href: "/shows" }}
+                />
+                {upcoming.length > 0 ? (
+                  <ul className="divide-y divide-white/10">
+                    {upcoming.map((s) => (
+                      <ShowRow key={s.id} show={s} />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="font-body text-sm leading-relaxed text-cream/60">
+                    Nothing booked at the moment — the full history is on the{" "}
+                    <a href="/shows" className="text-sepia-light underline decoration-sepia/40 hover:text-cream">
+                      shows page
+                    </a>
+                    .
+                  </p>
                 )}
-                {Array.from(pastByYear.entries()).map(([year, shows]) => (
-                  <div key={year} className="mb-8">
-                    <p className="mb-2 font-body text-[10px] uppercase tracking-[0.3em] text-cream/50">{year}</p>
-                    <ul className="divide-y divide-white/10">
-                      {shows.map((s) => (
-                        <ShowRow key={s.id} show={s} muted />
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-                <div className="mt-6">
-                  <EventsMap events={JSON.parse(JSON.stringify(events))} />
-                </div>
               </GlassPanel>
             </div>
           </Reveal>

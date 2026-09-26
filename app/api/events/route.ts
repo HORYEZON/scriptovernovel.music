@@ -4,16 +4,11 @@
 // (displayOrder auto-append on create) plus MuseumRoom's soft-delete
 // convention (deletedAt, excluded here since this is the admin list).
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { sanitizeShowFields } from "@/lib/shows";
+import { revalidateShowPaths } from "@/lib/shows-server";
 import { getErrorMessage } from "@/lib/utils";
-
-function revalidateEventPaths() {
-  revalidatePath("/", "layout");
-  revalidatePath("/about");
-  revalidatePath("/admin/events");
-}
 
 // GET /api/events — list all live (non-trashed) events, admin only
 export async function GET() {
@@ -48,6 +43,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "A map location (latitude/longitude) is required." }, { status: 400 });
     }
 
+    // The gig-listing fields, through the same sanitizer the PATCH route and
+    // the admin form use.
+    const gig = sanitizeShowFields(body);
+    if ("error" in gig) return NextResponse.json({ error: gig.error }, { status: 400 });
+
     const maxOrder = await prisma.event.aggregate({ _max: { displayOrder: true } });
     const displayOrder = (maxOrder._max.displayOrder ?? -1) + 1;
 
@@ -61,11 +61,12 @@ export async function POST(request: NextRequest) {
         eventDate: eventDate ? new Date(eventDate) : null,
         enabled: enabled ?? true,
         displayOrder,
+        ...gig.fields,
       },
       include: { media: true },
     });
 
-    revalidateEventPaths();
+    revalidateShowPaths();
 
     return NextResponse.json(event, { status: 201 });
   } catch (error) {

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { EventsClient } from "./EventsClient";
 
-export const metadata: Metadata = { title: "Timeline / Events" };
+export const metadata: Metadata = { title: "Shows / Events" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminEventsPage() {
@@ -17,8 +17,8 @@ export default async function AdminEventsPage() {
   return (
     <div>
       <AdminPageHeader
-        title="Timeline / Events"
-        description="Gigs, exhibits, and events Kyla has attended — pinned on the public Timeline map (About page)."
+        title="Shows / Events"
+        description="Every gig, upcoming and played — listed on /shows with its tickets and lineup, and pinned on that page's map."
       />
       <EventsClient initialEvents={JSON.parse(JSON.stringify(events))} />
     </div>
