@@ -1540,6 +1540,11 @@ model Faq {
 // at a time — enforced the same way MuseumRoom.isEntryRoom is, by unsetting
 // every other row's flag in the same transaction whenever one is set (see
 // app/api/events/[id]/route.ts).
+// The gig-listing fields below (`city` … `status`) are what /shows needs
+// that a map pin never did: a ticket link to send someone to, who else is
+// on the bill, and whether the night is still happening. All nullable or
+// defaulted — an Event created before /shows existed reads as a scheduled
+// show with no ticket link, which is exactly what it is.
 model Event {
   id           String    @id @default(cuid())
   title        String
@@ -1548,6 +1553,18 @@ model Event {
   latitude     Float
   longitude    Float
   eventDate    DateTime?
+  // Shown beside the venue and used for the MusicEvent JSON-LD's address —
+  // the map has the coordinates, but a search result needs the town's name.
+  city         String?
+  // The rest of the bill, one act per line. Free text, not a relation: the
+  // other bands are not the band's data to keep.
+  lineup       String?
+  ticketUrl    String?
+  // PHP, and null ≠ free — `ticketNote` is where "free entry" or "₱250 at
+  // the door" goes. A number here only earns the price pill.
+  ticketPrice  Float?
+  ticketNote   String?
+  status       ShowStatus @default(SCHEDULED)
   isNextEvent  Boolean   @default(false)
   displayOrder Int       @default(0)
   enabled      Boolean   @default(true)
@@ -1559,6 +1576,18 @@ model Event {
 
   @@index([deletedAt])
   @@index([isNextEvent])
+  // /shows' two queries: upcoming (eventDate >= now) and the past archive.
+  @@index([enabled, eventDate])
+}
+
+// Whether a listed show is still on. Cancelled and postponed shows stay
+// listed rather than disappearing — someone holding a ticket needs to find
+// out, and a show that quietly vanishes reads as a site bug.
+enum ShowStatus {
+  SCHEDULED
+  SOLD_OUT
+  CANCELLED
+  POSTPONED
 }
 
 model EventMedia {

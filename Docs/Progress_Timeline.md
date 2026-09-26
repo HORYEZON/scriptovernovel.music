@@ -685,3 +685,72 @@ not a release of its own.
 - `ScreenshotCapture`'s `isCoarsePointer` prop removed — the watermark no
   longer branches on it
 - No migration. `tsc`, `next lint` and `yarn build` all clean
+
+---
+
+## September 26, 2026 — v0.18 (Shows has its own page)
+
+### Public Side
+
+- **`/shows` — the gig page.** The band's dates used to be a section three
+  screens down `/about`, with no address of their own to post and nothing a
+  search engine could read as an event. They now have a page: upcoming dates
+  first (soonest first, TBA last), then the archive of everything played by
+  year, then the map of every stage. **Shows** joins the menu bar after Music
+- **A show row can be acted on.** Each row now carries the venue *and* city,
+  the rest of the bill ("with Severe Weather · Ampelope"), what a ticket
+  costs, and a **Tickets** button when there's a link to sell one
+- **A cancelled or postponed show stays listed**, struck through and badged,
+  instead of vanishing — someone holding a ticket has to be able to find out,
+  and a show that quietly disappears reads as a site bug. It moves out of the
+  upcoming list, and its ticket button comes off
+- **Shows no longer claim they start at 8:00 AM.** The admin's date field had
+  no time, so every date was stored as midnight UTC and rendered in Manila as
+  eight in the morning. Shows with no time recorded now show no time at all,
+  and new ones can be given the real set time
+- **A show with no date still lists.** It reads **TBA** and sits at the end of
+  the upcoming list rather than being filed under the past — it is announced,
+  not finished
+- **About keeps the next few shows** with an *All shows* link. `#shows` still
+  resolves there, so every link ever posted to `/about#shows` still lands on
+  something about shows
+- Upcoming dates carry `MusicEvent` structured data (as an `ItemList`, with
+  the venue, coordinates, status and ticket offer), so a gig can turn up in
+  search on its own. Past shows are deliberately left out. A TBA show has no
+  `startDate` and so earns no rich result until it is dated
+
+### Admin Side
+
+- **Shows / Events** (was *Timeline / Events*) gains **City**, **Status**
+  (Scheduled / Sold out / Cancelled / Postponed), **Ticket Link**,
+  **Price**, **Price Note** and **Lineup**, and its date field now carries a
+  set time
+- **Price Note beats Price.** "Free entry" and "₱250 at the door" are truer
+  than a bare figure, so the note is shown instead of the number when both
+  are filled
+- The list rows show city and a non-scheduled status, and search matches city
+
+### Infra
+
+- `lib/shows.ts` (client-safe: statuses, limits, the ticket-URL rule, the
+  one sanitizer both write routes and the form share, `isUpcomingShow`,
+  `hasShowTime`) and `lib/shows-server.ts` (`SHOW_SELECT`, the public
+  queries, `splitShows` / `groupShowsByYear`, `revalidateShowPaths`) —
+  mirroring the `lib/releases*.ts` split. `ShowRow` takes the one
+  `PublicShow` shape, which is a superset of `EventsMap`'s `PublicEvent`, so
+  the list and the map read from one query
+- `Event` gains `city`, `lineup`, `ticketUrl`, `ticketPrice`, `ticketNote`
+  and `status` (new `ShowStatus` enum), plus an `(enabled, eventDate)` index
+  for the page's two queries. Migration `20260926100000_shows_page` — all
+  additive: new nullable columns, one defaulted column, one enum, one index
+- `GET /api/events/public` now selects through `SHOW_SELECT`, so it cannot
+  drift from the page; its response gained the new fields and lost nothing
+- `scripts/add-menu-item.ts` — an idempotent menu-row insert. `Shows` was
+  added to `DEFAULT_MENU_ITEMS` *and* to the live menu, because a site whose
+  menu rows are already saved never reads those defaults
+- The admin's date→input conversion goes through `Date` rather than string
+  slicing, and the form submits a real ISO instant, so the picker's local
+  wall-clock time isn't reinterpreted in the server's timezone (UTC on
+  Vercel)
+- `tsc`, `next lint` and `yarn build` all clean; `/shows` verified against
+  the live data (4 shows, all TBA) with its JSON-LD parsed

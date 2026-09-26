@@ -27,6 +27,14 @@ import { playSoundEffect } from "@/lib/sound/engine";
 import { getErrorMessage } from "@/lib/utils";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { AdminDatePicker } from "@/components/admin/AdminDatePicker";
+import { AdminSelect } from "@/components/admin/AdminSelect";
+import {
+  MAX_SHOW_LINEUP,
+  MAX_SHOW_TICKET_NOTE,
+  SHOW_STATUSES,
+  SHOW_STATUS_LABELS,
+  type ShowStatus,
+} from "@/lib/shows";
 
 export interface EventMedia {
   id: string;
@@ -40,9 +48,15 @@ export interface EventItem {
   title: string;
   description: string | null;
   venueName: string | null;
+  city: string | null;
+  lineup: string | null;
   latitude: number;
   longitude: number;
   eventDate: string | null;
+  ticketUrl: string | null;
+  ticketPrice: number | null;
+  ticketNote: string | null;
+  status: ShowStatus;
   isNextEvent: boolean;
   displayOrder: number;
   enabled: boolean;
@@ -55,9 +69,17 @@ interface FormState {
   title: string;
   description: string;
   venueName: string;
+  city: string;
+  lineup: string;
   latitude: number | null;
   longitude: number | null;
   eventDate: string;
+  ticketUrl: string;
+  /** Text, not a number: an empty field has to stay empty rather than
+   *  becoming 0, and "250" is typed a character at a time. */
+  ticketPrice: string;
+  ticketNote: string;
+  status: ShowStatus;
   enabled: boolean;
 }
 
@@ -65,9 +87,15 @@ const EMPTY_FORM: FormState = {
   title: "",
   description: "",
   venueName: "",
+  city: "",
+  lineup: "",
   latitude: null,
   longitude: null,
   eventDate: "",
+  ticketUrl: "",
+  ticketPrice: "",
+  ticketNote: "",
+  status: "SCHEDULED",
   enabled: true,
 };
 
@@ -78,9 +106,22 @@ const DEFAULT_CENTER: [number, number] = [14.5995, 120.9842]; // Manila — just
 const PREVIEW_SIZE = 224;
 const PREVIEW_OFFSET = 20;
 
+/**
+ * A stored ISO instant → the picker's `YYYY-MM-DDTHH:mm`, in the admin's own
+ * timezone.
+ *
+ * This used to be `iso.slice(0, 10)`, which is also why every show on the
+ * public site claimed it started at 8:00 AM: a date-only value was stored as
+ * midnight UTC and read back in Manila. The field carries a time now, so the
+ * conversion has to go through Date rather than string arithmetic — slicing a
+ * UTC string would show 8:00 PM Manila as 12:00.
+ */
 function toDateInputValue(iso: string | null) {
   if (!iso) return "";
-  return iso.slice(0, 10);
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // Loaded as ONE dynamic(..., { ssr: false }) component rather than
@@ -290,7 +331,8 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
     return sorted.filter(
       (e) =>
         e.title.toLowerCase().includes(q) ||
-        (e.venueName ?? "").toLowerCase().includes(q)
+        (e.venueName ?? "").toLowerCase().includes(q) ||
+        (e.city ?? "").toLowerCase().includes(q)
     );
   }, [events, searchQuery]);
 
@@ -309,9 +351,15 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
       title: item.title,
       description: item.description ?? "",
       venueName: item.venueName ?? "",
+      city: item.city ?? "",
+      lineup: item.lineup ?? "",
       latitude: item.latitude,
       longitude: item.longitude,
       eventDate: toDateInputValue(item.eventDate),
+      ticketUrl: item.ticketUrl ?? "",
+      ticketPrice: item.ticketPrice !== null ? String(item.ticketPrice) : "",
+      ticketNote: item.ticketNote ?? "",
+      status: item.status ?? "SCHEDULED",
       enabled: item.enabled,
     });
     setValidationError(null);
@@ -330,14 +378,27 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
       setValidationError("Pick a location on the map (or enter coordinates).");
       return;
     }
+    if (form.ticketPrice.trim() && !Number.isFinite(Number(form.ticketPrice))) {
+      setValidationError("The ticket price has to be a number (or left blank).");
+      return;
+    }
 
     const payload = {
       title: form.title,
       description: form.description,
       venueName: form.venueName,
+      city: form.city,
+      lineup: form.lineup,
       latitude: form.latitude,
       longitude: form.longitude,
-      eventDate: form.eventDate || null,
+      // The picker's value is local wall-clock time with no offset, which the
+      // server would otherwise read in *its* timezone (UTC on Vercel). Fixing
+      // the instant here is the same thing ReleaseNotesClient does.
+      eventDate: form.eventDate ? new Date(form.eventDate).toISOString() : null,
+      ticketUrl: form.ticketUrl,
+      ticketPrice: form.ticketPrice.trim() ? Number(form.ticketPrice) : null,
+      ticketNote: form.ticketNote,
+      status: form.status,
       enabled: form.enabled,
     };
 
@@ -610,7 +671,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
             </h3>
             <p className="text-sm text-ink-400 dark:text-ink-300 mb-6 max-w-md mx-auto">
               {events.length === 0
-                ? "Add the gigs and exhibits Kyla has attended to populate the public Timeline map."
+                ? "Add a gig to list it on /shows — upcoming with its tickets, or played, for the archive and the map."
                 : "Try adjusting your search query."}
             </p>
             {events.length === 0 && (
@@ -697,8 +758,9 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
                             )}
                           </div>
                           <p className="text-xs text-ink-400 dark:text-ink-300 truncate mt-0.5">
-                            {item.venueName || "No venue"}
-                            {item.eventDate ? ` · ${new Date(item.eventDate).toLocaleDateString()}` : ""}
+                            {[item.venueName, item.city].filter(Boolean).join(" · ") || "No venue"}
+                            {item.eventDate ? ` · ${new Date(item.eventDate).toLocaleDateString()}` : " · TBA"}
+                            {item.status !== "SCHEDULED" ? ` · ${SHOW_STATUS_LABELS[item.status]}` : ""}
                           </p>
                         </div>
                       </div>
@@ -807,7 +869,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Art Fair Philippines 2026"
+                  placeholder="e.g. Shoegaze Night Vol. 4"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
@@ -821,7 +883,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Art Fair Philippines, Link Ayala"
+                    placeholder="e.g. Mow's Bar"
                     value={form.venueName}
                     onChange={(e) => setForm({ ...form, venueName: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
@@ -829,15 +891,113 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
-                    Event Date
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Quezon City"
+                    value={form.city}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
+                    Date &amp; set time
                   </label>
                   <AdminDatePicker
+                    withTime
                     value={form.eventDate}
                     onChange={(eventDate) => setForm({ ...form, eventDate })}
                     className="px-4 py-2.5 text-sm"
-                    ariaLabel="Event date"
+                    ariaLabel="Show date and time"
+                  />
+                  <p className="mt-1.5 text-[11px] text-ink-400 dark:text-ink-300">
+                    Leave the date blank for a TBA show — it still lists, under &ldquo;upcoming&rdquo;.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
+                    Status
+                  </label>
+                  <AdminSelect
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as ShowStatus })}
+                    className="py-2.5 text-sm"
+                    aria-label="Show status"
+                  >
+                    {SHOW_STATUSES.map((s) => (
+                      <option key={s} value={s} className="bg-white dark:bg-ink-900">
+                        {SHOW_STATUS_LABELS[s]}
+                      </option>
+                    ))}
+                  </AdminSelect>
+                  <p className="mt-1.5 text-[11px] text-ink-400 dark:text-ink-300">
+                    Cancelled and postponed shows stay listed, struck through — someone holding a ticket has to be able to find out.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[1.6fr_0.7fr_1fr] gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
+                    Ticket Link
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://…"
+                    value={form.ticketUrl}
+                    onChange={(e) => setForm({ ...form, ticketUrl: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
+                    Price (₱)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="250"
+                    value={form.ticketPrice}
+                    onChange={(e) => setForm({ ...form, ticketPrice: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
+                    Price Note
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={MAX_SHOW_TICKET_NOTE}
+                    placeholder="e.g. ₱250 at the door"
+                    value={form.ticketNote}
+                    onChange={(e) => setForm({ ...form, ticketNote: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm"
+                  />
+                  <p className="mt-1.5 text-[11px] text-ink-400 dark:text-ink-300">Shown instead of the number, when set.</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2">
+                  Lineup
+                </label>
+                <textarea
+                  rows={3}
+                  maxLength={MAX_SHOW_LINEUP}
+                  placeholder={"One act per line, e.g.\nSevere Weather\nAmpelope"}
+                  value={form.lineup}
+                  onChange={(e) => setForm({ ...form, lineup: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm resize-none"
+                />
+                <p className="mt-1.5 text-[11px] text-ink-400 dark:text-ink-300">
+                  The rest of the bill. Shown on the show row as &ldquo;with …&rdquo;.
+                </p>
               </div>
 
               <div>
@@ -846,7 +1006,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
                 </label>
                 <textarea
                   rows={4}
-                  placeholder="What happened here..."
+                  placeholder="What the night was, or is going to be…"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl admin-input border text-ink dark:text-cream placeholder-ink-400 focus:outline-none focus:border-sepia transition-colors text-sm resize-none"
@@ -867,7 +1027,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventItem[] }) 
                   className="w-5 h-5 rounded bg-black/10 dark:bg-white/10 border-black/20 dark:border-white/20 text-sepia focus:ring-0 focus:ring-offset-0 cursor-pointer"
                 />
                 <span className="text-sm font-medium text-ink dark:text-cream">
-                  Enabled (visible as a pin on the public Timeline map)
+                  Enabled (listed on /shows and pinned on its map)
                 </span>
               </label>
 

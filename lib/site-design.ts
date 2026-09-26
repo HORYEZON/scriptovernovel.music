@@ -286,15 +286,20 @@ export interface SiteMenuItem {
 }
 
 // The reference's palette, one pair per row, mapped onto the band site's
-// five pages. Used publicly when the SiteMenuItem table is empty (a fresh
+// pages. Used publicly when the SiteMenuItem table is empty (a fresh
 // install), and as the admin editor's starting rows — the first save
 // persists them as real rows.
+//
+// A site whose menu rows are already saved does *not* pick up a new entry
+// here: Shows was added to this list and to the live menu separately (see
+// scripts/add-menu-item.ts).
 export const DEFAULT_MENU_ITEMS: SiteMenuItem[] = [
   { id: "default-music", label: "Music", href: "/music", bgColor: "#F5D480", underlineColor: "#FDA063", underlineStyle: "scribble", image: null, openInNewTab: false, isVisible: true, sortOrder: 0 },
-  { id: "default-store", label: "Store", href: "/shop", bgColor: "#6BC08D", underlineColor: "#F7C4C4", underlineStyle: "wave", image: null, openInNewTab: false, isVisible: true, sortOrder: 1 },
-  { id: "default-videos", label: "Videos", href: "/videos", bgColor: "#F0645A", underlineColor: "#F5D480", underlineStyle: "straight", image: null, openInNewTab: false, isVisible: true, sortOrder: 2 },
-  { id: "default-about", label: "About", href: "/about", bgColor: "#A6C4DA", underlineColor: "#E07BE0", underlineStyle: "scribble", image: null, openInNewTab: false, isVisible: true, sortOrder: 3 },
-  { id: "default-contact", label: "Contact", href: "/contact", bgColor: "#E07BE0", underlineColor: "#5FCFC6", underlineStyle: "wave", image: null, openInNewTab: false, isVisible: true, sortOrder: 4 },
+  { id: "default-shows", label: "Shows", href: "/shows", bgColor: "#FDA063", underlineColor: "#F5D480", underlineStyle: "straight", image: null, openInNewTab: false, isVisible: true, sortOrder: 1 },
+  { id: "default-store", label: "Store", href: "/shop", bgColor: "#6BC08D", underlineColor: "#F7C4C4", underlineStyle: "wave", image: null, openInNewTab: false, isVisible: true, sortOrder: 2 },
+  { id: "default-videos", label: "Videos", href: "/videos", bgColor: "#F0645A", underlineColor: "#F5D480", underlineStyle: "straight", image: null, openInNewTab: false, isVisible: true, sortOrder: 3 },
+  { id: "default-about", label: "About", href: "/about", bgColor: "#A6C4DA", underlineColor: "#E07BE0", underlineStyle: "scribble", image: null, openInNewTab: false, isVisible: true, sortOrder: 4 },
+  { id: "default-contact", label: "Contact", href: "/contact", bgColor: "#E07BE0", underlineColor: "#5FCFC6", underlineStyle: "wave", image: null, openInNewTab: false, isVisible: true, sortOrder: 5 },
 ];
 
 // Quick-pick swatches for a new row, straight from the reference (each

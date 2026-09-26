@@ -3,13 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { sanitizeShowFields } from "@/lib/shows";
+import { revalidateShowPaths } from "@/lib/shows-server";
 import { getErrorCode, getErrorMessage } from "@/lib/utils";
-
-function revalidateEventPaths() {
-  revalidatePath("/", "layout");
-  revalidatePath("/about");
-  revalidatePath("/admin/events");
-}
 
 // PATCH /api/events/[id] — update (admin only)
 export async function PATCH(
@@ -41,6 +37,14 @@ export async function PATCH(
       data.longitude = longitude;
     }
     if (eventDate !== undefined) data.eventDate = eventDate ? new Date(eventDate) : null;
+
+    // The gig-listing fields (city, lineup, ticket link/price/note, status),
+    // validated by the same sanitizer the create route and the admin form use.
+    // Only the keys actually sent are touched, so this stays a partial PATCH.
+    const gig = sanitizeShowFields(body);
+    if ("error" in gig) return NextResponse.json({ error: gig.error }, { status: 400 });
+    Object.assign(data, gig.fields);
+
     if (enabled !== undefined) {
       if (typeof enabled !== "boolean") return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
       data.enabled = enabled;
@@ -77,7 +81,7 @@ export async function PATCH(
           include: { media: { orderBy: { order: "asc" } } },
         });
 
-    revalidateEventPaths();
+    revalidateShowPaths();
 
     return NextResponse.json(event);
   } catch (error) {
@@ -97,7 +101,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     const { id } = await params;
     await prisma.event.update({ where: { id }, data: { deletedAt: new Date() } });
 
-    revalidateEventPaths();
+    revalidateShowPaths();
     revalidatePath("/admin/trash");
 
     return NextResponse.json({ success: true });
