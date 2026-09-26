@@ -384,6 +384,19 @@ export const openApiSpec: OpenAPIV3.Document = {
           createdAt: { type: "string", format: "date-time" },
         },
       },
+      Subscriber: {
+        type: "object",
+        description: "A mailing-list row. Status is read off the timestamps: unsubscribed > confirmed > pending.",
+        properties: {
+          id: { type: "string" },
+          email: { type: "string", format: "email", description: "Stored lowercased and trimmed." },
+          source: { type: "string", nullable: true, enum: ["footer", "shows", "subscribe", "release", null] },
+          confirmedAt: { type: "string", format: "date-time", nullable: true },
+          confirmSentAt: { type: "string", format: "date-time", nullable: true },
+          unsubscribedAt: { type: "string", format: "date-time", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+        },
+      },
       EventMedia: {
         type: "object",
         properties: {
@@ -2002,6 +2015,101 @@ export const openApiSpec: OpenAPIV3.Document = {
       delete: {
         tags: ["Events"],
         summary: "Soft delete event (moves to Trash)",
+        security: adminSecurity,
+        parameters: [IdParam],
+        responses: { "200": SuccessResponse, "401": ErrorResponse },
+      },
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // MAILING LIST
+    // ═══════════════════════════════════════════════════════
+    "/subscribers": {
+      get: {
+        tags: ["Mailing List"],
+        summary: "List subscribers (admin)",
+        description: "Never returns the confirm/unsubscribe tokens — those are bearer credentials.",
+        security: adminSecurity,
+        responses: {
+          "200": {
+            description: "Subscribers, newest first",
+            content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Subscriber" } } } },
+          },
+          "401": ErrorResponse,
+        },
+      },
+      post: {
+        tags: ["Mailing List"],
+        summary: "Sign up for the mailing list (public)",
+        description:
+          "Double opt-in: creates a pending row and emails a confirmation. Rate limited per IP (5/min) and per address by a 10-minute resend cooldown.\n\n**Answers identically** whether the address is new, already pending, already confirmed or blocked — anything else would make this an oracle for who is on the list. The only distinct 400 is a malformed address, which is the caller's own typo.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["email"],
+                properties: {
+                  email: { type: "string", format: "email", maxLength: 254 },
+                  source: {
+                    type: "string",
+                    enum: ["footer", "shows", "subscribe", "release"],
+                    description: "Which form was used. Unknown values are stored as null.",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Acknowledged (see the note above — this does not mean the address was new)",
+            content: {
+              "application/json": {
+                schema: { type: "object", properties: { ok: { type: "boolean" }, message: { type: "string" } } },
+              },
+            },
+          },
+          "400": ErrorResponse,
+          "429": { description: "Rate limited — carries a Retry-After header" },
+          "500": ErrorResponse,
+        },
+      },
+    },
+    "/subscribers/confirm": {
+      get: {
+        tags: ["Mailing List"],
+        summary: "Spend a confirmation token (public)",
+        description:
+          "The target of the link in the confirmation email. Redirects (303) to /subscribe?state=confirmed|invalid|error. A spent token reads as `invalid`, since it is cleared on use.",
+        parameters: [{ name: "token", in: "query", required: true, schema: { type: "string" } }],
+        responses: { "303": { description: "Redirect to /subscribe with the outcome" } },
+      },
+    },
+    "/subscribers/unsubscribe": {
+      post: {
+        tags: ["Mailing List"],
+        summary: "Unsubscribe by token (public)",
+        description:
+          "POST rather than GET on purpose: mail scanners and link checkers follow GET links in email, which would unsubscribe people who never clicked. Idempotent, and the token is never rotated — an unsubscribe link in an old email has to keep working.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { type: "object", required: ["token"], properties: { token: { type: "string" } } },
+            },
+          },
+        },
+        responses: { "200": SuccessResponse, "400": ErrorResponse, "404": ErrorResponse },
+      },
+    },
+    "/subscribers/{id}": {
+      delete: {
+        tags: ["Mailing List"],
+        summary: "Delete a subscriber outright (admin)",
+        description:
+          "A real delete, not the `deletedAt` soft delete — the row is somebody's email address, and a Trash that kept it for thirty days would defeat the point. Unsubscribing is the reversible option.",
         security: adminSecurity,
         parameters: [IdParam],
         responses: { "200": SuccessResponse, "401": ErrorResponse },
@@ -4379,6 +4487,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Videos", description: "YouTube videos on the Videos page — music videos, live, behind the scenes" },
     { name: "Vinyls", description: "Records for the Digital Museum's Vinyl Room — a release plus the audio the turntable plays" },
     { name: "Band Members", description: "Who's in the band — the About page's members grid" },
+    { name: "Mailing List", description: "Double-opt-in subscribers — public signup, confirm and unsubscribe, plus the admin list" },
     { name: "Checkout", description: "PayMongo checkout session and webhook" },
     { name: "Announcements", description: "Timed site announcements" },
     { name: "Marquees", description: "Scrolling marquee announcements" },

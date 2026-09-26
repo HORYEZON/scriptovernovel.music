@@ -9,6 +9,7 @@ import OrderConfirmationEmail from "@/emails/OrderConfirmation";
 import NewOrderAlertEmail from "@/emails/NewOrderAlert";
 import VisitorMilestoneClaimedEmail from "@/emails/VisitorMilestoneClaimed";
 import MuseumAchievementClaimedEmail from "@/emails/MuseumAchievementClaimed";
+import SubscribeConfirmEmail from "@/emails/SubscribeConfirm";
 import type { MuseumAchievementCategory } from "@/types";
 import { getSiteLogoUrl } from "@/lib/site-logo";
 
@@ -246,5 +247,42 @@ export async function sendMuseumAchievementClaimedEmail(
     subject: `Museum achievement unlocked 🏛️`,
     text,
     html,
+  });
+}
+
+/**
+ * The mailing list's confirmation email — the only mail the list ever sends.
+ *
+ * Throws on a transport failure rather than swallowing it, unlike the optional
+ * notifications above: the visitor is waiting on this one, and a signup whose
+ * confirmation never arrived is a dead end they can't see. The subscribe route
+ * catches it and says so.
+ */
+export async function sendSubscribeConfirmEmail(to: string, confirmUrl: string, unsubscribeUrl: string) {
+  const from = process.env.GMAIL_USER;
+  const profile = await prisma.profile.findFirst().catch(() => null);
+  const element = SubscribeConfirmEmail({
+    confirmUrl,
+    unsubscribeUrl,
+    logoUrl: await getSiteLogoUrl(profile?.logoImage),
+    siteUrl: SITE_URL,
+  });
+
+  const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
+
+  await transporter.sendMail({
+    from: `"ScriptOverNovel Music" <${from}>`,
+    to,
+    subject: "Confirm your ScriptOverNovel subscription",
+    text,
+    html,
+    headers: {
+      // RFC 8058 / RFC 2369: lets Gmail and Apple Mail show their own
+      // "Unsubscribe" control beside the sender, which is both a courtesy and
+      // a deliverability signal. One-Click is deliberately *not* advertised —
+      // that requires a POST endpoint, and this link goes to a page with a
+      // button rather than unsubscribing on GET.
+      "List-Unsubscribe": `<${unsubscribeUrl}>`,
+    },
   });
 }

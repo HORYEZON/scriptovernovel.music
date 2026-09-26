@@ -20,9 +20,10 @@ A practical, click-by-click walkthrough of every module in the Admin Dashboard, 
 10. [Museum Pieces (Digital Museum)](#10-museum-pieces-digital-museum)
 11. [Vinyl Room (Digital Museum)](#11-vinyl-room-digital-museum)
 12. [Homepage](#12-homepage)
-13. [Picking dates anywhere in the admin](#13-picking-dates-anywhere-in-the-admin)
-14. [Glossary — Confusing Terms Explained](#14-glossary--confusing-terms-explained)
-15. [Quick Troubleshooting](#15-quick-troubleshooting)
+13. [Mailing list](#13-mailing-list)
+14. [Picking dates anywhere in the admin](#14-picking-dates-anywhere-in-the-admin)
+15. [Glossary — Confusing Terms Explained](#15-glossary--confusing-terms-explained)
+16. [Quick Troubleshooting](#16-quick-troubleshooting)
 
 _(Add one numbered entry per module as it ships — sub-sections go in parentheses after the link, e.g. `(incl. [Sales Dashboard](#71-sales-dashboard))`.)_
 
@@ -404,7 +405,46 @@ moment the first time; after that, switching is instant.
 
 ---
 
-## 13. Picking dates anywhere in the admin
+## 13. Mailing list
+
+**What this is for:** the one way to reach people who like the band that doesn't go through somebody else's feed. Nothing about it is automatic — you export the list and send from your own mail tool.
+
+### 13.1 Where people sign up
+
+- **The footer of every page** — one field, under Connect.
+- **`/subscribe`** — a page of its own. This is the link to put in your Instagram or Facebook bio.
+- **The Shows page**, but only when you have no dates booked. Someone who came looking for a gig and found none is the person most likely to want telling.
+
+### 13.2 Confirmed vs. unconfirmed
+
+Signing up does **not** put someone on the list. They get one email with a **Confirm subscription** button, and only once they tap it do they count. Until then they sit in **Waiting to confirm**.
+
+This is on purpose and it is not optional: without it, anyone could type in your friend's address — or a hundred strangers' addresses — and you'd be mailing people who never asked. It also means an address that can't receive mail never reaches your list.
+
+So: **Confirmed is your list. Everything else is not.**
+
+### 13.3 Sending to the list
+
+Sidebar → **Mailing List**:
+
+1. Click the **On the list** tile (or set the filter to **Confirmed**) so you're looking only at confirmed addresses.
+2. **Export N shown** → downloads a CSV.
+3. Open that CSV in your mail tool (Mailchimp, Buttondown, Brevo — whichever you use) and send from there.
+
+> ⚠️ The export gives you whatever rows are on screen, and the file always has a **Status** column. If you export with the filter on **All statuses**, unconfirmed and unsubscribed addresses are in that file — **do not send to those**. Filter to Confirmed first.
+
+The site itself never sends a newsletter. The only email it sends is the confirmation above.
+
+### 13.4 Removing someone
+
+- **The unsubscribe link** in their email is the normal way, and it keeps working forever — including from an email you sent two years ago. When someone uses it they move to **Left**, and the record stays so they can't be accidentally re-added by a later import.
+- **The 🗑 button** deletes the row outright. There is no Trash for this and it can't be undone — it's for a "delete my data" request or a junk signup. If they only want the emails to stop, the unsubscribe is the better answer.
+
+There is no "add subscriber" button, and that's deliberate — see 13.2.
+
+---
+
+## 14. Picking dates anywhere in the admin
 
 **What this is for:** every date field in the admin — Releases, Events, About, Announcements, Marquee Banners, Release Notes — is the same control, and it's the same calendar that sits behind the sidebar clock.
 
@@ -423,7 +463,7 @@ moment the first time; after that, switching is instant.
 
 ---
 
-## 14. Glossary — Confusing Terms Explained
+## 15. Glossary — Confusing Terms Explained
 
 | Term | Meaning |
 | --- | --- |
@@ -433,7 +473,7 @@ moment the first time; after that, switching is instant.
 
 ---
 
-## 15. Quick Troubleshooting
+## 16. Quick Troubleshooting
 
 | Symptom | First thing to check |
 | --- | --- |

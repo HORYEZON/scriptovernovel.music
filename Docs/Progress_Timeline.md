@@ -810,3 +810,79 @@ not a release of its own.
 - `tsc`, `next lint` and `yarn build` all clean. Verified against live data:
   `/music/paralysismo` 200, the same release by id 200, an unknown slug 404,
   both JSON-LD blocks parsed, and the sitemap carries the release
+
+---
+
+## September 26, 2026 — v0.20 (A mailing list)
+
+### Public Side
+
+- **Signup in the footer of every page**, on its own page at **`/subscribe`**,
+  and on **`/shows`** whenever no dates are booked — the one place a visitor
+  arrives wanting a gig and finds none, which makes it the one place the list
+  is an answer rather than an interruption
+- **Double opt-in.** Signing up sends one email with a Confirm button; until
+  that's tapped the address is not on the list and nothing else is ever sent
+  to it. An address typed in by somebody else therefore never joins
+- **Unsubscribe is a button, not a link.** The link in the email opens a page
+  showing the address with an Unsubscribe button. Mail scanners, link checkers
+  and corporate proxies follow every URL in an email, so an unsubscribe that
+  happened on arrival would quietly remove people who never clicked
+- Unsubscribe links **never expire** — one in a two-year-old email still
+  works, and re-clicking it says so rather than erroring
+- Re-subscribing after leaving asks for confirmation again: nobody is put back
+  on a list they left without proving it was them
+- **Shows joined the footer's Navigate list**, which it had been missing since
+  the page shipped
+
+### Admin Side
+
+- **Mailing List** (`/admin/subscribers`, under Band) — counts for on-the-list
+  / waiting-to-confirm / left, search by address, a status filter, and **CSV
+  export of whatever is on screen**
+- The export always carries a **Status** column, so a file that happens to
+  include unconfirmed or unsubscribed addresses says so instead of looking
+  like a clean mailing list. A warning shows above the table whenever the
+  current view is mixed
+- **No "add subscriber" button**, deliberately: an address that didn't confirm
+  for itself has no business on the list
+- 🗑 is a **real delete, not Trash** — the row is somebody's email address, and
+  a thirty-day recycle bin is the opposite of what a "delete my data" request
+  means. Unsubscribing is the reversible option and keeps the record, so the
+  address can't be re-added by a later import
+
+### Infra
+
+- `Subscriber` model + migration `20260926140000_subscribers` (new table only).
+  Status is read off three timestamps rather than stored as a column, with
+  unsubscribed beating confirmed — there is no state the dates can't express,
+  and a status column would be a second source of truth
+- `lib/subscribers.ts` (client-safe: normalise/validate, sources, status,
+  cooldown) + `lib/subscribers-server.ts` (token minting, `recordSignup`,
+  `confirmSubscriber`, `unsubscribeByToken`). Every one of them is safe to call
+  twice — a double-submit, an email prefetch and a link scanner are all normal
+- Tokens are 192 bits from the CSPRNG. `confirmToken` is single-use and
+  cleared on spend (so a spent link reads as "already used", which is why the
+  confirmed page's wording works either way); `unsubscribeToken` is permanent
+- **POST /api/subscribers answers identically** for new / pending / already
+  confirmed / blocked addresses. Anything else makes the endpoint an oracle for
+  who is on the list. The only distinct error is a malformed address, which is
+  the visitor's own typo. Rate limited 5/min per IP, plus a 10-minute
+  per-address resend cooldown so it can't be used to mail-bomb an inbox
+- Blocked senders (Settings → Blocked Emails) get the ordinary
+  acknowledgement and no row — the same rule the contact form follows
+- `emails/SubscribeConfirm.tsx`, carrying the unsubscribe link *and* a
+  `List-Unsubscribe` header (RFC 2369, not One-Click — that needs a POST
+  endpoint). It's the only mail the list ever sends
+- Neither token is in `SUBSCRIBER_SELECT`, so neither reaches the browser
+- `revalidateSubscriberPaths()` is called by the routes rather than from inside
+  the transition functions — `revalidatePath` throws outside a request context,
+  which made the state machine untestable from a script. Found by writing that
+  test
+- `tsc`, `next lint` and `yarn build` all clean. The full state machine was
+  exercised against the live DB (first signup, resend inside the cooldown, bad
+  token, real token, spent token, signup while confirmed, bad/real/repeat
+  unsubscribe, token still resolving afterwards, re-subscribe after leaving)
+  and the test rows deleted. HTTP checks: malformed email 400, bad confirm
+  token 303 → `?state=invalid`, bad unsubscribe token 404, admin list 401
+  unauthenticated, all four public pages 200

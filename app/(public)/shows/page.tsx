@@ -9,6 +9,7 @@
 // an event. About now carries the next few and links here; the full history,
 // the ticket links and the MusicEvent structured data live on this page.
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getProfile } from "@/lib/public-data";
 import { getPublicShows, groupShowsByYear, splitShows } from "@/lib/shows-server";
 import { isValidTicketUrl, showVenueLine } from "@/lib/shows";
@@ -21,6 +22,7 @@ import { CtaButton } from "@/components/public/system/CtaButton";
 import { Reveal } from "@/components/public/system/Reveal";
 import { EventsMap } from "@/components/public/EventsMap";
 import { ShowRow } from "@/components/public/ShowRow";
+import { SubscribeForm } from "@/components/public/SubscribeForm";
 
 export const dynamic = "force-dynamic";
 
@@ -129,7 +131,7 @@ export default async function ShowsPage() {
               description={
                 upcoming.length > 0
                   ? `${upcoming.length} date${upcoming.length === 1 ? "" : "s"} ahead`
-                  : "We're between dates. If you're putting on a show, the contact page reaches us."
+                  : "We're between dates. Leave your address and you'll know the moment one goes up."
               }
             />
             {upcoming.length > 0 ? (
@@ -139,9 +141,19 @@ export default async function ShowsPage() {
                 ))}
               </ul>
             ) : (
-              <CtaButton href="/contact" variant="ghost">
-                Get in touch
-              </CtaButton>
+              // The one place on the site where a visitor has arrived wanting
+              // a date and there isn't one — so it's the one place the mailing
+              // list is genuinely the answer rather than an interruption.
+              <div className="max-w-md">
+                <SubscribeForm source="shows" />
+                <p className="mt-5 font-body text-xs text-cream/50">
+                  Putting on a show?{" "}
+                  <Link href="/contact" className="text-sepia-light underline decoration-sepia/40 hover:text-cream">
+                    Get in touch
+                  </Link>
+                  .
+                </p>
+              </div>
             )}
           </GlassPanel>
         </Reveal>
