@@ -4,6 +4,7 @@ import { SocialLinkItem } from "@/components/public/SocialLinkItem";
 import { Wordmark } from "@/components/public/system/Wordmark";
 import type { SiteDesignSettings } from "@/lib/site-design";
 import { FooterVisitorCount } from "@/components/public/FooterVisitorCount";
+import { SubscribeForm } from "@/components/public/SubscribeForm";
 
 export type FooterSocialLink = {
   label: string;
@@ -67,6 +68,7 @@ export function Footer({
             <div className="flex flex-col gap-2">
               {[
                 { href: "/music", label: "Music" },
+                { href: "/shows", label: "Shows" },
                 { href: "/shop", label: "Store" },
                 { href: "/videos", label: "Videos" },
                 { href: "/about", label: "About" },
@@ -109,6 +111,16 @@ export function Footer({
                 scriptovernovel.music@gmail.com
               </a>
               <span className="font-body text-sm text-ink-300">NCR, Philippines</span>
+            </div>
+
+            {/* The mailing list sits in the footer because it's the one thing
+                here that reaches a fan without going through somebody else's
+                feed — and the footer is on every page. */}
+            <div className="mt-8 border-t border-ink-800 pt-6">
+              <p className="font-body text-xs tracking-widest uppercase text-ink-300 mb-3">
+                Mailing list
+              </p>
+              <SubscribeForm source="footer" variant="stacked" />
             </div>
           </div>
         </div>

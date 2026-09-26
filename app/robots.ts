@@ -21,6 +21,10 @@ export default function robots(): MetadataRoute.Robots {
         "/cart",
         "/checkout",
         "/wishlist",
+        // Only ever reached from a link in someone's inbox, and carries a
+        // token in the query string. /subscribe itself stays crawlable — it's
+        // a real page anyone can sign up on.
+        "/subscribe/unsubscribe",
       ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,

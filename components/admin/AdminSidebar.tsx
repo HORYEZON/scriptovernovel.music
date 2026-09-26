@@ -34,6 +34,7 @@ import {
   Disc3,
   Clapperboard,
   Users,
+  Mail,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -132,6 +133,9 @@ const NAV: NavEntry[] = [
       { href: "/admin/about", label: "About", icon: User },
       { href: "/admin/band-members", label: "Band Members", icon: Users },
       { href: "/admin/events", label: "Shows / Events", icon: MapPin },
+      // The mailing list lives with the band rather than under Settings: it is
+      // an audience, not a preference.
+      { href: "/admin/subscribers", label: "Mailing List", icon: Mail },
     ],
   },
   // Site Design (header / menu overlay / homepage hero) used to sit here as
