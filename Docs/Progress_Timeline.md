@@ -630,3 +630,58 @@ not a release of its own.
 - Verified headless on a throwaway page rendering the real `SiteDesignClient`
   embedded: no duplicate tab bar, the preview switch flips `aria-pressed` and
   repaints the bar dark, no page errors
+
+---
+
+## September 26, 2026 — v0.17 (Theme switch shares one pill; museum mobile fixes)
+
+### Public Side
+
+- **The release-notes bell (✨) stays cream in light mode.** It carried its
+  own near-black colour instead of inheriting the header's, so over the
+  homepage hero it went almost invisible while every icon beside it stayed
+  light. It now inherits like the rest of the row, and fades on hover rather
+  than turning sepia
+- **Homepage hero no longer says the band's name twice.** The fallback hero
+  (shown until the first release is published) used the header wordmark as its
+  title, directly under the same wordmark in the bar. It leads with the
+  Profile **headline** now, with the first line of the **bio** underneath —
+  fill both in under Profile. Once a release is published this hero is
+  replaced by the release one anyway
+- **Menu destinations corrected** — Music pointed at the homepage, Store at a
+  page that no longer exists (404), and Videos at the Store. Data fix on the
+  live menu rows, no deploy involved
+
+### Digital Museum
+
+- **The "Holding" card no longer sits on the joystick.** On a phone it was
+  pinned bottom-right, straight over TouchControls in both portrait and
+  landscape. On touch it moves to the top-right, under the toolbar; desktop
+  keeps it bottom-right where nothing competes with it
+- **Screenshot watermark is bottom-right everywhere.** It was centred on
+  phones, which signed the middle of a portrait capture instead of its corner
+- **A sleeve whose record you're carrying keeps showing its album art.** The
+  cover settled ~52° open, far enough that walking up to it showed the cover's
+  edge and the empty inner card — the art looked gone. It rests at ~18° now:
+  clearly lifted off the sleeve, still square to the room
+
+### Admin Side
+
+- **The Header preview's light/dark switch is the real one.** The preview
+  carried its own copy of the pill's markup, and that copy had drifted: its
+  thumb wrapper never set the gold, so the record's grooves and label —
+  drawn in `currentColor` — came out zinc, and the disc's `dark:` fill
+  followed the *admin's* theme rather than the preview's
+
+### Infra
+
+- `components/ui/ThemeSwitch.tsx` — the pill, drawn purely from a `dark`
+  prop, no `dark:` variants. `ThemeToggle` is now a thin wrapper owning the
+  real theme (the `<html>` class + localStorage), and the Header preview
+  wraps the same component with its preview-only flag. Ported from
+  kalamari.arts' `ThemeSwitch`, which split it this way for exactly this
+  reason. `VinylThumb` moves there and takes `dark` as a prop; it is still
+  re-exported from `ThemeToggle.tsx` for existing importers
+- `ScreenshotCapture`'s `isCoarsePointer` prop removed — the watermark no
+  longer branches on it
+- No migration. `tsc`, `next lint` and `yarn build` all clean

@@ -169,11 +169,17 @@ export function ReleaseNotes({ initialNotes }: { initialNotes: PublicReleaseNote
 
   return (
     <div ref={wrapRef} className="relative">
+      {/* No colour of its own: the bell inherits the header's `--header-text`
+          like every other icon up there (SiteHeader's `iconBtn`) — cream over
+          the photo hero, the admin's header colour once the bar frosts. A
+          `text-ink` here beat that inherited colour and turned the icon
+          near-black over the hero in light mode. Hover fades for the same
+          reason: it matches its neighbours rather than going sepia. */}
       <button
         ref={btnRef}
         type="button"
         onClick={togglePanel}
-        className="relative p-2 text-ink dark:text-cream hover:text-sepia transition-colors"
+        className="relative p-2 transition-opacity hover:opacity-60"
         aria-label="Release notes — what's new"
         aria-expanded={open}
         aria-haspopup="dialog"

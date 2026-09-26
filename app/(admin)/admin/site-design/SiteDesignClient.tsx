@@ -15,7 +15,7 @@
 // Header, Menu and Hero keeps one staged form and one Save.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
-import { Moon, Play, Repeat, RotateCcw, Save, Search, Square, Sun } from "lucide-react";
+import { Play, Repeat, RotateCcw, Save, Search, Square } from "lucide-react";
 import toast from "@/lib/toast";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { UnsavedChangesBar } from "@/components/admin/UnsavedChangesBar";
@@ -24,7 +24,7 @@ import { MenuPanel, type MenuSocialLink } from "@/components/public/site-design/
 import { MenuOpenTransition, useSheetLanded } from "@/components/public/site-design/MenuOpenTransition";
 import { HomeHero } from "@/components/public/site-design/HomeHero";
 import { SafeImg } from "@/components/ui/SafeImage";
-import { VinylThumb } from "@/components/ui/ThemeToggle";
+import { ThemeSwitch } from "@/components/ui/ThemeSwitch";
 import { isValidThemeColor, isValidThemeLength } from "@/lib/theme";
 import { withAlpha } from "@/lib/museum/minimapHud";
 import {
@@ -129,44 +129,15 @@ function HeaderPreview({
           </svg>
           {settings.headerMenuLabel}
         </span>
-        {/* The real ThemeToggle's look (pill, sun/moon, the rolling record
-            thumb — shared via VinylThumb so the two can't drift), wired to
-            the preview's own light/dark instead of the admin's theme. */}
-        <button
-          type="button"
-          onClick={onToggleDark}
-          aria-pressed={dark}
-          aria-label={dark ? "Preview the header in light mode" : "Preview the header in dark mode"}
-          className={cn(
-            "group relative h-9 w-[72px] cursor-pointer rounded-full border backdrop-blur-md transition-all duration-300 ease-out",
-            "hover:border-[#E5AD06]/50 focus:outline-none focus:ring-2 focus:ring-[#E5AD06]/40",
-            dark
-              ? "border-white/10 bg-zinc-900/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
-              : "border-black/10 bg-zinc-200/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
-          )}
-        >
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-between px-2.5">
-            <Sun
-              size={14}
-              strokeWidth={2}
-              className={cn("transition-all duration-300", dark ? "scale-75 text-zinc-600 opacity-40" : "scale-100 text-[#E5AD06] opacity-100")}
-            />
-            <Moon
-              size={14}
-              strokeWidth={2}
-              className={cn("transition-all duration-300", dark ? "scale-100 text-[#E5AD06] opacity-100" : "-rotate-12 scale-75 text-zinc-400 opacity-40")}
-            />
-          </span>
-          <span
-            className={cn(
-              "absolute left-1 top-1 block h-7 w-7 rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.35)]",
-              "transition-transform duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:duration-150",
-              dark ? "translate-x-[36px] rotate-180" : "translate-x-0 rotate-0"
-            )}
-          >
-            <VinylThumb className="h-full w-full" />
-          </span>
-        </button>
+        {/* The real pill, wired to the preview's own light/dark instead of
+            the admin's theme. Shared rather than re-drawn here: the copy this
+            replaced had drifted — its thumb wrapper never set the gold, so
+            VinylThumb's currentColor grooves and label came out zinc. */}
+        <ThemeSwitch
+          dark={dark}
+          onToggle={onToggleDark}
+          label={dark ? "Preview the header in light mode" : "Preview the header in dark mode"}
+        />
       </div>
     </div>
   );
